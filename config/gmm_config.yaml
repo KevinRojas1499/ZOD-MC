@@ -1,0 +1,20 @@
+
+mode: train
+
+# Training
+train_iters: 1000
+batch_size: 512
+
+# CNF ODE Solver
+atol: 1e-5
+rtol: 1e-5
+
+# Optimizer
+optimizer: Adam
+lr: 1e-3
+
+# Problem Specifics
+density: gmm
+coeffs: [.5, .5]
+means: [-5, 5]
+variances: [1, 1]
