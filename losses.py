@@ -24,7 +24,7 @@ def main_loss_fn(config, p0):
         perturbed_samples = mean + std * rand
         score = model(t,(perturbed_samples,0))
         # score = model(t,perturbed_samples)
-        loss = torch.mean((std * score[0] + rand)/std)
+        loss = torch.mean(((std * score[0] + rand)/std)**2)
 
         return loss
         

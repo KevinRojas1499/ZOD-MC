@@ -53,7 +53,7 @@ def train(config):
         # Save checkpoint
         if itr%config.snapshot_freq == 0:
             filename="ckpt_{}".format(itr)
-            torch.save(model, config.ckpt_dir+filename)
+            torch.save(model, config.ckpt_dir+filename+".pt")
             z_0, _ = cnf_sampler(model)
             utils.plots.histogram(z_0.detach().numpy(),config.samples_dir + filename)
 
@@ -65,3 +65,18 @@ def train(config):
 
 
     print("--- Training has finished ---")
+
+
+def eval(config):
+    # Create files
+    os.makedirs(config.samples_dir)
+
+    # Load Model
+    model = torch.load(config.ckpt_path)
+
+    # CNF Sampler
+    cnf_sampler = utils.samplers.get_cnf_sampler(config)
+
+    filename="generated_samples"
+    z_0, _ = cnf_sampler(model)
+    utils.plots.histogram(z_0.detach().numpy(),config.samples_dir + filename)

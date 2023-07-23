@@ -1,0 +1,1 @@
+python3 main.py --config config/gmm_train_config.yaml

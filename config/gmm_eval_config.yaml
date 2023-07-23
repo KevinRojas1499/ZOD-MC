@@ -1,0 +1,11 @@
+mode: sample
+
+# Files
+ckpt_path: checkpoints/full/ckpt_1000.pt
+samples_dir: samples/results2/
+batch_size: 10000
+# CNF ODE Solver
+atol: 1e-5
+rtol: 1e-5
+t1: 10
+density: gmm
