@@ -23,7 +23,6 @@ def main_loss_fn(config, p0):
         rand = torch.randn_like(samples)
         perturbed_samples = mean + std * rand
         score = model(t,(perturbed_samples,0))
-        # score = model(t,perturbed_samples)
         loss = torch.mean(((std * score[0] + rand)/std)**2)
 
         return loss
@@ -31,5 +30,5 @@ def main_loss_fn(config, p0):
     def loss_fn(model):
         loss_cnf, samples = cnf_loss_fn(model)
         loss_sm = score_matching(model, samples)
-        return loss_cnf + loss_sm
+        return (loss_cnf , loss_sm)
     return loss_fn

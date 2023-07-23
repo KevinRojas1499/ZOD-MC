@@ -10,6 +10,8 @@ def parse_arguments():
     p.add_argument('--work_dir')
     p.add_argument('--ckpt_dir')
     p.add_argument('--samples_dir')    
+
+    p.add_argument('--num_eval_samples',type=int)
     
     # Checkpoint path
     p.add_argument('--ckpt_path',required=False)
@@ -41,18 +43,13 @@ def parse_arguments():
 
     return p.parse_args()
 def main(config):
-    print("")
-    if config.density == 'gmm':
-        if config.mode == 'train':
-            run_toy.train(config)
-        elif config.mode == 'sample':
-            run_toy.eval(config)
-        else:
-            print("Mode doesn't exist")
+    if config.mode == 'train':
+        run_toy.train(config)
+    elif config.mode == 'sample':
+        run_toy.eval(config)
     else:
-        print("Dataset not implemented yet")
-            
-    
+        print("Mode doesn't exist")
+
 
 
 if __name__ == '__main__':

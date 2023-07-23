@@ -76,7 +76,7 @@ class HyperNetwork(nn.Module):
         params = self.fc3(params)
         # restructure
         W,U,G,B = torch.chunk(params,4,dim=-1)
-        U = U*G
+        U = U*torch.sigmoid(G)
         W = W.unsqueeze(-1).unsqueeze(-1)
         U = U.unsqueeze(-1).unsqueeze(-1)
         B = B.unsqueeze(-1).unsqueeze(-1)

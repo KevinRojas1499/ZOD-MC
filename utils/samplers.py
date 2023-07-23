@@ -2,13 +2,15 @@ import torch
 from torchdiffeq import odeint_adjoint as odeint
 
 def get_cnf_sampler(config):
-    def cnf_sampler(model):
+    def cnf_sampler(model,num_samples=None):
         t0 = 0
         t1 = config.t1
         device = torch.device('cuda:0'if torch.cuda.is_available() else 'cpu')
-
-        x  = torch.randn((config.batch_size,1),device=device)
-        logp_diff_t1 = torch.zeros((config.batch_size,1)).to(device=device) 
+        nsamples = config.batch_size
+        if num_samples != None:
+            nsamples = num_samples
+        x  = torch.randn((nsamples,1),device=device)
+        logp_diff_t1 = torch.zeros((nsamples,1)).to(device=device) 
         z_t, logp_diff_t = odeint(
             model,
             (x, logp_diff_t1),
