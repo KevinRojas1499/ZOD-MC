@@ -8,11 +8,11 @@ def get_cnf_sampler(config):
         device = torch.device('cuda:0'if torch.cuda.is_available() else 'cpu')
 
         x  = torch.randn((config.batch_size,1),device=device)
-        logp_diff_t1 = torch.zeros_like(x,device=device) # torch.zeros((config.batch_size,1)).to(device=device) 
+        logp_diff_t1 = torch.zeros((config.batch_size,1)).to(device=device) 
         z_t, logp_diff_t = odeint(
             model,
             (x, logp_diff_t1),
-            torch.tensor([t0,t1]).type(torch.float32).to(device),
+            torch.tensor([t1,t0]).type(torch.float32).to(device),
             atol=config.atol,
             rtol=config.rtol,
             method='dopri5',

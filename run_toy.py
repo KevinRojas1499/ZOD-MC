@@ -1,15 +1,16 @@
 import torch
-from torch.distributions.multivariate_normal import MultivariateNormal
 from torch.distributions import Normal
 import models.utils as mutils
 import utils.optim_tools as optim_tools
 from tqdm import tqdm
 import losses
-from torchdiffeq import odeint_adjoint as odeint
 import utils.plots
 import utils.checkpoints
 import utils.samplers
 import os
+
+import torch
+from torch.utils.tensorboard import SummaryWriter
 
 
 def get_logdensity_fnc(c,means,variances):
@@ -28,8 +29,13 @@ def get_logdensity_fnc(c,means,variances):
 
 def train(config):
     # Create files
-    os.makedirs(config.ckpt_dir)
-    os.makedirs(config.samples_dir)
+    log_dir = config.work_dir + "logs/"
+    ckpt_path = config.work_dir + config.ckpt_dir
+    samples_path = config.work_dir + config.samples_dir
+    os.makedirs(ckpt_path)
+    os.makedirs(samples_path)
+    # Tensorboard logger
+    writer = SummaryWriter(log_dir=log_dir)
 
     # Create Model
     model = mutils.create_model(config)
@@ -50,17 +56,23 @@ def train(config):
         loss.backward()
         optimizer.step()
 
+        # Log to tensorboard
+        writer.add_scalar("CNF Loss", loss, itr)
+
+
         # Save checkpoint
         if itr%config.snapshot_freq == 0:
             filename="ckpt_{}".format(itr)
-            torch.save(model, config.ckpt_dir+filename+".pt")
+            torch.save(model, ckpt_path+filename+".pt")
             z_0, _ = cnf_sampler(model)
-            utils.plots.histogram(z_0.detach().numpy(),config.samples_dir + filename)
+            utils.plots.histogram(z_0.detach().numpy(),samples_path + filename)
 
         # Update bar
         t.set_description('Iter: {}, loss: {:.4f}'.format(itr, loss.item()))
         t.refresh()
 
+    writer.flush()
+    writer.close()
         
 
 

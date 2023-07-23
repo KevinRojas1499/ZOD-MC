@@ -1,8 +1,9 @@
 mode: train
 
 # Files
-ckpt_dir: checkpoints/three/
-samples_dir: samples/three/
+work_dir: training-runs/uneven-separated/
+ckpt_dir: checkpoints/
+samples_dir: samples/
 
 # Training
 train_iters: 1000
@@ -20,6 +21,6 @@ lr: 1e-3
 
 # Problem Specifics
 density: gmm
-coeffs: [.33, .33, .34]
-means: [-5, 5, 10]
-variances: [1, 1, 1]
+coeffs: [.33, .67]
+means: [-5, 10]
+variances: [1, 1]

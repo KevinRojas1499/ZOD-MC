@@ -7,6 +7,7 @@ def parse_arguments():
     p.add('-c','--config', is_config_file=True)
 
     # Files
+    p.add_argument('--work_dir')
     p.add_argument('--ckpt_dir')
     p.add_argument('--samples_dir')    
     
