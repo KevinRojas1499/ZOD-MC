@@ -35,7 +35,6 @@ class SDE():
         t = time_pts[i]
         dt = time_pts[i + 1] - t
         score = score_function(x_t,t)
-        # print(x_t[0],score[0])
         tot_drift = self.f(x_t) - self.g(t)**2 * score
         tot_diffusion = self.g(t)
         # euler-maruyama step

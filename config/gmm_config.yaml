@@ -1,13 +1,19 @@
 
 mode: train
 
+# Files
+ckpt_dir: checkpoints/full/
+samples_dir: samples/full/
+
 # Training
 train_iters: 1000
 batch_size: 512
+snapshot_freq: 250
 
 # CNF ODE Solver
 atol: 1e-5
 rtol: 1e-5
+t1: 10
 
 # Optimizer
 optimizer: Adam

@@ -6,6 +6,11 @@ def parse_arguments():
 
     p.add('-c','--config', is_config_file=True)
 
+    # Files
+    p.add_argument('--ckpt_dir')
+    p.add_argument('--samples_dir')
+
+
     # Mode
     p.add_argument('--mode', choices=['train','sample'])
 
@@ -16,10 +21,12 @@ def parse_arguments():
     # Training
     p.add_argument('--train_iters',type=int)
     p.add_argument('--batch_size',type=int)
+    p.add_argument('--snapshot_freq',type=int)
 
     #Ode Solver
     p.add_argument('--atol',type=float)
     p.add_argument('--rtol',type=float)
+    p.add_argument('--t1',type=int)
 
 
     # Problem Specifics

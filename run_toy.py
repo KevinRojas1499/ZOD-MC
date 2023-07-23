@@ -7,6 +7,10 @@ from tqdm import tqdm
 import losses
 from torchdiffeq import odeint_adjoint as odeint
 import utils.plots
+import utils.checkpoints
+import utils.samplers
+import os
+
 
 def get_logdensity_fnc(c,means,variances):
     n = len(c)
@@ -23,8 +27,14 @@ def get_logdensity_fnc(c,means,variances):
     return log_density
 
 def train(config):
+    # Create files
+    os.makedirs(config.ckpt_dir)
+    os.makedirs(config.samples_dir)
+
     # Create Model
     model = mutils.create_model(config)
+    # CNF Sampler
+    cnf_sampler = utils.samplers.get_cnf_sampler(config)
     # Get optimizer
     optimizer = optim_tools.get_optimizer(config,model)
     # Target density and loss fn
@@ -33,35 +43,25 @@ def train(config):
     # Training loop
     loss = -1 
     t = tqdm(range(1, config.train_iters + 1), leave=True)
-    for itr in range(config.train_iters):
+    for itr in range(config.train_iters + 1):
         optimizer.zero_grad()
-
         loss = loss_fn(model)
 
         loss.backward()
         optimizer.step()
 
+        # Save checkpoint
+        if itr%config.snapshot_freq == 0:
+            filename="ckpt_{}".format(itr)
+            torch.save(model, config.ckpt_dir+filename)
+            z_0, _ = cnf_sampler(model)
+            utils.plots.histogram(z_0.detach().numpy(),config.samples_dir + filename)
+
+        # Update bar
         t.set_description('Iter: {}, loss: {:.4f}'.format(itr, loss.item()))
         t.refresh()
 
+        
+
+
     print("--- Training has finished ---")
-    t0 = 0
-    t1 = 10
-    device = torch.device('cuda:0'if torch.cuda.is_available() else 'cpu')
-
-    x  = torch.randn((config.batch_size,1),device=device)
-    logp_diff_t1 = torch.zeros_like(x,device=device) # torch.zeros((config.batch_size,1)).to(device=device) 
-    z_t, logp_diff_t = odeint(
-        model,
-        (x, logp_diff_t1),
-        torch.tensor([t0,t1]).type(torch.float32).to(device),
-        atol=config.atol,
-        rtol=config.rtol,
-        method='dopri5',
-    )
-
-    z_t0, logp_diff_t0 = z_t[-1], logp_diff_t[-1]
-
-    z_t = z_t.cpu().detach().numpy()[-1]
-
-    utils.plots.histogram(z_t)

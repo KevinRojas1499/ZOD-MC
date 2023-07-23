@@ -70,7 +70,6 @@ class HyperNetwork(nn.Module):
         # predict params
         if len(t.shape) == 0:
             t = t.unsqueeze(-1)
-        # print(t.shape)
         params = t
         params = torch.tanh(self.fc1(params))
         params = torch.tanh(self.fc2(params))
@@ -82,15 +81,4 @@ class HyperNetwork(nn.Module):
         U = U.unsqueeze(-1).unsqueeze(-1)
         B = B.unsqueeze(-1).unsqueeze(-1)
 
-        # print(W.shape, U.shape, G.shape, B.shape)
-
-        # W = params[:self.blocksize].reshape(self.width, self.in_out_dim, 1)
-
-        # U = params[self.blocksize:2 * self.blocksize].reshape(self.width, 1, self.in_out_dim)
-
-        # G = params[2 * self.blocksize:3 * self.blocksize].reshape(self.width, 1, self.in_out_dim)
-        # U = U * torch.sigmoid(G)
-
-        # B = params[3 * self.blocksize:].reshape(self.width, 1, 1)
-        
         return [W, B, U]
