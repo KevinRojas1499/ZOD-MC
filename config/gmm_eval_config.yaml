@@ -1,11 +1,29 @@
 mode: sample
-
+score_method: convolution
+convolution_integrator: trap
+integration_range: 15
 # Files
-ckpt_path: checkpoints/full/ckpt_1000.pt
-samples_dir: samples/results2/
-batch_size: 10000
+work_dir: training-runs/gmm-two/
+ckpt_path: checkpoints/ckpt_1000.pt
+samples_dir: generated_samples/
+
+# SDE Parameters
+sigma : 4
+
+# Sampling parameters
+sampling_method: em
+num_samples: 10000
+sampling_eps: 1e-3
+disc_steps: 100
+
 # CNF ODE Solver
 atol: 1e-5
 rtol: 1e-5
 t1: 10
 density: gmm
+
+# Problem Specifics
+density: double-well
+coeffs: [.5, .5]
+means: [-5, 5]
+variances: [1, 1]

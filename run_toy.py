@@ -1,17 +1,17 @@
 import torch
+from tqdm import tqdm
+import os
+from torch.utils.tensorboard import SummaryWriter
+
+import losses
 import models.utils as mutils
 import utils.optim_tools as optim_tools
-from tqdm import tqdm
-import losses
 import utils.plots
 import utils.checkpoints
 import utils.samplers
 import utils.densities
-import os
-
-import torch
-from torch.utils.tensorboard import SummaryWriter
-
+import utils.analytical_score
+import sde_lib
 
 
 def train(config):
@@ -71,14 +71,23 @@ def train(config):
 
 def eval(config):
     # Create files
-    os.makedirs(config.samples_dir)
+    samples_dir = config.work_dir + config.samples_dir
+    ckpt_path = config.work_dir + config.ckpt_path
+    # os.makedirs(samples_dir)
+    
+    # Get SDE:
+    sde = sde_lib.SDE(config)
 
     # Load Model
-    model = torch.load(config.ckpt_path)
-
-    # CNF Sampler
-    cnf_sampler = utils.samplers.get_cnf_sampler(config)
+    if config.score_method == 'convolution':
+        model = utils.analytical_score.get_score_function(config, sde)
+    else:
+        model = torch.load(ckpt_path)
+        device = torch.device('cuda:0'if torch.cuda.is_available() else 'cpu')
+        model.to(device)
+    # Get Sampler
+    sampler = utils.samplers.get_sampler(config,sde)
 
     filename="generated_samples"
-    z_0, _ = cnf_sampler(model)
-    utils.plots.histogram(z_0.detach().numpy(),config.samples_dir + filename)
+    z_0 = sampler(model)
+    utils.plots.histogram(z_0.unsqueeze(-1).cpu().detach().numpy(), samples_dir + filename)

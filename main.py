@@ -1,5 +1,6 @@
 import configargparse
 import run_toy
+import experiments
 
 def parse_arguments():
     p = configargparse.ArgParser(description='Arguments for nonconvex sampling')
@@ -18,8 +19,10 @@ def parse_arguments():
 
 
     # Mode
-    p.add_argument('--mode', choices=['train','sample'])
-
+    p.add_argument('--mode', choices=['train','sample','experiment'])
+    p.add_argument('--score_method', choices=['convolution','trained'])
+    p.add_argument('--convolution_integrator', choices=['trap','simpson','mc'])
+    p.add_argument('--integration_range', type=float)
     # Optimizer
     p.add_argument('--optimizer',choices=['Adam'])
     p.add_argument('--lr',type=float)
@@ -29,10 +32,19 @@ def parse_arguments():
     p.add_argument('--batch_size',type=int)
     p.add_argument('--snapshot_freq',type=int)
 
-    #Ode Solver
+    # ODE Solver
     p.add_argument('--atol',type=float)
     p.add_argument('--rtol',type=float)
     p.add_argument('--t1',type=int)
+
+    # SDE parameters
+    p.add_argument('--sigma', type=float)
+
+    # Sampling Parameters
+    p.add_argument('--sampling_method', type=str)
+    p.add_argument('--num_samples',type=int)
+    p.add_argument('--sampling_eps', type=float)
+    p.add_argument('--disc_steps',type=int)
 
 
     # Problem Specifics
@@ -47,6 +59,8 @@ def main(config):
         run_toy.train(config)
     elif config.mode == 'sample':
         run_toy.eval(config)
+    elif config.mode == 'experiment':
+        experiments.run_experiments(config)
     else:
         print("Mode doesn't exist")
 
