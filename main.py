@@ -7,6 +7,9 @@ def parse_arguments():
 
     p.add('-c','--config', is_config_file=True)
 
+    # Wandb
+    p.add_argument('--wandb_project_name', type=str)
+
     # Files
     p.add_argument('--work_dir')
     p.add_argument('--ckpt_dir')
@@ -21,8 +24,11 @@ def parse_arguments():
     # Mode
     p.add_argument('--mode', choices=['train','sample','experiment'])
     p.add_argument('--score_method', choices=['convolution','trained'])
+    p.add_argument('--dimension', type=int)
+    # Integrator details
     p.add_argument('--convolution_integrator', choices=['trap','simpson','mc'])
     p.add_argument('--integration_range', type=float)
+    
     # Optimizer
     p.add_argument('--optimizer',choices=['Adam'])
     p.add_argument('--lr',type=float)
@@ -49,9 +55,7 @@ def parse_arguments():
 
     # Problem Specifics
     p.add_argument('--density',choices=['gmm','double-well'])
-    p.add_argument('--coeffs',type=float, action='append')
-    p.add_argument('--means', type=float, action='append')
-    p.add_argument('--variances', type=float, action='append')
+    p.add_argument('--density_parameters_path',type=str)
 
     return p.parse_args()
 def main(config):

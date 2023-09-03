@@ -1,13 +1,17 @@
 from matplotlib import pyplot as plt
 import numpy as np
- 
- 
-def histogram(x, filename):
+import wandb
+import torch
+
+def histogram(x, filename, log_density=None):
     # Creating histogram
-    L = 10
-    fig, ax = plt.subplots(figsize =(10, 7))
-    ax.hist(x, bins = np.linspace(-L,L,num=100), density=True)
-    
+    L = 15
+    points =  np.linspace(-L,L,num=150)
+    points_torch = torch.tensor(points)
+    plt.hist(x, bins = points, density=True)
+    if log_density is not None:
+        plt.plot(points, np.exp(log_density(points_torch).numpy()))
+    wandb.log({'my_histogram': plt})
     # Show plot
     if filename == None:
         plt.show()

@@ -1,1 +1,1 @@
-python3 main.py --config config/gmm_eval_config.yaml
+python3 main.py --config config/2d_gmm_eval_config.yaml

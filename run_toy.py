@@ -12,7 +12,19 @@ import utils.samplers
 import utils.densities
 import utils.analytical_score
 import sde_lib
+import wandb
 
+def get_run_name(config):
+    return config.density + "_" + config.sampling_method + "_" + config.convolution_integrator
+
+def init_wandb(config):
+    wandb.init(
+    # set the wandb project where this run will be logged
+    project=config.wandb_project_name,
+    name= get_run_name(config),
+    # track hyperparameters and run metadata
+    config=config
+)
 
 def train(config):
     # Create files
@@ -70,6 +82,7 @@ def train(config):
 
 
 def eval(config):
+    init_wandb(config)
     # Create files
     samples_dir = config.work_dir + config.samples_dir
     ckpt_path = config.work_dir + config.ckpt_path
@@ -90,4 +103,4 @@ def eval(config):
 
     filename="generated_samples"
     z_0 = sampler(model)
-    utils.plots.histogram(z_0.unsqueeze(-1).cpu().detach().numpy(), samples_dir + filename)
+    utils.plots.histogram(z_0.unsqueeze(-1).cpu().detach().numpy(), samples_dir + filename, log_density= utils.densities.get_log_density_fnc(config))

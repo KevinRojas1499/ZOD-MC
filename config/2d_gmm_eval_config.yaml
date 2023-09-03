@@ -5,9 +5,9 @@ mode: sample
 score_method: convolution
 
 # Integrator details 
-convolution_integrator: simpson
+convolution_integrator: trap
 integration_range: 10
-dimension: 1
+dimension: 2
 
 # Files
 work_dir: training-runs/gmm-two/
@@ -31,4 +31,4 @@ density: gmm
 
 # Problem Specifics
 density: gmm
-density_parameters_path: config/density_parameters/1d_gmm.yaml
+density_parameters_path: config/density_parameters/2d_gmm.yaml

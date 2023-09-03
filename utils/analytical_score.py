@@ -18,17 +18,19 @@ def get_score_function(config, sde):
             p_t = S_# p0 * N(0,1-e^{-2t})
             S(x) = e^-t x 
         """
-        def get_convolution(f, g):
+        def get_convolution(f, g,limit=None):
             """
                 This returns the function f*g
             """
             integrator = get_integrator(config)
             
             def convolution(x):
+                nonlocal limit
+                l = limit if limit is not None else config.integration_range
                 def integrand(y):
                     y = y.to(device)
-                    return f(y) * g(x-y)
-                return integrator(integrand,- config.integration_range, config.integration_range)
+                    return f(x - y) * g(y)
+                return integrator(integrand,- l, l)
             
             return convolution
         
@@ -43,6 +45,9 @@ def get_score_function(config, sde):
             
             return push_forward
         
+        def get_integration_limits(t):
+            return (1-torch.exp(-2*t))**.5 * (config.integration_range**2 + t)**.5
+
         t = sde.sigma * tt
         var = 1-torch.exp(-2 * t)
         gaussian = torch.distributions.normal.Normal(0,var ** .5)
@@ -50,9 +55,9 @@ def get_score_function(config, sde):
         grad_gaussian = lambda x : -x * gaussian_density(x) / var
 
         sp0 = get_push_forward(t)
-        
-        p_t = get_convolution(sp0, gaussian_density)
-        grad_p_t = get_convolution(sp0,grad_gaussian)
+        limit = get_integration_limits(t)
+        p_t = get_convolution(sp0, gaussian_density,limit)
+        grad_p_t = get_convolution(sp0,grad_gaussian,limit)
 
         return grad_p_t(x)/p_t(x)
     

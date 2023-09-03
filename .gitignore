@@ -3,3 +3,4 @@ models/__pycache__/
 utils/__pycache__/
 *.png
 *.pt
+wandb/
