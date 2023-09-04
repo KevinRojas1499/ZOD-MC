@@ -39,7 +39,7 @@ def get_sampler(config, sde):
             return t_steps
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        x_t = torch.randn(config.num_samples,device=device)
+        x_t = torch.randn((config.num_samples,config.dimension),device=device)
 
         time_pts = get_edm_discretization(config.disc_steps, device)
 

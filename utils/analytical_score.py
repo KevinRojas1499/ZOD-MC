@@ -28,7 +28,14 @@ def get_score_function(config, sde):
                 nonlocal limit
                 l = limit if limit is not None else config.integration_range
                 def integrand(y):
+                    # The shape of y is (k,d) where k is the number of eval points
+                    # We reshape it to (k,n,d) where n is the number of points in x
+                    y = y.unsqueeze(1).repeat(1, x.shape[0], 1)
                     y = y.to(device)
+
+                    print(x.shape, y.shape)
+                    print((x-y).shape)
+                    print((f(x - y) * g(y)).shape)
                     return f(x - y) * g(y)
                 return integrator(integrand,- l, l)
             
