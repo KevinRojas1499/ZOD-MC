@@ -3,12 +3,11 @@ import torch
 from utils.integrators import get_integrator
 from numpy  import Inf
 from utils.densities import get_log_density_fnc
-def get_score_function(config, sde):
+def get_score_function(config, sde, device):
     """
         The following method returns a method that approximates the score
     """
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    logdensity = get_log_density_fnc(config)
+    logdensity = get_log_density_fnc(config, device)
     p0 = lambda x : torch.exp(logdensity(x))
 
     def score_gaussian_convolution(x, tt):
@@ -33,9 +32,6 @@ def get_score_function(config, sde):
                     y = y.unsqueeze(1).repeat(1, x.shape[0], 1)
                     y = y.to(device)
 
-                    print(x.shape, y.shape)
-                    print((x-y).shape)
-                    print((f(x - y) * g(y)).shape)
                     return f(x - y) * g(y)
                 return integrator(integrand,- l, l)
             

@@ -2,11 +2,11 @@ import torch
 from torch.distributions import Normal, MultivariateNormal
 import yaml
 
-def get_log_density_fnc(config):
+def get_log_density_fnc(config, device):
     params = yaml.safe_load(open(config.density_parameters_path))
     def gmm_logdensity_fnc(c,means,variances):
         n = len(c)
-        means, variances = torch.tensor(means,dtype=torch.float64), torch.tensor(variances,dtype=torch.float64)
+        means, variances = torch.tensor(means,device=device, dtype=torch.float64), torch.tensor(variances,device=device, dtype=torch.float64)
         if config.dimension == 1:
             gaussians = [Normal(means[i],variances[i]**2) for i in range(n)]
         else:
@@ -15,6 +15,7 @@ def get_log_density_fnc(config):
         def log_density(x):
             p = 0
             for i in range(n):
+                print(x.shape)
                 p+= c[i] * torch.exp(gaussians[i].log_prob(x))
             return torch.log(p)
         

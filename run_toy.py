@@ -1,7 +1,6 @@
 import torch
 from tqdm import tqdm
 import os
-from torch.utils.tensorboard import SummaryWriter
 
 import losses
 import models.utils as mutils
@@ -33,9 +32,8 @@ def train(config):
     samples_path = config.work_dir + config.samples_dir
     os.makedirs(ckpt_path)
     os.makedirs(samples_path)
-    # Tensorboard logger
-    writer = SummaryWriter(log_dir=log_dir)
-
+    
+    device = torch.device('cuda:0'if torch.cuda.is_available() else 'cpu')
     # Create Model
     model = mutils.create_model(config)
     # CNF Sampler
@@ -43,7 +41,7 @@ def train(config):
     # Get optimizer
     optimizer = optim_tools.get_optimizer(config,model)
     # Target density and loss fn
-    target_density = utils.densities.get_log_density_fnc(config)
+    target_density = utils.densities.get_log_density_fnc(config, device)
     loss_fn = losses.main_loss_fn(config, target_density)
     # Training loop
     loss = -1 
@@ -55,12 +53,7 @@ def train(config):
         loss.backward()
         optimizer.step()
 
-        # Log to tensorboard
-        writer.add_scalar("CNF Loss", loss_cnf, itr)
-        writer.add_scalar("DSM Loss", loss_sm, itr)
-        writer.add_scalar("Loss", loss, itr)
-
-
+        wandb.log({"CNF Loss": loss_cnf, "DSM Loss": loss_sm, "Loss" : loss})
 
         # Save checkpoint
         if itr%config.snapshot_freq == 0:
@@ -73,9 +66,7 @@ def train(config):
         t.set_description('Iter: {}, loss: {:.4f}'.format(itr, loss.item()))
         t.refresh()
 
-    writer.flush()
-    writer.close()
-        
+    wandb.finish()        
 
 
     print("--- Training has finished ---")
@@ -88,19 +79,19 @@ def eval(config):
     ckpt_path = config.work_dir + config.ckpt_path
     # os.makedirs(samples_dir)
     
+    device = torch.device('cuda:0'if torch.cuda.is_available() else 'cpu')
     # Get SDE:
     sde = sde_lib.SDE(config)
 
     # Load Model
     if config.score_method == 'convolution':
-        model = utils.analytical_score.get_score_function(config, sde)
+        model = utils.analytical_score.get_score_function(config, sde, device)
     else:
         model = torch.load(ckpt_path)
-        device = torch.device('cuda:0'if torch.cuda.is_available() else 'cpu')
         model.to(device)
     # Get Sampler
     sampler = utils.samplers.get_sampler(config,sde)
 
     filename="generated_samples"
     z_0 = sampler(model)
-    utils.plots.histogram(z_0.unsqueeze(-1).cpu().detach().numpy(), samples_dir + filename, log_density= utils.densities.get_log_density_fnc(config))
+    utils.plots.histogram(z_0.unsqueeze(-1).cpu().detach().numpy(), samples_dir + filename, log_density= utils.densities.get_log_density_fnc(config,device=device))

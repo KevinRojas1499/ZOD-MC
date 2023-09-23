@@ -7,10 +7,10 @@ from utils.plots import *
 
 def run_experiments(config):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    p0 = get_log_density_fnc(config)
+    p0 = get_log_density_fnc(config, device)
     sde = sde_lib.SDE(config)
     time_pts = torch.linspace(1,0,100)
-    score_fn = utils.analytical_score.get_score_function(config,sde)
+    score_fn = utils.analytical_score.get_score_function(config,sde, device)
     # score = lambda x : score_gaussian_convolution(x,t)
     x_t = torch.randn(10000,device=device)
 
