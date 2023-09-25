@@ -62,6 +62,6 @@ def get_score_function(config, sde, device):
         p_t = get_convolution(sp0, gaussian_density,limit)
         grad_p_t = get_convolution(sp0,grad_gaussian,limit)
 
-        return grad_p_t(x)/p_t(x)
+        return grad_p_t(x)/p_t(x).unsqueeze(-1)
     
     return score_gaussian_convolution
