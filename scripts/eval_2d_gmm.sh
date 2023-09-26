@@ -1,0 +1,1 @@
+python3 main.py --config config/2d_mm_eval_config.yaml

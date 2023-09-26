@@ -2,8 +2,9 @@ from matplotlib import pyplot as plt
 import numpy as np
 import wandb
 import torch
+import plotly.graph_objects as go
 
-def histogram(x, filename, log_density=None):
+def histogram(x, log_density=None):
     # Creating histogram
     L = 15
     points =  np.linspace(-L,L,num=150)
@@ -12,9 +13,10 @@ def histogram(x, filename, log_density=None):
     if log_density is not None:
         plt.plot(points, np.exp(log_density(points_torch).numpy()))
     wandb.log({'my_histogram': plt})
-    # Show plot
-    if filename == None:
-        plt.show()
-    else:
-        plt.savefig(filename)
-    plt.close()
+
+def plot_2d_dist(data):
+    L = 15
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=data[:,0], y=data[:,1]))
+
+    wandb.log({"Sampling",})

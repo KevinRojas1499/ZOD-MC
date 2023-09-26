@@ -28,7 +28,10 @@ def parse_arguments():
     # Integrator details
     p.add_argument('--convolution_integrator', choices=['trap','simpson','mc'])
     p.add_argument('--integration_range', type=float)
-    
+   
+    # Estimator information
+    p.add_argument('--num_estimator_samples', type=int, default=10000)
+   
     # Optimizer
     p.add_argument('--optimizer',choices=['Adam'])
     p.add_argument('--lr',type=float)

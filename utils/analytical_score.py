@@ -3,11 +3,24 @@ import torch
 from utils.integrators import get_integrator
 from numpy  import Inf
 from utils.densities import get_log_density_fnc
+
+
+def get_push_forward(t, func):
+    """
+        This returns S_# func
+    """
+
+    def push_forward(x):
+        exp = torch.exp(t)
+        return func(exp * x) * exp
+    
+    return push_forward
+
 def get_score_function(config, sde, device):
     """
         The following method returns a method that approximates the score
     """
-    logdensity = get_log_density_fnc(config, device)
+    logdensity, gradient = get_log_density_fnc(config, device)
     p0 = lambda x : torch.exp(logdensity(x))
 
     def score_gaussian_convolution(x, tt):
@@ -37,16 +50,6 @@ def get_score_function(config, sde, device):
             
             return convolution
         
-        def get_push_forward(t):
-            """
-                This returns S_# p0
-            """
-
-            def push_forward(x):
-                exp = torch.exp(t)
-                return p0(exp * x) * exp
-            
-            return push_forward
         
         def get_integration_limits(t):
             return (1-torch.exp(-2*t))**.5 * (config.integration_range**2 + t)**.5
@@ -57,10 +60,46 @@ def get_score_function(config, sde, device):
         gaussian_density = lambda x : torch.exp(gaussian.log_prob(x))
         grad_gaussian = lambda x : -x * gaussian_density(x) / var
 
-        sp0 = get_push_forward(t)
+        sp0 = get_push_forward(t, p0)
         limit = get_integration_limits(t)
         p_t = get_convolution(sp0, gaussian_density,limit)
         grad_p_t = get_convolution(sp0,grad_gaussian,limit)
+
+        if config.dimension == 1:
+            return grad_p_t(x)/p_t(x)
+        else:
+            return grad_p_t(x)/p_t(x).unsqueeze(-1)
+
+    
+
+    def score_quotient_estimator(x, tt):
+        """
+            The following method computes the score by making use that:
+
+            p_t = S_# p0 * N(0,1-e^{-2t})
+            S(x) = e^-t x 
+            \nabla_x p_t(x) = \nabla p_t / p_t = \E S_# \nabla p0(x - z(1-e^-2t)^.5) / \E S_# p0((x - z(1-e^-2t)^.5))
+        """
+
+        def get_estimator(t, func):
+            var = 1-torch.exp(-2 * t)
+
+            def estimator(x):
+                noise = torch.randn((config.num_estimator_samples, config.dimension))
+                return torch.mean(func(x - noise * var), dim=0)
+            
+            return estimator
+
+        t = sde.sigma * tt
+
+
+
+
+        sp0 = get_push_forward(t, p0)
+        sgrad = get_push_forward(t, gradient)
+
+        p_t = get_estimator(t, sp0)
+        grad_p_t = get_estimator(t, sp0)
 
         return grad_p_t(x)/p_t(x).unsqueeze(-1)
     

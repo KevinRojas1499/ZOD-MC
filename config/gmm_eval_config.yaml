@@ -9,6 +9,9 @@ convolution_integrator: simpson
 integration_range: 10
 dimension: 1
 
+# Estimators numbers
+num_estimator_samples: 10000
+
 # Files
 work_dir: training-runs/gmm-two/
 ckpt_path: checkpoints/ckpt_1000.pt

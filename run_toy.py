@@ -41,7 +41,7 @@ def train(config):
     # Get optimizer
     optimizer = optim_tools.get_optimizer(config,model)
     # Target density and loss fn
-    target_density = utils.densities.get_log_density_fnc(config, device)
+    target_density, gradient = utils.densities.get_log_density_fnc(config, device)
     loss_fn = losses.main_loss_fn(config, target_density)
     # Training loop
     loss = -1 
@@ -75,7 +75,6 @@ def train(config):
 def eval(config):
     init_wandb(config)
     # Create files
-    samples_dir = config.work_dir + config.samples_dir
     ckpt_path = config.work_dir + config.ckpt_path
     # os.makedirs(samples_dir)
     
@@ -92,6 +91,13 @@ def eval(config):
     # Get Sampler
     sampler = utils.samplers.get_sampler(config,sde)
 
-    filename="generated_samples"
     z_0 = sampler(model)
-    utils.plots.histogram(z_0.unsqueeze(-1).cpu().detach().numpy(), samples_dir + filename, log_density= utils.densities.get_log_density_fnc(config,device=device))
+    if config.dimension == 1:
+        print(z_0.shape)
+        print(z_0.unsqueeze(-1).shape)
+        utils.plots.histogram(to_numpy(z_0.squeeze(-1)), log_density= utils.densities.get_log_density_fnc(config,device=device)[0])
+    elif config.dimension ==2:
+        utils.plots.plot_2d_data(to_numpy(z_0))
+
+def to_numpy(x):
+    return x.cpu().detach().numpy()
