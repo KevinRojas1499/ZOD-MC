@@ -1,12 +1,12 @@
 # Wandb info
 wandb_project_name: NonconvexSampling
 
-mode: sample
-score_method: convolution
+mode: experiment
+score_method: quotient-estimator
 
 # Integrator details 
 convolution_integrator: simpson
-integration_range: 10
+integration_range: 15
 dimension: 1
 
 # Estimators numbers

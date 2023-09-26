@@ -23,15 +23,34 @@ class MultivariateGaussian():
     def gradient(self, x):
         dens = torch.exp(self.log_prob(x))
         return - dens * self.inv_cov @ (x - self.mean)
-        
+
+class OneDimensionalGaussian():
+
+    # This is a wrapper for Normal
+    def __init__(self, mean, cov):
+        self.mean = mean
+        self.cov = cov
+        self.dist = Normal(loc=mean, scale=cov**.5)
+    
+    def log_prob(self,x):
+        return self.dist.log_prob(x)
+
+    def gradient(self, x):
+        dens = torch.exp(self.log_prob(x))
+        return - dens * (x - self.mean)/self.cov
+
 
 def get_log_density_fnc(config, device):
+
+    def to_tensor_type(x):
+        return torch.tensor(x,device=device, dtype=torch.float64)
+
     params = yaml.safe_load(open(config.density_parameters_path))
     def gmm_logdensity_fnc(c,means,variances):
         n = len(c)
-        means, variances = torch.tensor(means,device=device, dtype=torch.float64), torch.tensor(variances,device=device, dtype=torch.float64)
+        means, variances = to_tensor_type(means),to_tensor_type(variances)
         if config.dimension == 1:
-            gaussians = [Normal(means[i],variances[i]**2) for i in range(n)]
+            gaussians = [OneDimensionalGaussian(means[i],variances[i]) for i in range(n)]
         else:
             gaussians = [MultivariateGaussian(means[i],variances[i]) for i in range(n)]
 

@@ -1,6 +1,6 @@
 import torch
 from torchdiffeq import odeint_adjoint as odeint
-
+from tqdm import tqdm
 
 
 def get_sampler(config, sde):
@@ -43,7 +43,7 @@ def get_sampler(config, sde):
 
         time_pts = get_edm_discretization(config.disc_steps, device)
 
-        for i in range(len(time_pts) - 1):
+        for i in tqdm(range(len(time_pts) - 1)):
             t = time_pts[i]
             dt = time_pts[i + 1] - t
             score = model(x_t,t)

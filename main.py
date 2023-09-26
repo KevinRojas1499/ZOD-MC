@@ -23,7 +23,7 @@ def parse_arguments():
 
     # Mode
     p.add_argument('--mode', choices=['train','sample','experiment'])
-    p.add_argument('--score_method', choices=['convolution','trained'])
+    p.add_argument('--score_method', choices=['convolution','quotient-estimator','trained'])
     p.add_argument('--dimension', type=int)
     # Integrator details
     p.add_argument('--convolution_integrator', choices=['trap','simpson','mc'])

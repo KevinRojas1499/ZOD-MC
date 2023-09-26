@@ -4,39 +4,85 @@ import utils.integrators
 import utils.analytical_score
 from utils.densities import * 
 from utils.plots import *
+import plotly.graph_objects as go
+from utils.densities import OneDimensionalGaussian
 
-def run_experiments(config):
+def get_run_name(config):
+    return config.density + "_" + config.sampling_method + "_" + config.convolution_integrator
+
+def init_wandb(config):
+    wandb.init(
+    # set the wandb project where this run will be logged
+    project=config.wandb_project_name + " Experiments",
+    name= get_run_name(config),
+    # track hyperparameters and run metadata
+    config=config
+)
+
+def to_numpy(x):
+    return x.squeeze(1).to('cpu').detach().numpy()
+
+
+def to_tensor_type(x):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    p0 = get_log_density_fnc(config, device)
+
+    return torch.tensor(x,device=device, dtype=torch.float64)
+
+def gmm_logdensity_fnc(c,means,variances):
+        n = len(c)
+        means, variances = to_tensor_type(means),to_tensor_type(variances)
+
+        gaussians = [OneDimensionalGaussian(means[i],variances[i]) for i in range(n)]
+
+        def log_density(x):
+            p = 0
+            for i in range(n):
+                p+= c[i] * torch.exp(gaussians[i].log_prob(x))
+            return torch.log(p)
+        
+        def gradient(x):
+            grad = 0
+            for i in range(n):
+                grad+= c[i] * gaussians[i].gradient(x)
+            return grad
+
+        return log_density, gradient
+def run_experiments(config):
+    init_wandb(config)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     sde = sde_lib.SDE(config)
-    time_pts = torch.linspace(1,0,100)
-    score_fn = utils.analytical_score.get_score_function(config,sde, device)
-    # score = lambda x : score_gaussian_convolution(x,t)
-    x_t = torch.randn(10000,device=device)
 
-    for i in range(len(time_pts) - 1):
-        t = time_pts[i]
-        dt = time_pts[i + 1] - t
-        score = score_fn(x_t,t)
-        print(t)
-        histogram(x_t.unsqueeze(-1).cpu().numpy(),f"./trajectory/{i}.png")
+    t = torch.tensor([.5],device=device)
 
-        tot_drift = sde.f(x_t) - sde.g(t)**2 * score
-        tot_diffusion = sde.g(t)
-        # euler-maruyama step
-        x_t += tot_drift * dt + tot_diffusion * torch.randn_like(x_t) * torch.abs(dt) ** 0.5
+    score_est = utils.analytical_score.get_score_function(config,sde,device)
+    c = [.5,.5]
+    means=np.array([-5,5])
+    variances=[1,1]
+    p0, grad = gmm_logdensity_fnc(c, means * np.exp(-t.to('cpu').numpy()), variances)
 
-    histogram(x_t.unsqueeze(-1).cpu().numpy(),None)
 
-    L = 1.3
-    x = torch.linspace(-L, L,1000,device=device)
-    sc = score_fn(x,torch.tensor([.0001],dtype=torch.float64,device=device))
+    pts = torch.linspace(-10,10,500).unsqueeze(-1)
+    est_dens, est_grad = score_est(pts,t)
+    real_dens = torch.exp(p0(pts))
+    real_grad = grad(pts)
 
-    def plotable(x):
-        return x.cpu().numpy()
+    real_score = real_grad/real_dens
+    est_score = est_grad/est_dens
 
-    plt.plot(plotable(x),plotable(sc))
-    plt.plot(plotable(x),-plotable(p0(x)))
-    plt.legend(['convolution','true'])
-    plt.show()
-    plt.close()
+    pts = pts.squeeze(1)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=pts, y=to_numpy(real_dens) ,mode='lines', name="Real"))
+    fig.add_trace(go.Scatter(x=pts, y=to_numpy(est_dens),mode='lines', name="Estimated"))
+
+    fig2 = go.Figure()
+    fig2.add_trace(go.Scatter(x=pts, y=to_numpy(real_grad) ,mode='lines', name="Real"))
+    fig2.add_trace(go.Scatter(x=pts, y=to_numpy(est_grad),mode='lines', name="Estimated"))
+
+    fig3 = go.Figure()
+    fig3.add_trace(go.Scatter(x=pts, y=to_numpy(real_score) ,mode='lines', name="Real"))
+    fig3.add_trace(go.Scatter(x=pts, y=to_numpy(est_score),mode='lines', name="Estimated"))
+
+    wandb.log({"Density Diff": fig, "Grad Diff": fig2, "Score": fig3})
+    wandb.finish()
+
+

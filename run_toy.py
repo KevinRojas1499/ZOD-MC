@@ -83,18 +83,17 @@ def eval(config):
     sde = sde_lib.SDE(config)
 
     # Load Model
-    if config.score_method == 'convolution':
-        model = utils.analytical_score.get_score_function(config, sde, device)
-    else:
+    if config.score_method == 'trained':
         model = torch.load(ckpt_path)
         model.to(device)
+    else:
+        model = utils.analytical_score.get_score_function(config, sde, device)
+    
     # Get Sampler
     sampler = utils.samplers.get_sampler(config,sde)
 
     z_0 = sampler(model)
     if config.dimension == 1:
-        print(z_0.shape)
-        print(z_0.unsqueeze(-1).shape)
         utils.plots.histogram(to_numpy(z_0.squeeze(-1)), log_density= utils.densities.get_log_density_fnc(config,device=device)[0])
     elif config.dimension ==2:
         utils.plots.plot_2d_data(to_numpy(z_0))

@@ -42,8 +42,7 @@ def get_score_function(config, sde, device):
                 def integrand(y):
                     # The shape of y is (k,d) where k is the number of eval points
                     # We reshape it to (k,n,d) where n is the number of points in x
-                    y = y.unsqueeze(1).repeat(1, x.shape[0], 1)
-                    y = y.to(device)
+                    y = y.unsqueeze(1).repeat(1, x.shape[0], 1).to(device)
 
                     return f(x - y) * g(y)
                 return integrator(integrand,- l, l)
@@ -78,29 +77,34 @@ def get_score_function(config, sde, device):
 
             p_t = S_# p0 * N(0,1-e^{-2t})
             S(x) = e^-t x 
-            \nabla_x p_t(x) = \nabla p_t / p_t = \E S_# \nabla p0(x - z(1-e^-2t)^.5) / \E S_# p0((x - z(1-e^-2t)^.5))
+            \nabla_x p_t(x) = \nabla p_t / p_t 
+                = \E S_# \nabla p0(x - z(1-e^-2t)^.5) / \E S_# p0((x - z(1-e^-2t)^.5))
         """
 
         def get_estimator(t, func):
             var = 1-torch.exp(-2 * t)
 
             def estimator(x):
+                # x has shape (n,d), noise has shape (k,d)
+                # we need to make it (n,k,d) and then average on k
                 noise = torch.randn((config.num_estimator_samples, config.dimension))
-                return torch.mean(func(x - noise * var), dim=0)
+                z = x.unsqueeze(1)
+                return torch.mean(func(z - noise * var**.5), dim=1)
             
             return estimator
 
         t = sde.sigma * tt
 
-
-
-
         sp0 = get_push_forward(t, p0)
         sgrad = get_push_forward(t, gradient)
 
         p_t = get_estimator(t, sp0)
-        grad_p_t = get_estimator(t, sp0)
+        grad_p_t = get_estimator(t, sgrad) # * torch.exp(t) # We need this for the gradient of the push forward
 
-        return grad_p_t(x)/p_t(x).unsqueeze(-1)
+        return p_t(x), grad_p_t(x)
+        # return grad_p_t(x)/p_t(x) * torch.exp(t)
     
-    return score_gaussian_convolution
+    if config.score_method == 'convolution':
+        return score_gaussian_convolution
+    elif config.score_method == 'quotient-estimator':
+        return score_quotient_estimator
