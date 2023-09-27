@@ -52,13 +52,15 @@ def run_experiments(config):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     sde = sde_lib.SDE(config)
 
-    t = torch.tensor([.5],device=device)
+    t = torch.tensor([1],device=device)
 
     score_est = utils.analytical_score.get_score_function(config,sde,device)
     c = [.5,.5]
     means=np.array([-5,5])
     variances=[1,1]
-    p0, grad = gmm_logdensity_fnc(c, means * np.exp(-t.to('cpu').numpy()), variances)
+
+    mean_t = means * np.exp(-4*t.to('cpu').numpy())
+    p0, grad = gmm_logdensity_fnc(c, mean_t, variances)
 
 
     pts = torch.linspace(-10,10,500).unsqueeze(-1)
@@ -67,7 +69,7 @@ def run_experiments(config):
     real_grad = grad(pts)
 
     real_score = real_grad/real_dens
-    est_score = est_grad/est_dens
+    est_score = est_grad/est_dens 
 
     pts = pts.squeeze(1)
     fig = go.Figure()

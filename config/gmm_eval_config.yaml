@@ -1,7 +1,7 @@
 # Wandb info
 wandb_project_name: NonconvexSampling
 
-mode: experiment
+mode: sample
 score_method: quotient-estimator
 
 # Integrator details 
@@ -9,8 +9,10 @@ convolution_integrator: simpson
 integration_range: 15
 dimension: 1
 
-# Estimators numbers
-num_estimator_samples: 10000
+# Estimator Information
+num_estimator_samples: 5000
+eps_stable: 1e-9
+gradient_estimator: conv
 
 # Files
 work_dir: training-runs/gmm-two/
@@ -24,7 +26,7 @@ sigma : 4
 sampling_method: em
 num_samples: 10000
 sampling_eps: 1e-3
-disc_steps: 100
+disc_steps: 25
 
 # CNF ODE Solver
 atol: 1e-5

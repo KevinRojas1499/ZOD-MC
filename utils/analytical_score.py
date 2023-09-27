@@ -1,7 +1,6 @@
 import torch
 
 from utils.integrators import get_integrator
-from numpy  import Inf
 from utils.densities import get_log_density_fnc
 
 
@@ -81,28 +80,49 @@ def get_score_function(config, sde, device):
                 = \E S_# \nabla p0(x - z(1-e^-2t)^.5) / \E S_# p0((x - z(1-e^-2t)^.5))
         """
 
-        def get_estimator(t, func):
-            var = 1-torch.exp(-2 * t)
+        def get_density_estimator(t, func):
+            std = (1-torch.exp(-2 * t))**.5
 
             def estimator(x):
                 # x has shape (n,d), noise has shape (k,d)
                 # we need to make it (n,k,d) and then average on k
                 noise = torch.randn((config.num_estimator_samples, config.dimension))
                 z = x.unsqueeze(1)
-                return torch.mean(func(z - noise * var**.5), dim=1)
+                return torch.mean(func(z + noise * std), dim=1)
             
             return estimator
+        
+        def get_conv_gradient_estimator(t, func):
+            std = (1-torch.exp(-2 * t))**.5
 
+            def estimator(x):
+                # x has shape (n,d), noise has shape (k,d)
+                # we need to make it (n,k,d) and then average on k
+                noise = torch.randn((config.num_estimator_samples, config.dimension))
+                z = x.unsqueeze(1)
+                return torch.mean(noise * func(z + noise * std), dim=1)/std
+            
+            return estimator
+        
+        def get_direct_gradient_estimator(t, func):
+            standard_estim = get_density_estimator(t,func)
+            def estimator(x):
+                return standard_estim(x) * torch.exp(t)
+            
+            return estimator
         t = sde.sigma * tt
 
         sp0 = get_push_forward(t, p0)
         sgrad = get_push_forward(t, gradient)
 
-        p_t = get_estimator(t, sp0)
-        grad_p_t = get_estimator(t, sgrad) # * torch.exp(t) # We need this for the gradient of the push forward
+        p_t = get_density_estimator(t, sp0)
+        if config.gradient_estimator == 'conv':
+            grad_p_t = get_conv_gradient_estimator(t,sp0) 
+        elif config.gradient_estimator == 'direct':
+            grad_p_t = get_direct_gradient_estimator(t,sgrad) 
 
-        return p_t(x), grad_p_t(x)
-        # return grad_p_t(x)/p_t(x) * torch.exp(t)
+        # return p_t(x), grad_p_t(x)
+        return grad_p_t(x)/(p_t(x)+config.eps_stable) 
     
     if config.score_method == 'convolution':
         return score_gaussian_convolution

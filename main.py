@@ -31,7 +31,9 @@ def parse_arguments():
    
     # Estimator information
     p.add_argument('--num_estimator_samples', type=int, default=10000)
-   
+    p.add_argument('--eps_stable',type=float, default=1e-9)
+    p.add_argument('--gradient_estimator',choices=['conv','direct'])
+
     # Optimizer
     p.add_argument('--optimizer',choices=['Adam'])
     p.add_argument('--lr',type=float)
