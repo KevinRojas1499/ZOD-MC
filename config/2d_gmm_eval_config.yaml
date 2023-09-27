@@ -21,7 +21,7 @@ sigma : 4
 sampling_method: em
 num_samples: 10000
 sampling_eps: 1e-3
-disc_steps: 100
+disc_steps: 25
 
 # CNF ODE Solver
 atol: 1e-5

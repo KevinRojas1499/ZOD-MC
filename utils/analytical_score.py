@@ -41,9 +41,15 @@ def get_score_function(config, sde, device):
                 def integrand(y):
                     # The shape of y is (k,d) where k is the number of eval points
                     # We reshape it to (k,n,d) where n is the number of points in x
-                    y = y.unsqueeze(1).repeat(1, x.shape[0], 1).to(device)
-
-                    return f(x - y) * g(y)
+                    nonlocal x
+                    y = y.unsqueeze(1).to(device)
+                    x = x.unsqueeze(0)
+                    f_vals = f(x-y)
+                    shape_g = g(y)
+                    if len(f_vals.shape) != len(shape_g.shape):
+                        # This can happen because we have different shapes for the gradient vs the density
+                        shape_g = shape_g.unsqueeze(-1)
+                    return f(x - y) * shape_g
                 return integrator(integrand,- l, l)
             
             return convolution
@@ -54,19 +60,30 @@ def get_score_function(config, sde, device):
 
         t = sde.sigma * tt
         var = 1-torch.exp(-2 * t)
-        gaussian = torch.distributions.normal.Normal(0,var ** .5)
+        if config.dimension == 1:
+            gaussian = torch.distributions.normal.Normal(0,var ** .5)
+        else:
+            gaussian = torch.distributions.MultivariateNormal(torch.zeros(config.dimension),var * torch.eye(config.dimension))
+        
+        def get_grad_gaussian():
+
+            def grad_gaussian(x):
+                dens = gaussian_density(x)
+                dens = dens.unsqueeze(-1)
+                return -x *  dens/ var
+            
+            return grad_gaussian
+
         gaussian_density = lambda x : torch.exp(gaussian.log_prob(x))
-        grad_gaussian = lambda x : -x * gaussian_density(x) / var
+        grad_gaussian = get_grad_gaussian()
 
         sp0 = get_push_forward(t, p0)
         limit = get_integration_limits(t)
         p_t = get_convolution(sp0, gaussian_density,limit)
         grad_p_t = get_convolution(sp0,grad_gaussian,limit)
 
-        if config.dimension == 1:
-            return grad_p_t(x)/p_t(x)
-        else:
-            return grad_p_t(x)/p_t(x).unsqueeze(-1)
+        return grad_p_t(x)/p_t(x)
+
 
     
 
@@ -121,7 +138,6 @@ def get_score_function(config, sde, device):
         elif config.gradient_estimator == 'direct':
             grad_p_t = get_direct_gradient_estimator(t,sgrad) 
 
-        # return p_t(x), grad_p_t(x)
         return grad_p_t(x)/(p_t(x)+config.eps_stable) 
     
     if config.score_method == 'convolution':

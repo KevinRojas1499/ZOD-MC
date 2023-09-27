@@ -13,11 +13,13 @@ class MultivariateGaussian():
         self.dim = mean.shape[0]
     
     def log_prob(self,x):
-        curr_shape = x.shape
-        print("Before ", curr_shape)
-        x = x.reshape((-1,self.dim))
-        log_prob = self.dist.log_prob(x).reshape(curr_shape)
-        print("After  ",log_prob.shape)
+        curr_shape = list(x.shape)
+        new_shape = curr_shape
+        new_shape[-1] = 1
+        new_shape = tuple(new_shape)
+        x = x.view((-1,self.dim))
+        log_prob = self.dist.log_prob(x)
+        log_prob = log_prob.view(new_shape)
         return log_prob
 
     def gradient(self, x):

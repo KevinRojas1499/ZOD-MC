@@ -96,7 +96,7 @@ def eval(config):
     if config.dimension == 1:
         utils.plots.histogram(to_numpy(z_0.squeeze(-1)), log_density= utils.densities.get_log_density_fnc(config,device=device)[0])
     elif config.dimension ==2:
-        utils.plots.plot_2d_data(to_numpy(z_0))
+        utils.plots.plot_2d_dist(to_numpy(z_0))
 
 def to_numpy(x):
     return x.cpu().detach().numpy()

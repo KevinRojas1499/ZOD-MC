@@ -17,6 +17,6 @@ def histogram(x, log_density=None):
 def plot_2d_dist(data):
     L = 15
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=data[:,0], y=data[:,1]))
+    fig.add_trace(go.Scatter(x=data[:,0], y=data[:,1],mode='markers'))
 
-    wandb.log({"Sampling",})
+    wandb.log({"Sampling" : fig})
