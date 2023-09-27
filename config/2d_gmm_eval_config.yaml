@@ -2,12 +2,17 @@
 wandb_project_name: NonconvexSampling
 
 mode: sample
-score_method: convolution
+score_method: quotient-estimator
 
 # Integrator details 
 convolution_integrator: trap
 integration_range: 10
 dimension: 2
+
+# Estimator Information
+num_estimator_samples: 10000
+eps_stable: 1e-9
+gradient_estimator: conv
 
 # Files
 work_dir: training-runs/gmm-two/

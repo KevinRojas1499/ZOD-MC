@@ -23,7 +23,8 @@ class MultivariateGaussian():
         return log_prob
 
     def gradient(self, x):
-        dens = torch.exp(self.log_prob(x))
+        # TODO : This is wrong
+        dens = torch.exp(self.log_prob(x)).unsqueeze(-1)
         return - dens * self.inv_cov @ (x - self.mean)
 
 class OneDimensionalGaussian():
