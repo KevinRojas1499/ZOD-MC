@@ -2,7 +2,7 @@
 wandb_project_name: NonconvexSampling
 
 mode: sample
-score_method: quotient-estimator
+score_method: convolution
 
 # Integrator details 
 convolution_integrator: simpson

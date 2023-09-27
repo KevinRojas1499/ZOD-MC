@@ -43,13 +43,13 @@ def get_score_function(config, sde, device):
                     # We reshape it to (k,n,d) where n is the number of points in x
                     nonlocal x
                     y = y.unsqueeze(1).to(device)
-                    x = x.unsqueeze(0)
-                    f_vals = f(x-y)
+                    x_shape = x.unsqueeze(0)
+                    f_vals = f(x_shape-y)
                     shape_g = g(y)
                     if len(f_vals.shape) != len(shape_g.shape):
                         # This can happen because we have different shapes for the gradient vs the density
                         shape_g = shape_g.unsqueeze(-1)
-                    return f(x - y) * shape_g
+                    return f_vals * shape_g
                 return integrator(integrand,- l, l)
             
             return convolution
@@ -69,7 +69,8 @@ def get_score_function(config, sde, device):
 
             def grad_gaussian(x):
                 dens = gaussian_density(x)
-                dens = dens.unsqueeze(-1)
+                if config.dimension != 1:
+                    dens = dens.unsqueeze(-1)
                 return -x *  dens/ var
             
             return grad_gaussian

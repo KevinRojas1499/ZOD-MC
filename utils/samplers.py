@@ -49,6 +49,7 @@ def get_sampler(config, sde):
             score = model(x_t,t)
             tot_drift = sde.f(x_t) - sde.g(t)**2 * score
             tot_diffusion = sde.g(t)
+            print(score.shape)
             # euler-maruyama step
             x_t += tot_drift * dt + tot_diffusion * torch.randn_like(x_t) * torch.abs(dt) ** 0.5
 
