@@ -24,8 +24,12 @@ class MultivariateGaussian():
 
     def gradient(self, x):
         # TODO : This is wrong
-        dens = torch.exp(self.log_prob(x)).unsqueeze(-1)
-        return - dens * self.inv_cov @ (x - self.mean)
+        curr_shape = x.shape
+        x = x.view((-1,self.dim))
+        dens = torch.exp(self.log_prob(x))
+        grad = - dens * (self.inv_cov @ (x - self.mean).T).T
+        grad = grad.view(curr_shape)
+        return grad
 
 class OneDimensionalGaussian():
 

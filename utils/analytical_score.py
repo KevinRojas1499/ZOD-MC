@@ -4,21 +4,23 @@ from utils.integrators import get_integrator
 from utils.densities import get_log_density_fnc
 
 
-def get_push_forward(t, func):
-    """
-        This returns S_# func
-    """
-
-    def push_forward(x):
-        exp = torch.exp(t)
-        return func(exp * x) * exp
-    
-    return push_forward
 
 def get_score_function(config, sde, device):
     """
         The following method returns a method that approximates the score
     """
+
+    def get_push_forward(t, func):
+        """
+            This returns S_# func
+        """
+
+        def push_forward(x):
+            exp = torch.exp(t)
+            return func(exp * x) * exp**config.dimension
+        
+        return push_forward
+
     logdensity, gradient = get_log_density_fnc(config, device)
     p0 = lambda x : torch.exp(logdensity(x))
 
@@ -82,7 +84,8 @@ def get_score_function(config, sde, device):
         limit = get_integration_limits(t)
         p_t = get_convolution(sp0, gaussian_density,limit)
         grad_p_t = get_convolution(sp0,grad_gaussian,limit)
-
+        
+        return p_t(x), grad_p_t(x)
         return grad_p_t(x)/p_t(x)
 
 
@@ -95,7 +98,7 @@ def get_score_function(config, sde, device):
             p_t = S_# p0 * N(0,1-e^{-2t})
             S(x) = e^-t x 
             \nabla_x p_t(x) = \nabla p_t / p_t 
-                = \E S_# \nabla p0(x - z(1-e^-2t)^.5) / \E S_# p0((x - z(1-e^-2t)^.5))
+                = \E \nabla S_# p0(x - z(1-e^-2t)^.5) / \E S_# p0((x - z(1-e^-2t)^.5))
         """
 
         def get_density_estimator(t, func):
@@ -118,7 +121,7 @@ def get_score_function(config, sde, device):
                 # we need to make it (n,k,d) and then average on k
                 noise = torch.randn((config.num_estimator_samples, config.dimension))
                 z = x.unsqueeze(1)
-                return torch.mean(noise * func(z + noise * std), dim=1)/std
+                return torch.mean(noise * func(z + noise * std), dim=1)/std 
             
             return estimator
         
@@ -139,7 +142,8 @@ def get_score_function(config, sde, device):
         elif config.gradient_estimator == 'direct':
             grad_p_t = get_direct_gradient_estimator(t,sgrad) 
 
-        return grad_p_t(x)/(p_t(x)+config.eps_stable) 
+        return p_t(x) + config.eps_stable, grad_p_t(x) # Have this for debugging
+        # return grad_p_t(x)/(p_t(x)+config.eps_stable) 
     
     if config.score_method == 'convolution':
         return score_gaussian_convolution

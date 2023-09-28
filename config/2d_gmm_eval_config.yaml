@@ -1,8 +1,8 @@
 # Wandb info
 wandb_project_name: NonconvexSampling
 
-mode: sample
-score_method: quotient-estimator
+mode: experiment
+score_method: convolution
 
 # Integrator details 
 convolution_integrator: trap

@@ -1,7 +1,7 @@
 # Wandb info
 wandb_project_name: NonconvexSampling
 
-mode: sample
+mode: experiment
 score_method: convolution
 
 # Integrator details 
