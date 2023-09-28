@@ -85,8 +85,10 @@ def get_score_function(config, sde, device):
         p_t = get_convolution(sp0, gaussian_density,limit)
         grad_p_t = get_convolution(sp0,grad_gaussian,limit)
         
-        return p_t(x), grad_p_t(x)
-        return grad_p_t(x)/p_t(x)
+        if config.mode == 'experiment':
+            return p_t(x), grad_p_t(x)
+        else:
+            return grad_p_t(x)/(p_t(x) + config.eps_stable)
 
 
     
@@ -142,8 +144,11 @@ def get_score_function(config, sde, device):
         elif config.gradient_estimator == 'direct':
             grad_p_t = get_direct_gradient_estimator(t,sgrad) 
 
-        return p_t(x) + config.eps_stable, grad_p_t(x) # Have this for debugging
-        # return grad_p_t(x)/(p_t(x)+config.eps_stable) 
+        if config.mode == 'experiment':
+            return p_t(x), grad_p_t(x)
+        else:
+            return grad_p_t(x)/(p_t(x) + config.eps_stable)
+
     
     if config.score_method == 'convolution':
         return score_gaussian_convolution

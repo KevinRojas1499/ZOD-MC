@@ -95,7 +95,7 @@ def run_experiments(config):
     sde = sde_lib.SDE(config)
 
     N = 50
-    tt = torch.linspace(0,1,N)
+    tt = torch.linspace(0.01,1,N)
     fig = go.Figure()
     fig2 = go.Figure()
     fig3 = go.Figure()
