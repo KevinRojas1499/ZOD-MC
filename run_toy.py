@@ -90,7 +90,7 @@ def eval(config):
         model = utils.analytical_score.get_score_function(config, sde, device)
     
     # Get Sampler
-    sampler = utils.samplers.get_sampler(config,sde)
+    sampler = utils.samplers.get_sampler(config,device, sde)
 
     z_0 = sampler(model)
     if config.dimension == 1:

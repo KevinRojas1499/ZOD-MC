@@ -3,13 +3,12 @@ from torchdiffeq import odeint_adjoint as odeint
 from tqdm import tqdm
 
 
-def get_sampler(config, sde):
+def get_sampler(config, device, sde):
 
 
     def cnf_sampler(model):
         t0 = 0
         t1 = config.t1
-        device = torch.device('cuda:0'if torch.cuda.is_available() else 'cpu')
         nsamples = config.num_samples
 
         x  = torch.randn((nsamples,1),device=device)
@@ -38,7 +37,6 @@ def get_sampler(config, sde):
             t_steps = torch.cat([t_steps, torch.zeros_like(t_steps[:1])]) # t_N = 0
             return t_steps
 
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         x_t = torch.randn((config.num_samples,config.dimension),device=device)
 
         time_pts = get_edm_discretization(config.disc_steps, device)
