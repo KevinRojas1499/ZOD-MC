@@ -1,5 +1,4 @@
 import torch
-from torchdiffeq import odeint_adjoint as odeint
 from tqdm import tqdm
 
 
@@ -23,7 +22,7 @@ def get_sampler(config, device, sde):
             t = time_pts[i]
             dt = time_pts[i + 1] - t
             score = model(x_t,t)
-            tot_drift = sde.f(x_t) - sde.g(t)**2 * score
+            tot_drift = sde.drift(x_t) - sde.diffusion(t)**2 * score
             tot_diffusion = sde.g(t)
             # euler-maruyama step
             x_t += tot_drift * dt + tot_diffusion * torch.randn_like(x_t) * torch.abs(dt) ** 0.5

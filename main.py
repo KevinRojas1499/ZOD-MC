@@ -55,7 +55,7 @@ def parse_arguments():
 
 
     # Beta Functions
-    p.add_argument('--type', choices=['linear'])
+    p.add_argument('--beta_func_type', choices=['linear'])
     p.add_argument('--multiplier', default=4, type=float)
     p.add_argument('--bias', default=0., type=float)
 

@@ -29,7 +29,6 @@ class VP():
 
   def __init__(self,config):
     super().__init__()
-    self.sigma = config.sigma
     self.beta, self.betaprime = betas.get_beta_function(config)
 
   def drift(self, x,t):

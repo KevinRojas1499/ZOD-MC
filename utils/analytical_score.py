@@ -60,7 +60,7 @@ def get_score_function(config, sde, device):
         def get_integration_limits(t):
             return (1-torch.exp(-2*t))**.5 * (config.integration_range**2 + t)**.5
 
-        t = sde.sigma * tt
+        t = sde.beta(tt)
         var = 1-torch.exp(-2 * t)
         if config.dimension == 1:
             gaussian = torch.distributions.normal.Normal(0,var ** .5)
