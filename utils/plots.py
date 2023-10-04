@@ -8,10 +8,10 @@ def histogram(x, log_density=None):
     # Creating histogram
     L = 15
     points =  np.linspace(-L,L,num=150)
-    points_torch = torch.tensor(points)
+    points_torch = torch.tensor(points,device='cuda')
     plt.hist(x, bins = points, density=True)
     if log_density is not None:
-        plt.plot(points, np.exp(log_density(points_torch).numpy()))
+        plt.plot(points, np.exp(log_density(points_torch).to('cpu').numpy()))
     wandb.log({'my_histogram': plt})
 
 def plot_2d_dist(data):
