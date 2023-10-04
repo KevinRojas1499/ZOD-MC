@@ -19,8 +19,13 @@ work_dir: training-runs/gmm-two/
 ckpt_path: checkpoints/ckpt_1000.pt
 samples_dir: generated_samples/
 
-# SDE Parameters
-sigma : 4
+# SDEs Parameters
+sde_type: vp
+
+# Beta Function
+beta_func_type: linear
+multiplier: 4
+
 
 # Sampling parameters
 sampling_method: em

@@ -1,7 +1,7 @@
 import torch
-import sde_lib
 import utils.integrators
 import utils.analytical_score
+import utils.sde_utils
 from utils.densities import * 
 from utils.plots import *
 import plotly.graph_objects as go
@@ -92,7 +92,7 @@ def run_experiments(config):
 
     init_wandb(config)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    sde = sde_lib.SDE(config)
+    sde = utils.sde_utils.get_sde(config)
 
     N = 50
     tt = torch.linspace(0.01,1,N)
