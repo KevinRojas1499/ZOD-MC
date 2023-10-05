@@ -5,27 +5,19 @@ from tqdm import tqdm
 def get_sampler(config, device, sde):
 
     def get_euler_maruyama(model):
-        # TODO : Put this in the config 
-        def get_edm_discretization(num, device):
-            rho=7
-            sigma_min = 0.002
-            step_indices = torch.arange(num, dtype=torch.float64, device=device)
-            t_steps = (1 ** (1 / rho) + step_indices / (num - 1) * (sigma_min ** (1 / rho) - 1 ** (1 / rho))) ** rho
-            t_steps = torch.cat([t_steps, torch.zeros_like(t_steps[:1])]) # t_N = 0
-            return t_steps
 
         x_t = torch.randn((config.num_samples,config.dimension),device=device)
 
-        time_pts = get_edm_discretization(config.disc_steps, device)
+        time_pts = sde.time_steps(config.disc_steps, device)
 
         for i in tqdm(range(len(time_pts) - 1)):
             t = time_pts[i]
             dt = time_pts[i + 1] - t
-            score = model(x_t,t)
-            tot_drift = sde.drift(x_t) - sde.diffusion(t)**2 * score
-            tot_diffusion = sde.g(t)
+            score = model(x_t, sde.beta(t))
+            diffusion = sde.diffusion(x_t,t)
+            tot_drift = sde.drift(x_t,t) - diffusion**2 * score
             # euler-maruyama step
-            x_t += tot_drift * dt + tot_diffusion * torch.randn_like(x_t) * torch.abs(dt) ** 0.5
+            x_t += tot_drift * dt + diffusion * torch.randn_like(x_t) * torch.abs(dt) ** 0.5
 
         return x_t
 

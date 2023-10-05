@@ -14,13 +14,19 @@ num_estimator_samples: 10000
 eps_stable: 1e-9
 gradient_estimator: conv
 
+# SDEs Parameters
+sde_type: vp
+
+# Beta Function
+beta_func_type: linear
+multiplier: 4
+
+
 # Files
 work_dir: training-runs/gmm-two/
 ckpt_path: checkpoints/ckpt_1000.pt
 samples_dir: generated_samples/
 
-# SDE Parameters
-sigma : 4
 
 # Sampling parameters
 sampling_method: em
