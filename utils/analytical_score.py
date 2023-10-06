@@ -82,7 +82,6 @@ def get_score_function(config, sde, device):
             grad_p_t = get_convolution(sp0,grad_gaussian)
         elif config.gradient_estimator == 'direct':
             grad_p_t = get_convolution(gradient,gaussian_density)
-            grad_p_t = lambda x : grad_p_t(x)/var**.5
 
         if config.mode == 'experiment':
             return p_t(x), grad_p_t(x)

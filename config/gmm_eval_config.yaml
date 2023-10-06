@@ -2,11 +2,11 @@
 wandb_project_name: NonconvexSampling
 
 mode: experiment
-score_method: convolution
+score_method: quotient-estimator
 
 # Integrator details 
 convolution_integrator: simpson
-sub_intervals: 500
+sub_intervals: 1000
 integration_range: 15
 dimension: 1
 
@@ -24,9 +24,6 @@ samples_dir: generated_samples/
 sde_type: vp
 sigma_min: 0.02
 sigma_max: 80
-
-# Beta Function
-beta_func_type: linear
 multiplier: 20
 bias: 0.02
 

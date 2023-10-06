@@ -10,10 +10,10 @@ from tqdm import tqdm
 
 
 def get_run_name(config):
-    if config.score_method == 'convolution':
+    if config.score_method == 'quotient-estimator':
         return f"{config.density} {config.sde_type} {config.score_method} {config.gradient_estimator} samples {config.num_estimator_samples}"
     else:
-        return f"{config.density} {config.sde_type} {config.score_method} {config.gradient_estimator} steps {config.sub_intervals}"
+        return f"{config.density} {config.sde_type} {config.score_method} {config.gradient_estimator} steps {config.num_estimator_samples}"
 
 def init_wandb(config):
     wandb.init(
@@ -91,15 +91,16 @@ def run_experiments(config):
 
         pts = pts[:,0].to('cpu').detach().numpy()
         # Reals
-        fig.add_trace(go.Scatter(x=pts, y=to_numpy(real_dens) ,mode='lines', name="Real",visible=False))
-        fig.add_trace(go.Scatter(x=pts, y=to_numpy(est_dens),mode='lines', name="Estimated", visible=False))
+        if config.num_estimator_samples == 5000:
+            fig.add_trace(go.Scatter(x=pts, y=to_numpy(real_dens) ,mode='lines', name="Real",visible=False))
+            fig2.add_trace(go.Scatter(x=pts, y=to_numpy(real_grad) ,mode='lines', name="Real", visible=False))
+            fig3.add_trace(go.Scatter(x=pts, y=to_numpy(real_score) ,mode='lines', name="Real", visible=False))
 
-        fig2.add_trace(go.Scatter(x=pts, y=to_numpy(real_grad) ,mode='lines', name="Real", visible=False))
-        fig2.add_trace(go.Scatter(x=pts, y=to_numpy(est_grad),mode='lines', name="Estimated", visible=False))
+        fig.add_trace(go.Scatter(x=pts, y=to_numpy(est_dens),mode='lines', name=f"{config.sde_type} {config.num_estimator_samples}", visible=False))
+        fig2.add_trace(go.Scatter(x=pts, y=to_numpy(est_grad),mode='lines', name=f"{config.sde_type} {config.num_estimator_samples}", visible=False))
+        fig3.add_trace(go.Scatter(x=pts, y=to_numpy(est_score),mode='lines', name=f"{config.sde_type} {config.num_estimator_samples}", visible=False))
 
-        fig3.add_trace(go.Scatter(x=pts, y=to_numpy(real_score) ,mode='lines', name="Real", visible=False))
-        fig3.add_trace(go.Scatter(x=pts, y=to_numpy(est_score),mode='lines', name="Estimated", visible=False))
-
+        fig3.update_layout(yaxis_range=[-10,10])
 
 
     init_wandb(config)
@@ -114,19 +115,26 @@ def run_experiments(config):
 
     for i in tqdm(range(N)):
         t = tt[i]
-        sde = utils.sde_utils.get_sde(config)
+        config.num_estimator_samples = 5000
+        plot_at_time(config, device, sde, t)
+        config.num_estimator_samples = 10000
+        plot_at_time(config, device, sde, t)
+        config.num_estimator_samples = 15000
+        plot_at_time(config, device, sde, t)
 
 
     # Create and add slider
     steps = []
-    for i in range(len(fig.data)//2):
+    for i in range(len(fig.data)//4):
         step = dict(
             method="update",
             args=[{"visible": [False] * len(fig.data)},
                 {"title": f"Time: {tt[i]}"}],  # layout attribute
         )
-        step["args"][0]["visible"][2*i] = True  # Toggle i'th trace to "visible"
-        step["args"][0]["visible"][2*i+1] = True  # Toggle i'th trace to "visible"
+        step["args"][0]["visible"][4*i] = True  # Toggle i'th trace to "visible"
+        step["args"][0]["visible"][4*i+1] = True  # Toggle i'th trace to "visible"
+        step["args"][0]["visible"][4*i+2] = True  # Toggle i'th trace to "visible"
+        step["args"][0]["visible"][4*i+3] = True  # Toggle i'th trace to "visible"
 
         steps.append(step)
 

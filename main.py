@@ -53,10 +53,6 @@ def parse_arguments():
     p.add_argument('--sde_type', choices=['vp','ve','edm'])
     p.add_argument('--sigma_min', type=float) # For VE
     p.add_argument('--sigma_max', type=float) # For VE
-
-
-    # Beta Functions
-    p.add_argument('--beta_func_type', choices=['linear'])
     p.add_argument('--multiplier', default=4, type=float)
     p.add_argument('--bias', default=0., type=float)
 
