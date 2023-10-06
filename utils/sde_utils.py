@@ -6,3 +6,5 @@ def get_sde(config):
         return sde_lib.VP(config)
     elif config.sde_type == 've':
         return sde_lib.VE(config)
+    elif config.sde_type == 'edm':
+        return sde_lib.EDM(config)

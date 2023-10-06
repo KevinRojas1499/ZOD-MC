@@ -6,11 +6,12 @@ score_method: convolution
 
 # Integrator details 
 convolution_integrator: simpson
+sub_intervals: 500
 integration_range: 15
 dimension: 1
 
 # Estimator Information
-num_estimator_samples: 5000
+num_estimator_samples: 15000
 eps_stable: 1e-9
 gradient_estimator: conv
 
@@ -21,10 +22,13 @@ samples_dir: generated_samples/
 
 # SDEs Parameters
 sde_type: vp
+sigma_min: 0.02
+sigma_max: 80
 
 # Beta Function
 beta_func_type: linear
-multiplier: 4
+multiplier: 20
+bias: 0.02
 
 
 # Sampling parameters

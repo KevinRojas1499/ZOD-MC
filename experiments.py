@@ -10,7 +10,10 @@ from tqdm import tqdm
 
 
 def get_run_name(config):
-    return f"{config.density} {config.score_method} {config.gradient_estimator}"
+    if config.score_method == 'convolution':
+        return f"{config.density} {config.sde_type} {config.score_method} {config.gradient_estimator} samples {config.num_estimator_samples}"
+    else:
+        return f"{config.density} {config.sde_type} {config.score_method} {config.gradient_estimator} steps {config.sub_intervals}"
 
 def init_wandb(config):
     wandb.init(
@@ -64,13 +67,21 @@ def run_experiments(config):
         c = params['coeffs']
         means=np.array(params['means'])
         variances= params['variances']
+        
+        scale = sde.scaling(t)
+        mean_t = means * scale.to('cpu').numpy()
+        var_t = variances 
+        if config.sde_type == 've' or config.sde_type == 'edm':
+            for i in range(len(var_t)):
+                if config.sde_type == 've':
+                    var_t[i] = var_t[i] + t
+                else:
+                    var_t[i] = var_t[i] + t**2
+        p0, grad = gmm_logdensity_fnc(c, mean_t, var_t)
 
-        mean_t = means * np.exp(-4*t.to('cpu').numpy())
-        p0, grad = gmm_logdensity_fnc(c, mean_t, variances)
 
-
-        pts = torch.linspace(-10,10,500).unsqueeze(-1)
-        pts = torch.cat((pts,0*torch.ones((500,1))),dim=1)
+        pts = torch.linspace(-10,10,500,device=device).unsqueeze(-1)
+        pts = torch.cat((pts,0*torch.ones((500,1),device=device)),dim=1)
         est_dens, est_grad = score_est(pts,t)
         real_dens = torch.exp(p0(pts))
         real_grad = grad(pts)
@@ -78,7 +89,8 @@ def run_experiments(config):
         real_score = real_grad/real_dens
         est_score = est_grad/est_dens 
 
-        pts = pts[:,0]
+        pts = pts[:,0].to('cpu').detach().numpy()
+        # Reals
         fig.add_trace(go.Scatter(x=pts, y=to_numpy(real_dens) ,mode='lines', name="Real",visible=False))
         fig.add_trace(go.Scatter(x=pts, y=to_numpy(est_dens),mode='lines', name="Estimated", visible=False))
 
@@ -95,14 +107,15 @@ def run_experiments(config):
     sde = utils.sde_utils.get_sde(config)
 
     N = 50
-    tt = torch.linspace(0.01,1,N)
+    tt = torch.linspace(0.01,sde.T(),N,device=device)
     fig = go.Figure()
     fig2 = go.Figure()
     fig3 = go.Figure()
 
     for i in tqdm(range(N)):
         t = tt[i]
-        plot_at_time(config, device, sde, t)
+        sde = utils.sde_utils.get_sde(config)
+
 
     # Create and add slider
     steps = []
@@ -110,7 +123,7 @@ def run_experiments(config):
         step = dict(
             method="update",
             args=[{"visible": [False] * len(fig.data)},
-                {"title": f"Time: {tt[i]*4}"}],  # layout attribute
+                {"title": f"Time: {tt[i]}"}],  # layout attribute
         )
         step["args"][0]["visible"][2*i] = True  # Toggle i'th trace to "visible"
         step["args"][0]["visible"][2*i+1] = True  # Toggle i'th trace to "visible"
@@ -130,4 +143,3 @@ def run_experiments(config):
 
     wandb.log({"Density Diff": fig, "Grad Diff": fig2, "Score": fig3})
     wandb.finish()
-

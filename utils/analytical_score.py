@@ -28,7 +28,7 @@ def get_score_function(config, sde, device):
         """
             The following method computes the score by making use that:
 
-            p_t = S_# p0(x - s\sigma y) * N(y; 0,1) (x)
+            p_t = \int S_# p0(x - s\sigma y) * N(y; 0,1) dy
             Where S(x) is the scaling of the sde at time t
         """
         def get_convolution(f, g):
@@ -56,7 +56,7 @@ def get_score_function(config, sde, device):
             return convolution
 
         scaling = sde.scaling(tt)
-        var = sde.scaling(tt)**2 * sde.scheduling(tt)**2
+        var = scaling**2 * sde.scheduling(tt)**2
 
         if config.dimension == 1:
             gaussian = torch.distributions.normal.Normal(0,var ** .5)
@@ -69,7 +69,7 @@ def get_score_function(config, sde, device):
                 dens = gaussian_density(x)
                 if config.dimension != 1:
                     dens = dens.unsqueeze(-1)
-                return -x *  dens/ var
+                return -x *  dens / var
             
             return grad_gaussian
 
@@ -78,8 +78,12 @@ def get_score_function(config, sde, device):
 
         sp0 = get_push_forward(scaling, p0)
         p_t = get_convolution(sp0, gaussian_density)
-        grad_p_t = get_convolution(sp0,grad_gaussian)
-        
+        if config.gradient_estimator == 'conv':
+            grad_p_t = get_convolution(sp0,grad_gaussian)
+        elif config.gradient_estimator == 'direct':
+            grad_p_t = get_convolution(gradient,gaussian_density)
+            grad_p_t = lambda x : grad_p_t(x)/var**.5
+
         if config.mode == 'experiment':
             return p_t(x), grad_p_t(x)
         else:
@@ -96,14 +100,14 @@ def get_score_function(config, sde, device):
             p_#t = (s^-1)_# p0
         """
         scaling = sde.scaling(tt)
-        std = sde.scaling(tt) * sde.scheduling(tt)
+        std = scaling * sde.scheduling(tt)
 
         def get_density_estimator(func):
 
             def estimator(x):
                 # x has shape (n,d), noise has shape (k,d)
                 # we need to make it (n,k,d) and then average on k
-                noise = torch.randn((config.num_estimator_samples, config.dimension))
+                noise = torch.randn((config.num_estimator_samples, config.dimension),device=device)
                 z = x.unsqueeze(1)
                 return torch.mean(func(z - std * noise), dim=1)
             
@@ -114,16 +118,16 @@ def get_score_function(config, sde, device):
             def estimator(x):
                 # x has shape (n,d), noise has shape (k,d)
                 # we need to make it (n,k,d) and then average on k
-                noise = torch.randn((config.num_estimator_samples, config.dimension))
+                noise = torch.randn((config.num_estimator_samples, config.dimension),device=device)
                 z = x.unsqueeze(1)
-                return torch.mean(noise * func(z - std * noise), dim=1)/std 
+                return -torch.mean(noise * func(z - std * noise), dim=1) / std 
             
             return estimator
         
         def get_direct_gradient_estimator(func):
             standard_estim = get_density_estimator(func)
             def estimator(x):
-                return standard_estim(x) / scaling
+                return standard_estim(x) / std
             
             return estimator
         

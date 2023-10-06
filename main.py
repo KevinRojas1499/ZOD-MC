@@ -28,6 +28,7 @@ def parse_arguments():
     # Integrator details
     p.add_argument('--convolution_integrator', choices=['trap','simpson','mc'])
     p.add_argument('--integration_range', type=float)
+    p.add_argument('--sub_intervals',type=int)
    
     # Estimator information
     p.add_argument('--num_estimator_samples', type=int, default=10000)
@@ -49,7 +50,7 @@ def parse_arguments():
     p.add_argument('--t1',type=int)
 
     # SDE Parameters
-    p.add_argument('--sde_type', choices=['vp','ve'])
+    p.add_argument('--sde_type', choices=['vp','ve','edm'])
     p.add_argument('--sigma_min', type=float) # For VE
     p.add_argument('--sigma_max', type=float) # For VE
 

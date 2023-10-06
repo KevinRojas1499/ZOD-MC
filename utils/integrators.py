@@ -4,11 +4,11 @@ def get_integrator(config):
     dimension = config.dimension
     def get_trapezoid(function, a ,b):
         tp = torchquad.Trapezoid()
-        return tp.integrate(fn=function,dim=dimension,integration_domain=[[a,b]]  * dimension)
+        return tp.integrate(fn=function,N=config.sub_intervals,dim=dimension,integration_domain=[[a,b]]  * dimension)
     
     def get_simpson(function, a ,b):
         simp = torchquad.Simpson()
-        return simp.integrate(fn=function,N=100,dim=dimension,integration_domain=[[a,b]]  * dimension)
+        return simp.integrate(fn=function,N=config.sub_intervals,dim=dimension,integration_domain=[[a,b]]  * dimension)
     
     def get_monte_carlo(function, a ,b):
         mc = torchquad.MonteCarlo()

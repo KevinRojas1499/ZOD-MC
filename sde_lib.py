@@ -39,7 +39,7 @@ class VP():
 
   def __init__(self,config):
     super().__init__()
-    self.sigma = transition_densities.get_sigma_function(config)
+    self.scheduling = transition_densities.get_sigma_function(config)
     self.scaling = transition_densities.get_scaling_function(config)
     self.betad = config.multiplier
     self.betamin = config.bias
@@ -60,19 +60,19 @@ class VP():
 class VE(SDE):
   def __init__(self,config):
     super().__init__()
-    self.sigma = transition_densities.get_sigma_function(config)
+    self.scheduling = transition_densities.get_sigma_function(config)
     self.scaling = transition_densities.get_scaling_function(config)
     self.sigma_min = config.sigma_min
     self.sigma_max = config.sigma_max
 
-  def T(self, x, t):
+  def T(self):
     return self.sigma_max
   
   def drift(x,t):
     return torch.zeros_like(x)
   
   def diffusion(self, x, t):
-    return 1
+    return 1.
 
   def prior_sampling(self, shape):
     return torch.randn(*shape) * self.sigma_max
@@ -93,7 +93,7 @@ class VE(SDE):
 class EDM(SDE):
   def __init__(self,config):
     super().__init__()
-    self.sigma = transition_densities.get_sigma_function(config)
+    self.scheduling = transition_densities.get_sigma_function(config)
     self.scaling = transition_densities.get_scaling_function(config)
     self.sigma_min = config.sigma_min
     self.sigma_max = config.sigma_max

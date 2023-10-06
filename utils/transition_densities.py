@@ -23,13 +23,13 @@ def get_scaling_function(config):
 
     # VP
     def vp_scaling(t):
-        return 1/(torch.exp(config.multiplier * t**2/2 + config.bias *t))**.5
+        return torch.exp(-(config.multiplier * t**2/2 + config.bias * t)/2)
     # VE
     def ve_scaling(t):
-        return 1.
+        return torch.tensor([1.],device=t.device)
     # EDM
     def edm_scaling(t):
-        return 1.
+        return torch.tensor([1.],device=t.device)
     
     if config.sde_type == 'vp':
         return vp_scaling
