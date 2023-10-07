@@ -28,7 +28,7 @@ class SDE(abc.ABC):
 
   @abc.abstractmethod
   def prior_sampling(self, shape):
-    """Generate one sample from the prior distribution, $p_T(x)$."""
+    """Generate samples from the prior distribution, $p_T(x)$."""
     pass
 
   @abc.abstractmethod
@@ -55,6 +55,9 @@ class VP():
   
   def time_steps(self, n, device):
     return torch.linspace(1,0,n,device=device)
+  
+  def prior_sampling(self, shape, device):
+    return torch.randn(*shape, device=device)
 
     
 class VE(SDE):
@@ -68,14 +71,14 @@ class VE(SDE):
   def T(self):
     return self.sigma_max
   
-  def drift(x,t):
+  def drift(self, x,t):
     return torch.zeros_like(x)
   
   def diffusion(self, x, t):
     return 1.
 
-  def prior_sampling(self, shape):
-    return torch.randn(*shape) * self.sigma_max
+  def prior_sampling(self, shape, device):
+    return torch.randn(*shape, device=device) * self.sigma_max
 
   def prior_logp(self, z):
     shape = z.shape
@@ -85,7 +88,7 @@ class VE(SDE):
   def time_steps(self, n, device):
     # TODO: Maybe put this in configs
     quot = (self.sigma_min/self.sigma_max)**2
-    step_indices = torch.arange(n-1, dtype=torch.float64, device=device)/n-1
+    step_indices = torch.arange(n, dtype=torch.float64, device=device)/(n-1.)
     t_steps = self.sigma_max**2 * torch.pow(quot,step_indices)
     t_steps = torch.cat([t_steps, torch.zeros_like(t_steps[:1])]) # t_N = 0
     return t_steps
@@ -101,14 +104,14 @@ class EDM(SDE):
   def T(self):
     return self.sigma_max
   
-  def drift(x,t):
+  def drift(self, x,t):
     return torch.zeros_like(x)
   
   def diffusion(self, x, t):
     return (2. * t)**.5
 
-  def prior_sampling(self, shape):
-    return torch.randn(*shape) * self.sigma_max
+  def prior_sampling(self, shape, device):
+    return torch.randn(*shape, device=device) * self.sigma_max
 
   def prior_logp(self, z):
     shape = z.shape

@@ -34,7 +34,7 @@ def get_run_name(config):
     if config.score_method == 'quotient-estimator':
         return f"{config.density} {config.sde_type} {config.num_estimator_samples}"
     elif config.score_method == 'convolution':
-        return f"{config.density} {config.sde_type} {config.sub_intervals}"
+        return f"{config.density} {config.sde_type} {config.sub_intervals_per_dim}"
 
 def init_wandb(config):
     wandb.init(
@@ -70,8 +70,8 @@ def get_gmm_density_at_t(config, sde, t):
 
 def run_experiments(config):
     def plot_with_subintervals(config, device, sde, t, num_sub_intervals, plot_real=True,line_mode='solid'):
-        config.sub_intervals = num_sub_intervals
-        name = f"{config.sde_type}, {config.score_method} N= {config.sub_intervals}"
+        config.sub_intervals_per_dim = num_sub_intervals
+        name = f"{config.sde_type}, {config.score_method} N= {config.sub_intervals_per_dim}"
         return plot_at_time(config, device, sde, t, name,plot_real=plot_real, line_mode=line_mode)
 
     def plot_with_samples(config, device, sde, t, num_samples, plot_real=True, line_mode='solid'):

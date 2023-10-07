@@ -1,6 +1,7 @@
 import torch
 from torch.distributions import Normal, MultivariateNormal
 import yaml
+from math import pi
 
 class MultivariateGaussian():
 
@@ -9,16 +10,17 @@ class MultivariateGaussian():
         self.mean = mean
         self.cov = cov
         self.inv_cov = torch.linalg.inv(cov)
-        self.dist = MultivariateNormal(mean, cov)
+        self.L = torch.linalg.cholesky(self.inv_cov)
         self.dim = mean.shape[0]
     
     def log_prob(self,x):
-        curr_shape = list(x.shape)
-        new_shape = curr_shape
+        new_shape = list(x.shape)
         new_shape[-1] = 1
         new_shape = tuple(new_shape)
         x = x.view((-1,self.dim))
-        log_prob = self.dist.log_prob(x)
+        log_det = torch.log(torch.linalg.det(self.cov))
+        shift_cov = (self.L @ (x-self.mean).T).T
+        log_prob = -.5 * ( self.dim * 2 * pi +  log_det + torch.sum(shift_cov**2,dim=1)) 
         log_prob = log_prob.view(new_shape)
         return log_prob
 

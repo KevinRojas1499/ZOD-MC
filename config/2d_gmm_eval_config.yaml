@@ -1,44 +1,33 @@
 # Wandb info
 wandb_project_name: NonconvexSampling
 
-mode: experiment
+mode: generation-experiments
 score_method: quotient-estimator
 
 # Integrator details 
-convolution_integrator: trap
-integration_range: 10
+convolution_integrator: simpson
+sub_intervals_per_dim: 500
+integration_range: 15
 dimension: 2
 
 # Estimator Information
-num_estimator_samples: 10000
+num_estimator_samples: 100000
 eps_stable: 1e-9
 gradient_estimator: conv
 
 # SDEs Parameters
 sde_type: vp
-
-# Beta Function
-beta_func_type: linear
-multiplier: 4
-
-
-# Files
-work_dir: training-runs/gmm-two/
-ckpt_path: checkpoints/ckpt_1000.pt
-samples_dir: generated_samples/
-
+sigma_min: 0.02
+sigma_max: 80
+multiplier: 20
+bias: 0.02
 
 # Sampling parameters
 sampling_method: em
-num_samples: 10000
+num_batches: 20
+sampling_batch_size: 500 # Just make this divisible by each other please
 sampling_eps: 1e-3
 disc_steps: 25
-
-# CNF ODE Solver
-atol: 1e-5
-rtol: 1e-5
-t1: 10
-density: gmm
 
 # Problem Specifics
 density: gmm

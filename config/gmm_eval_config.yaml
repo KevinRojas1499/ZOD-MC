@@ -15,11 +15,6 @@ num_estimator_samples: 15000
 eps_stable: 1e-9
 gradient_estimator: conv
 
-# Files
-work_dir: training-runs/gmm-two/
-ckpt_path: checkpoints/ckpt_1000.pt
-samples_dir: generated_samples/
-
 # SDEs Parameters
 sde_type: ve
 sigma_min: 0.02
@@ -33,12 +28,6 @@ sampling_method: em
 num_samples: 10000
 sampling_eps: 1e-3
 disc_steps: 25
-
-# CNF ODE Solver
-atol: 1e-5
-rtol: 1e-5
-t1: 10
-density: gmm
 
 # Problem Specifics
 density: gmm

@@ -61,7 +61,7 @@ def get_score_function(config, sde, device):
         if config.dimension == 1:
             gaussian = torch.distributions.normal.Normal(0,var ** .5)
         else:
-            gaussian = torch.distributions.MultivariateNormal(torch.zeros(config.dimension),var * torch.eye(config.dimension))
+            gaussian = torch.distributions.MultivariateNormal(torch.zeros(config.dimension,device=device),var * torch.eye(config.dimension,device=device))
         
         def get_grad_gaussian():
 

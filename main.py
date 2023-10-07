@@ -1,6 +1,7 @@
 import configargparse
 import run_toy
-import experiments
+import estimator_accuracy_experiments
+import generation_accuracy_experiments
 
 def parse_arguments():
     p = configargparse.ArgParser(description='Arguments for nonconvex sampling')
@@ -10,25 +11,19 @@ def parse_arguments():
     # Wandb
     p.add_argument('--wandb_project_name', type=str)
 
-    # Files
-    p.add_argument('--work_dir')
-    p.add_argument('--ckpt_dir')
-    p.add_argument('--samples_dir')    
-
-    p.add_argument('--num_eval_samples',type=int)
     
     # Checkpoint path
     p.add_argument('--ckpt_path',required=False)
 
 
     # Mode
-    p.add_argument('--mode', choices=['train','sample','experiment'])
+    p.add_argument('--mode', choices=['train','sample','estimator-experiments', 'generation-experiments'])
     p.add_argument('--score_method', choices=['convolution','quotient-estimator','trained'])
     p.add_argument('--dimension', type=int)
     # Integrator details
     p.add_argument('--convolution_integrator', choices=['trap','simpson','mc'])
     p.add_argument('--integration_range', type=float)
-    p.add_argument('--sub_intervals',type=int)
+    p.add_argument('--sub_intervals_per_dim',type=int)
    
     # Estimator information
     p.add_argument('--num_estimator_samples', type=int, default=10000)
@@ -59,7 +54,8 @@ def parse_arguments():
 
     # Sampling Parameters
     p.add_argument('--sampling_method', type=str)
-    p.add_argument('--num_samples',type=int)
+    p.add_argument('--sampling_batch_size',type=int)
+    p.add_argument('--num_batches', type=int)
     p.add_argument('--sampling_eps', type=float)
     p.add_argument('--disc_steps',type=int)
 
@@ -74,8 +70,10 @@ def main(config):
         run_toy.train(config)
     elif config.mode == 'sample':
         run_toy.eval(config)
-    elif config.mode == 'experiment':
-        experiments.run_experiments(config)
+    elif config.mode == 'estimator-experiments':
+        estimator_accuracy_experiments.run_experiments(config)
+    elif config.mode == 'generation-experiments':
+        generation_accuracy_experiments.run_experiments(config)
     else:
         print("Mode doesn't exist")
 
