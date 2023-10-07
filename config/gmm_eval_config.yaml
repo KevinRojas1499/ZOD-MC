@@ -2,15 +2,16 @@
 wandb_project_name: NonconvexSampling
 
 mode: experiment
-score_method: convolution
+score_method: quotient-estimator
 
 # Integrator details 
 convolution_integrator: simpson
+sub_intervals: 1000
 integration_range: 15
 dimension: 1
 
 # Estimator Information
-num_estimator_samples: 5000
+num_estimator_samples: 15000
 eps_stable: 1e-9
 gradient_estimator: conv
 
@@ -19,8 +20,13 @@ work_dir: training-runs/gmm-two/
 ckpt_path: checkpoints/ckpt_1000.pt
 samples_dir: generated_samples/
 
-# SDE Parameters
-sigma : 4
+# SDEs Parameters
+sde_type: ve
+sigma_min: 0.02
+sigma_max: 80
+multiplier: 20
+bias: 0.02
+
 
 # Sampling parameters
 sampling_method: em

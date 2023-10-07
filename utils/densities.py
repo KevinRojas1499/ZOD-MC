@@ -46,34 +46,34 @@ class OneDimensionalGaussian():
         dens = torch.exp(self.log_prob(x))
         return - dens * (x - self.mean)/self.cov
 
+def to_tensor_type(x, device):
+    return torch.tensor(x,device=device, dtype=torch.float64)
+
+
+def gmm_logdensity_fnc(c,means,variances, dimension, device):
+    n = len(c)
+    means, variances = to_tensor_type(means, device),to_tensor_type(variances,device)
+    if dimension == 1:
+        gaussians = [OneDimensionalGaussian(means[i],variances[i]) for i in range(n)]
+    else:
+        gaussians = [MultivariateGaussian(means[i],variances[i]) for i in range(n)]
+
+    def log_density(x):
+        p = 0
+        for i in range(n):
+            p+= c[i] * torch.exp(gaussians[i].log_prob(x))
+        return torch.log(p)
+    
+    def gradient(x):
+        grad = 0
+        for i in range(n):
+            grad+= c[i] * gaussians[i].gradient(x)
+        return grad
+
+    return log_density, gradient
 
 def get_log_density_fnc(config, device):
-
-    def to_tensor_type(x):
-        return torch.tensor(x,device=device, dtype=torch.float64)
-
     params = yaml.safe_load(open(config.density_parameters_path))
-    def gmm_logdensity_fnc(c,means,variances):
-        n = len(c)
-        means, variances = to_tensor_type(means),to_tensor_type(variances)
-        if config.dimension == 1:
-            gaussians = [OneDimensionalGaussian(means[i],variances[i]) for i in range(n)]
-        else:
-            gaussians = [MultivariateGaussian(means[i],variances[i]) for i in range(n)]
-
-        def log_density(x):
-            p = 0
-            for i in range(n):
-                p+= c[i] * torch.exp(gaussians[i].log_prob(x))
-            return torch.log(p)
-        
-        def gradient(x):
-            grad = 0
-            for i in range(n):
-                grad+= c[i] * gaussians[i].gradient(x)
-            return grad
-
-        return log_density, gradient
 
     def double_well_density():
         def double_well_log_density(x):
@@ -83,7 +83,7 @@ def get_log_density_fnc(config, device):
         return double_well_log_density
 
     if config.density == 'gmm':
-        return gmm_logdensity_fnc(params['coeffs'], params['means'], params['variances'])
+        return gmm_logdensity_fnc(params['coeffs'], params['means'], params['variances'], config.dimension, device)
     elif config.density == 'double-well':
         return double_well_density()
     else:
