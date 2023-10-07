@@ -21,7 +21,7 @@ ckpt_path: checkpoints/ckpt_1000.pt
 samples_dir: generated_samples/
 
 # SDEs Parameters
-sde_type: vp
+sde_type: ve
 sigma_min: 0.02
 sigma_max: 80
 multiplier: 20
