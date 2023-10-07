@@ -32,7 +32,9 @@ def create_slider(tt, fig, num_plots):
 
 def get_run_name(config):
     if config.score_method == 'quotient-estimator':
-        return f"{config.density} {config.sde_type}"
+        return f"{config.density} {config.sde_type} {config.num_estimator_samples}"
+    elif config.score_method == 'convolution':
+        return f"{config.density} {config.sde_type} {config.sub_intervals}"
 
 def init_wandb(config):
     wandb.init(
