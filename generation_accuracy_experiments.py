@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 import utils.plots
 import utils.samplers
 import utils.densities
-import utils.analytical_score
+import utils.score_estimators
 import utils.sde_utils
 import utils.gmm_statistics
 
@@ -26,7 +26,7 @@ def sample_and_add_stats(name,config, device, weights_per_model, means_per_model
     n_batch = config.num_batches
     dim = config.dimension
     sde = utils.sde_utils.get_sde(config)
-    model = utils.analytical_score.get_score_function(config, sde, device)
+    model = utils.score_estimators.get_score_function(config, sde, device)
     # Get Sampler
     sampler = utils.samplers.get_sampler(config,device, sde)
 

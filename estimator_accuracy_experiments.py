@@ -1,6 +1,6 @@
 import torch
 import utils.integrators
-import utils.analytical_score
+import utils.score_estimators
 import utils.sde_utils
 from utils.densities import * 
 from utils.plots import *
@@ -68,6 +68,9 @@ def get_gmm_density_at_t(config, sde, t):
         
     return c,mean_t,var_t
 
+def get_l2_error(real, est):
+    return torch.log(torch.mean((real-est)**2)**.5)
+
 def run_experiments(config):
     def plot_with_subintervals(config, device, sde, t, num_sub_intervals, plot_real=True,line_mode='solid'):
         config.sub_intervals_per_dim = num_sub_intervals
@@ -81,7 +84,7 @@ def run_experiments(config):
     
     def plot_at_time(config, device, sde, t, name, plot_real=True, line_mode='solid'):
         nonlocal fig, fig2, fig3
-        score_est = utils.analytical_score.get_score_function(config,sde,device)
+        score_est = utils.score_estimators.get_score_function(config,sde,device)
         c, mean_t, var_t = get_gmm_density_at_t(config, sde, t)
         p0, grad = gmm_logdensity_fnc(c, mean_t, var_t, config.dimension, device)
 
@@ -107,52 +110,88 @@ def run_experiments(config):
 
         fig3.update_layout(yaxis_range=[-10,10])
 
-        return torch.mean((real_score-est_score)**2), name
+        return {"name": name,
+                "diff_dens": get_l2_error(real_dens,est_dens),
+                "diff_grad": get_l2_error(real_grad, est_grad),
+                "diff_score": get_l2_error(real_score, est_score) }
 
     init_wandb(config)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     sde = utils.sde_utils.get_sde(config)
 
-    num_plots = 7 # Real + 3 vals * method
-    N = 50
+
+    num_samples = [500,1000,1500,2000,3000,4000,5000,6000,7000,8000,9000,10000,11000,12000]
+    num_sub_intervals = [5,15,25,35,51,65,81,101,121,151,175,201,225,251,275,301,401,501,601]
+    number_of_plots = len(num_samples) if config.score_method == 'quotient-estimator' else len(num_sub_intervals)
+    names = [0] * number_of_plots
+    num_plots =  1 + number_of_plots
+    
+    N = 15
     tt = torch.linspace(0.01,sde.T(),N,device=device)
+    diff_dens = torch.zeros((num_plots,N))
+    diff_grad = torch.zeros((num_plots,N))
     diff_score = torch.zeros((num_plots,N))
     fig = go.Figure()
     fig2 = go.Figure()
     fig3 = go.Figure()
 
-    num_samples = [5000,10000,15000]
-    num_sub_intervals = [501,1001,1501]
-    names = [0] * 6
+
     for i in tqdm(range(N)):
         t = tt[i]
-        config.score_method='quotient-estimator'
-        for j in range(len(num_samples)):
-            plot_real = True if j == 0 else False
-            d, name = plot_with_samples(config, device, sde, t, num_samples=num_samples[j],plot_real=plot_real)
-            diff_score[j,i] = d
-            names[j] = name
-        config.score_method='convolution'
-        k = j + 1
-        for j in range(len(num_samples)):
-            d, name = plot_with_subintervals(config, device, sde, t, num_sub_intervals=num_sub_intervals[j],plot_real=False, line_mode='dash')
-            diff_score[k+j,i] = d
-            names[k+j] = name
+        if config.score_method == 'quotient-estimator':
+            for j in range(len(num_samples)):
+                plot_real = True if j == 0 else False
+                info = plot_with_samples(config, device, sde, t, num_samples=num_samples[j],plot_real=plot_real)
+                diff_dens[j,i] = info['diff_dens']
+                diff_grad[j,i] = info['diff_grad']
+                diff_score[j,i] = info['diff_score']
+                names[j] = info['name']
+        elif config.score_method == 'convolution':
+            for j in range(len(num_sub_intervals)):
+                plot_real = True if j == 0 else False
+                info = plot_with_subintervals(config, device, sde, t, num_sub_intervals=num_sub_intervals[j],plot_real=plot_real, line_mode='solid')
+                diff_dens[j,i] = info['diff_dens']
+                diff_grad[j,i] = info['diff_grad']
+                diff_score[j,i] = info['diff_score']
+                names[j] = info['name']
 
 
     summary_score_fig = go.Figure()
-    for j in range(num_plots-1):
-        dash_mode = 'solid' if j <3 else 'dash'
-        summary_score_fig.add_trace(go.Scatter(x=tt.detach().to('cpu').numpy(),
-                                               y=diff_score[j].detach().to('cpu').numpy(),
-                                               mode='lines', line=dict(dash=dash_mode), name=f"{names[j]}"))
+    summary_dens_fig = go.Figure()
+    summary_grad_fig = go.Figure()
+
+    for i in range(N):
+        xvals = num_sub_intervals
+        if config.score_method == 'quotient-estimator':
+            xvals = num_samples
+        add_trace_x_not_tensor(summary_dens_fig, xvals, diff_dens[:,i], tt[i], dash_mode='solid')
+        add_trace_x_not_tensor(summary_grad_fig, xvals, diff_grad[:,i], tt[i], dash_mode='solid')
+        add_trace_x_not_tensor(summary_score_fig, xvals, diff_score[:,i], tt[i], dash_mode='solid')
+
+
+    # for j in range(num_plots-1):
+    #     dash_mode = 'solid'
+    #     add_trace(summary_dens_fig, tt, diff_dens[j], names[j], dash_mode)
+    #     add_trace(summary_grad_fig, tt, diff_grad[j], names[j], dash_mode)
+    #     add_trace(summary_score_fig, tt, diff_score[j], names[j], dash_mode)
+
     
     # Create and add slider
-    sliders = create_slider(tt, fig, num_plots)
+    # sliders = create_slider(tt, fig, num_plots)
+    # slider2 = create_slider(tt, summary_dens_fig, N)
+    # summary_dens_fig.update_layout(sliders=slider2)
+    # summary_grad_fig.update_layout(sliders=slider2)
+    # summary_score_fig.update_layout(sliders=slider2)
 
-    fig.update_layout(sliders=sliders)
-    fig2.update_layout(sliders=sliders)
-    fig3.update_layout(sliders=sliders)
-
-    wandb.log({"Density Diff": fig, "Grad Diff": fig2, "Score": fig3, "Summary-Score": summary_score_fig})
+    wandb.log({"Density Diff": summary_dens_fig, "Grad Diff": summary_grad_fig, "Score Diff": summary_score_fig})
     wandb.finish()
+
+def add_trace(fig, xvals, yvals, name,dash_mode):
+    fig.add_trace(go.Scatter(x=xvals.detach().to('cpu').numpy(),
+                                               y=yvals.detach().to('cpu').numpy(),
+                                               mode='lines', line=dict(dash=dash_mode), name=f"{name}"))
+    
+def add_trace_x_not_tensor(fig, xvals, yvals, name,dash_mode):
+    fig.add_trace(go.Scatter(x=xvals,
+                            y=yvals.detach().to('cpu').numpy(),
+                            mode='lines', line=dict(dash=dash_mode), name=f"{name}"))

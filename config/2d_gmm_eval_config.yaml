@@ -1,7 +1,7 @@
 # Wandb info
 wandb_project_name: NonconvexSampling
 
-mode: generation-experiments
+mode: estimator-experiments
 score_method: quotient-estimator
 
 # Integrator details 
@@ -25,7 +25,7 @@ bias: 0.02
 # Sampling parameters
 sampling_method: em
 num_batches: 20
-sampling_batch_size: 500 # Just make this divisible by each other please
+sampling_batch_size: 500 
 sampling_eps: 1e-3
 disc_steps: 25
 

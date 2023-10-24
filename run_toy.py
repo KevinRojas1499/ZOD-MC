@@ -5,7 +5,7 @@ from tqdm import tqdm
 import utils.plots
 import utils.samplers
 import utils.densities
-import utils.analytical_score
+import utils.score_estimators
 import utils.sde_utils
 import utils.gmm_statistics
 
@@ -30,7 +30,7 @@ def eval(config):
     device = torch.device('cuda:0'if torch.cuda.is_available() else 'cpu')
     # Get SDE:
     sde = utils.sde_utils.get_sde(config)
-    model = utils.analytical_score.get_score_function(config, sde, device)
+    model = utils.score_estimators.get_score_function(config, sde, device)
     
     # Get Sampler
     sampler = utils.samplers.get_sampler(config,device, sde)

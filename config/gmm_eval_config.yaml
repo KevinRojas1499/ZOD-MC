@@ -1,14 +1,14 @@
 # Wandb info
 wandb_project_name: NonconvexSampling
 
-mode: experiment
-score_method: quotient-estimator
+mode: estimator-experiments
+score_method: convolution
 
 # Integrator details 
 convolution_integrator: simpson
-sub_intervals: 1000
+sub_intervals_per_dim: 500
 integration_range: 15
-dimension: 1
+dimension: 2
 
 # Estimator Information
 num_estimator_samples: 15000
@@ -25,9 +25,11 @@ bias: 0.02
 
 # Sampling parameters
 sampling_method: em
-num_samples: 10000
+num_batches: 20
+sampling_batch_size: 500 
 sampling_eps: 1e-3
 disc_steps: 25
+
 
 # Problem Specifics
 density: gmm

@@ -83,10 +83,10 @@ def get_score_function(config, sde, device):
         elif config.gradient_estimator == 'direct':
             grad_p_t = get_convolution(gradient,gaussian_density)
 
-        if config.mode == 'experiment':
-            return p_t(x), grad_p_t(x)
-        else:
+        if config.mode == 'sample':
             return grad_p_t(x)/(p_t(x) + config.eps_stable)
+        else :
+            return p_t(x), grad_p_t(x)
 
 
     
@@ -141,11 +141,18 @@ def get_score_function(config, sde, device):
         elif config.gradient_estimator == 'direct':
             grad_p_t = get_direct_gradient_estimator(sgrad) 
 
-        if config.mode == 'experiment':
-            return p_t(x), grad_p_t(x)
-        else:
+        if config.mode == 'sample':
             return grad_p_t(x)/(p_t(x) + config.eps_stable)
+        else :
+            return p_t(x), grad_p_t(x)
 
+    def get_proximal_sampler(x, tt):
+        scaling = sde.scaling(tt)
+        var = (scaling * sde.scheduling(tt))**2
+        x0 = get_unbiased_samples(logdensity, tt)
+        return (scaling * torch.mean(x0) - x)/ var
+
+        return 0 
     
     if config.score_method == 'convolution':
         return score_gaussian_convolution
