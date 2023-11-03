@@ -1,8 +1,9 @@
+import numpy as np
 import torch
 
 from utils.integrators import get_integrator
 from utils.densities import get_log_density_fnc
-
+from math import pi
 
 
 def get_score_function(config, sde, device):
@@ -146,15 +147,62 @@ def get_score_function(config, sde, device):
         else :
             return p_t(x), grad_p_t(x)
 
-    def get_proximal_sampler(x, tt):
-        scaling = sde.scaling(tt)
-        var = (scaling * sde.scheduling(tt))**2
-        x0 = get_unbiased_samples(logdensity, tt)
-        return (scaling * torch.mean(x0) - x)/ var
+    # def get_proximal_sampler(x, tt):
+    #     scaling = sde.scaling(tt)
+    #     var = (scaling * sde.scheduling(tt))**2
+    #     x0 = get_unbiased_samples(logdensity, tt)
+    #     return (scaling * torch.mean(x0) - x)/ var
 
-        return 0 
+    #     return 0 
+    
+    def get_fourier_estimator(x,tt):
+        x = x.unsqueeze(-1)
+        scaling = sde.scaling(tt) #e**-t
+        var = (scaling * sde.scheduling(tt))**2
+        l = config.integration_range
+        num_samples = config.sub_intervals_per_dim
+        pt = get_push_forward(scaling,p0)
+        phase = -l/2.
+        dx = l/num_samples
+        pts_for_ifft = torch.fft.fftfreq(num_samples,d=dx, device=device)
+        pts_for_ifft = torch.fft.fftshift(pts_for_ifft)
+        pts = torch.linspace(phase, -phase, num_samples, device=device)
+        correct_phase = (pi * torch.arange(0,num_samples, device= device)).unsqueeze(-1)
+        correct_phase = torch.view_as_complex(torch.concat([torch.zeros_like(correct_phase,device=device),correct_phase],dim=-1))
+        correct_phase = correct_phase.unsqueeze(-1)
+
+        fft_pts = torch.fft.fft(pt(pts),norm='ortho').unsqueeze(-1)
+        fft_pts = torch.fft.fftshift(fft_pts)
+        # fft_pts = correct_phase * fft_pts
+        fft_pts = torch.abs(fft_pts)
+        print(fft_pts)
+        gaussian_part = torch.exp(-2 * pi **2 * (1-scaling**2) * pts_for_ifft**2).unsqueeze(-1)
+        non_osc = (fft_pts * gaussian_part)
+        import matplotlib.pyplot as plt
+        exact_vals = torch.exp(-2 * pi **2 * scaling ** 2 * pts_for_ifft **2 )
+
+        plt.plot(pts_for_ifft.cpu().numpy(), fft_pts.cpu().numpy())
+        plt.plot(pts_for_ifft.cpu().numpy(), exact_vals.cpu().numpy())
+        plt.legend(['approximated','real'])
+        plt.show()
+        def get_density_estimator():
+            x_shaped = x.unsqueeze(-1)
+            points = pts_for_ifft.unsqueeze(-1)
+            exponent = 2. * pi * points * x_shaped
+            exponent = torch.view_as_complex(torch.concat([torch.zeros_like(exponent,device=device),exponent],dim=-1))
+            osc = torch.exp(exponent).real.unsqueeze(-1)
+            complex_part = (osc * non_osc).real
+            unnormalized = (l * torch.mean(complex_part, dim=(1,2))).real
+
+            return  unnormalized 
+        
+        return get_density_estimator()
+
+
     
     if config.score_method == 'convolution':
         return score_gaussian_convolution
     elif config.score_method == 'quotient-estimator':
         return score_quotient_estimator
+    elif config.score_method == 'fourier':
+        return get_fourier_estimator

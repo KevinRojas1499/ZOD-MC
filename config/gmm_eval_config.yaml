@@ -1,14 +1,14 @@
 # Wandb info
 wandb_project_name: NonconvexSampling
 
-mode: estimator-experiments
-score_method: convolution
+mode: fourier-experiments
+score_method: fourier
 
 # Integrator details 
 convolution_integrator: simpson
-sub_intervals_per_dim: 500
-integration_range: 15
-dimension: 2
+sub_intervals_per_dim: 256
+integration_range: 10
+dimension: 1
 
 # Estimator Information
 num_estimator_samples: 15000
@@ -16,11 +16,11 @@ eps_stable: 1e-9
 gradient_estimator: conv
 
 # SDEs Parameters
-sde_type: ve
+sde_type: vp
 sigma_min: 0.02
 sigma_max: 80
-multiplier: 20
-bias: 0.02
+multiplier: 0
+bias: 2
 
 
 # Sampling parameters

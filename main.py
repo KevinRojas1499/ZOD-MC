@@ -2,6 +2,7 @@ import configargparse
 import run_toy
 import estimator_accuracy_experiments
 import generation_accuracy_experiments
+import fourier_experiments
 
 def parse_arguments():
     p = configargparse.ArgParser(description='Arguments for nonconvex sampling')
@@ -17,8 +18,8 @@ def parse_arguments():
 
 
     # Mode
-    p.add_argument('--mode', choices=['train','sample','estimator-experiments', 'generation-experiments'])
-    p.add_argument('--score_method', choices=['convolution','quotient-estimator','trained'])
+    p.add_argument('--mode', choices=['train','sample','estimator-experiments', 'generation-experiments','fourier-experiments'])
+    p.add_argument('--score_method', choices=['convolution','quotient-estimator','trained','fourier'])
     p.add_argument('--dimension', type=int)
     # Integrator details
     p.add_argument('--convolution_integrator', choices=['trap','simpson','mc'])
@@ -74,6 +75,8 @@ def main(config):
         estimator_accuracy_experiments.run_experiments(config)
     elif config.mode == 'generation-experiments':
         generation_accuracy_experiments.run_experiments(config)
+    elif config.mode == 'fourier-experiments':
+        fourier_experiments.run_fourier_experiments(config)
     else:
         print("Mode doesn't exist")
 
