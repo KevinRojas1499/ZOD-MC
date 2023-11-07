@@ -147,14 +147,6 @@ def get_score_function(config, sde, device):
         else :
             return p_t(x), grad_p_t(x)
 
-    # def get_proximal_sampler(x, tt):
-    #     scaling = sde.scaling(tt)
-    #     var = (scaling * sde.scheduling(tt))**2
-    #     x0 = get_unbiased_samples(logdensity, tt)
-    #     return (scaling * torch.mean(x0) - x)/ var
-
-    #     return 0 
-    
     def get_fourier_estimator(x,tt):
         x = x.unsqueeze(-1)
         scaling = sde.scaling(tt) #e**-t
@@ -198,6 +190,11 @@ def get_score_function(config, sde, device):
         
         return get_density_estimator()
 
+    def get_proximal_sampler_estimator(x,tt):
+        eta = 1
+        samples_from_p0t = get_samples_for_estimator(tt)
+
+        return 
 
     
     if config.score_method == 'convolution':
