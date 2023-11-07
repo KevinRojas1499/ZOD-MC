@@ -23,7 +23,7 @@ def get_accepted_rejected_samples(samples, threshold1, threshold2,device):
     acc_idx = (threshold2 * rand_prob <= threshold1).squeeze(-1)
     return samples[acc_idx], samples[~acc_idx], ~acc_idx
 
-def one_proximal_sampling_iteration(x0, eta, potential, gradient, M, device):
+def get_rgo_sampling(x0, yk, eta, potential, gradient, M, device):
     # Sampling from exp(-f(x) - (x-y)^2/2eta)
     num_samples = x0.shape[0]
     k = 50 # Number of iters
@@ -33,13 +33,11 @@ def one_proximal_sampling_iteration(x0, eta, potential, gradient, M, device):
     delta = 1
     num_acc_samples = 0
     
-    z = torch.randn_like(rej_samp,device=device)
-    yk = rej_samp + z * eta **.5
     grad_f_eta = lambda x : gradient(x) + (x - yk)/eta
     w = get_approx_minimizer(rej_samp, grad_f_eta)
     var = 1/(1/eta - M)
     gradw = gradient(w)
-    u = ( yk/eta - gradw - M * w) * var
+    u = (yk/eta - gradw - M * w) * var
     
     for _ in range(k):
         # print(f'Rejection sampling iter {_}, accepted {num_acc_samples}')
@@ -72,7 +70,9 @@ def get_proximal_sampler(x0, eta, potential, gradient, M, device):
     xk = x0
     for _ in range(k):
         print(f"Iteration {_}")
-        xk = one_proximal_sampling_iteration(xk, eta, potential, gradient, M, device)
+        z = torch.randn_like(xk,device=device)
+        yk = xk + z * eta **.5
+        xk = get_rgo_sampling(xk, yk, eta, potential, gradient, M, device)
     return xk
     
 
