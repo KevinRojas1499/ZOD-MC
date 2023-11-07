@@ -3,6 +3,7 @@ import torch
 
 from utils.integrators import get_integrator
 from utils.densities import get_log_density_fnc
+from utils.proximal_sampler import get_rgo_sampling
 from math import pi
 
 
@@ -191,11 +192,18 @@ def get_score_function(config, sde, device):
         return get_density_estimator()
 
     def get_proximal_sampler_estimator(x,tt):
-        eta = 1
-        samples_from_p0t = get_samples_for_estimator(tt)
-
-        return 
-
+        scaling = sde.scaling(tt)
+        var = scaling**2 * sde.scheduling(tt)**2
+        potential = lambda x : - logdensity(x)
+        grad_log_density = lambda x : - gradient(x)/p0(x)
+        
+        eta = 1/scaling**2 - 1
+        M = 1/(config.dimension * eta)
+        y = scaling * x
+        samples_from_p0t = get_rgo_sampling(x,y,eta,potential,grad_log_density,M,device)
+        samples_from_p0t = samples_from_p0t.unsqueeze(1)
+        score_estimate = torch.mean(scaling * samples_from_p0t - x, dim=1) / var
+        return score_estimate
     
     if config.score_method == 'convolution':
         return score_gaussian_convolution
@@ -203,3 +211,5 @@ def get_score_function(config, sde, device):
         return score_quotient_estimator
     elif config.score_method == 'fourier':
         return get_fourier_estimator
+    elif config.score_method == 'proximal':
+        return get_proximal_sampler_estimator

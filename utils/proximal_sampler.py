@@ -1,6 +1,6 @@
 import torch
 import matplotlib.pyplot as plt
-import densities
+# import utils.densities
 
 def sum_last_dim(x):
     return torch.sum(x,dim=-1).unsqueeze(-1)
@@ -26,7 +26,6 @@ def get_accepted_rejected_samples(samples, threshold1, threshold2,device):
 def get_rgo_sampling(x0, yk, eta, potential, gradient, M, device):
     # Sampling from exp(-f(x) - (x-y)^2/2eta)
     num_samples = x0.shape[0]
-    k = 50 # Number of iters
     rej_samp = x0
     acc_samp = []
     al = 1 # We are assuming this
@@ -39,7 +38,7 @@ def get_rgo_sampling(x0, yk, eta, potential, gradient, M, device):
     gradw = gradient(w)
     u = (yk/eta - gradw - M * w) * var
     
-    for _ in range(k):
+    while num_acc_samples < num_samples:
         # print(f'Rejection sampling iter {_}, accepted {num_acc_samples}')
         z = torch.randn_like(rej_samp)
         xk = u + var **.5 * z 

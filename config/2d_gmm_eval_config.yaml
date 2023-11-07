@@ -1,8 +1,8 @@
 # Wandb info
 wandb_project_name: NonconvexSampling
 
-mode: estimator-experiments
-score_method: quotient-estimator
+mode: sample
+score_method: proximal
 
 # Integrator details 
 convolution_integrator: simpson
@@ -19,13 +19,13 @@ gradient_estimator: conv
 sde_type: vp
 sigma_min: 0.02
 sigma_max: 80
-multiplier: 20
-bias: 0.02
+multiplier: 0
+bias: 2
 
 # Sampling parameters
 sampling_method: em
-num_batches: 20
-sampling_batch_size: 500 
+num_batches: 1
+sampling_batch_size: 3000 
 sampling_eps: 1e-3
 disc_steps: 25
 

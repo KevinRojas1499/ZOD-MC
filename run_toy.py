@@ -44,8 +44,8 @@ def eval(config):
         samples[i] = sampler(model)
     samples = samples.view((-1,dim))
     print(torch.sum(torch.isnan(samples)))
-    w, error_means = utils.gmm_statistics.summarized_stats(samples)
-    wandb.log({"Error Weights": w, "Error Means": error_means})
+    # w, error_means = utils.gmm_statistics.summarized_stats(samples)
+    # wandb.log({"Error Weights": w, "Error Means": error_means})
 
     if config.dimension == 1:
         utils.plots.histogram(to_numpy(samples.squeeze(-1)), log_density= utils.densities.get_log_density_fnc(config,device=device)[0])
