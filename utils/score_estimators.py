@@ -3,7 +3,8 @@ import torch
 
 from utils.integrators import get_integrator
 from utils.densities import get_log_density_fnc
-from utils.proximal_sampler import get_rgo_sampling
+from utils import rejection_sampler
+from utils import proximal_sampler
 from math import pi
 
 
@@ -191,18 +192,30 @@ def get_score_function(config, sde, device):
         
         return get_density_estimator()
 
-    def get_proximal_sampler_estimator(x,tt):
+    def get_samplers_based_on_sampling_p0t(x,tt):
         scaling = sde.scaling(tt)
         var = scaling**2 * sde.scheduling(tt)**2
         potential = lambda x : - logdensity(x)
         grad_log_density = lambda x : - gradient(x)/p0(x)
         
-        eta = 1/scaling**2 - 1
-        M = 1/(config.dimension * eta)
-        y = scaling * x
-        samples_from_p0t = get_rgo_sampling(x,y,eta,potential,grad_log_density,M,device)
-        samples_from_p0t = samples_from_p0t.unsqueeze(1)
-        score_estimate = torch.mean(scaling * samples_from_p0t - x, dim=1) / var
+        variance_conv = 1/scaling**2 - 1
+        y = x/scaling
+        N = x.shape[0]
+        score_estimate = torch.zeros_like(x)
+        for i in range(N):
+            print(i)
+            yy = y[i].unsqueeze(0)
+            def potential_p0t(x):
+                return potential(x) - torch.sum((x-yy)**2,dim=1).unsqueeze(-1)/(2*variance_conv)
+            gradient_p0t = lambda x : grad_log_density(x) - (x-yy)/variance_conv
+            
+            if config.p0t_method == 'proximal':
+                eta = 0.01
+                M = 2
+                samples_from_p0t = proximal_sampler.get_samples(y, eta,potential_p0t,gradient_p0t,M,device)
+            
+            score_estimate[i] = (torch.mean(scaling * samples_from_p0t[i], dim=0) - x[i])/ var
+            
         return score_estimate
     
     if config.score_method == 'convolution':
@@ -212,4 +225,4 @@ def get_score_function(config, sde, device):
     elif config.score_method == 'fourier':
         return get_fourier_estimator
     elif config.score_method == 'proximal':
-        return get_proximal_sampler_estimator
+        return get_samplers_based_on_sampling_p0t

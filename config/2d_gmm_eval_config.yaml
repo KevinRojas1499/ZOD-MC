@@ -3,6 +3,7 @@ wandb_project_name: NonconvexSampling
 
 mode: sample
 score_method: proximal
+p0t_method: proximal
 
 # Integrator details 
 convolution_integrator: simpson
@@ -25,7 +26,7 @@ bias: 2
 # Sampling parameters
 sampling_method: em
 num_batches: 1
-sampling_batch_size: 3000 
+sampling_batch_size: 500 
 sampling_eps: 1e-3
 disc_steps: 25
 

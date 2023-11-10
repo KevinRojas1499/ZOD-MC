@@ -1,20 +1,20 @@
 import torch
 import matplotlib.pyplot as plt
-# import utils.densities
+# import densities
 
 def sum_last_dim(x):
     return torch.sum(x,dim=-1).unsqueeze(-1)
 
-def get_approx_minimizer(x0,gradient, al=1e-4):
+def get_approx_minimizer(x0,gradient, threshold, al=1e-4):
     xold = x0
     xnew = x0
-    k = 1000
-    for _ in range(2,k):
+    k = 0
+    while torch.max(gradient(xnew)) > threshold:
+        k+=1
         bek = (k-1)/(k+2)
         pk = bek * (xnew-xold)
         xold = xnew
         xnew = xnew + pk - al * gradient(xnew+pk)
-        
     return xnew
 
 def get_accepted_rejected_samples(samples, threshold1, threshold2,device):
@@ -26,6 +26,7 @@ def get_accepted_rejected_samples(samples, threshold1, threshold2,device):
 def get_rgo_sampling(x0, yk, eta, potential, gradient, M, device):
     # Sampling from exp(-f(x) - (x-y)^2/2eta)
     num_samples = x0.shape[0]
+    d = x0.shape[-1]
     rej_samp = x0
     acc_samp = []
     al = 1 # We are assuming this
@@ -33,13 +34,13 @@ def get_rgo_sampling(x0, yk, eta, potential, gradient, M, device):
     num_acc_samples = 0
     
     grad_f_eta = lambda x : gradient(x) + (x - yk)/eta
-    w = get_approx_minimizer(rej_samp, grad_f_eta)
+    w = get_approx_minimizer(rej_samp, grad_f_eta, (M*d)**.5)
     var = 1/(1/eta - M)
     gradw = gradient(w)
     u = (yk/eta - gradw - M * w) * var
-    
+    num_iters = 0
     while num_acc_samples < num_samples:
-        # print(f'Rejection sampling iter {_}, accepted {num_acc_samples}')
+        num_iters+=1
         z = torch.randn_like(rej_samp)
         xk = u + var **.5 * z 
         
@@ -62,17 +63,18 @@ def get_rgo_sampling(x0, yk, eta, potential, gradient, M, device):
         w = w[rej_idx]
         gradw = gradw[rej_idx]
         
-    return torch.cat(acc_samp,dim=0)
+    return torch.cat(acc_samp,dim=0), num_iters
 
-def get_proximal_sampler(x0, eta, potential, gradient, M, device):
+def get_samples(x0, eta, potential, gradient, M, device):
     k = 50
     xk = x0
+    average_rejection_iters = 0
     for _ in range(k):
-        print(f"Iteration {_}")
         z = torch.randn_like(xk,device=device)
         yk = xk + z * eta **.5
-        xk = get_rgo_sampling(xk, yk, eta, potential, gradient, M, device)
-    return xk
+        xk, num_iters = get_rgo_sampling(xk, yk, eta, potential, gradient, M, device)
+        average_rejection_iters += num_iters    
+    return xk, average_rejection_iters/k
     
 
 # device = 'cuda'
@@ -94,7 +96,8 @@ def get_proximal_sampler(x0, eta, potential, gradient, M, device):
 # M = 1/sig**2
 # eta = 1/(M*2)
 # print(eta)
-# pts = get_proximal_sampler(x,eta,f, gradf, M, device)
+# pts, avg_rejections = get_samples(x,eta,f, gradf, M, device)
+# print(f"Average number of rejections {avg_rejections}")
 # print(torch.mean(pts,dim=0))
 # pts = pts.cpu().numpy()
 # x = (sig * x + mean).cpu().numpy()
