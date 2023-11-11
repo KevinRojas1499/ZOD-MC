@@ -20,13 +20,13 @@ def get_score_function(config, sde, device):
         """
 
         def push_forward(x):
-            return func(x/scaling) * (1/scaling)**config.dimension
+            return func(x/scaling) * (1/scaling)**dim
         
         return push_forward
 
     logdensity, gradient = get_log_density_fnc(config, device)
     p0 = lambda x : torch.exp(logdensity(x))
-
+    dim = config.dimension
     def score_gaussian_convolution(x, tt):
         """
             The following method computes the score by making use that:
@@ -61,16 +61,16 @@ def get_score_function(config, sde, device):
         scaling = sde.scaling(tt)
         var = scaling**2 * sde.scheduling(tt)**2
 
-        if config.dimension == 1:
+        if dim == 1:
             gaussian = torch.distributions.normal.Normal(0,var ** .5)
         else:
-            gaussian = torch.distributions.MultivariateNormal(torch.zeros(config.dimension,device=device),var * torch.eye(config.dimension,device=device))
+            gaussian = torch.distributions.MultivariateNormal(torch.zeros(dim,device=device),var * torch.eye(dim,device=device))
         
         def get_grad_gaussian():
 
             def grad_gaussian(x):
                 dens = gaussian_density(x)
-                if config.dimension != 1:
+                if dim != 1:
                     dens = dens.unsqueeze(-1)
                 return -x *  dens / var
             
@@ -109,7 +109,7 @@ def get_score_function(config, sde, device):
             def estimator(x):
                 # x has shape (n,d), noise has shape (k,d)
                 # we need to make it (n,k,d) and then average on k
-                noise = torch.randn((config.num_estimator_samples, config.dimension),device=device)
+                noise = torch.randn((config.num_estimator_samples, dim),device=device)
                 z = x.unsqueeze(1)
                 return torch.mean(func(z - std * noise), dim=1)
             
@@ -120,7 +120,7 @@ def get_score_function(config, sde, device):
             def estimator(x):
                 # x has shape (n,d), noise has shape (k,d)
                 # we need to make it (n,k,d) and then average on k
-                noise = torch.randn((config.num_estimator_samples, config.dimension),device=device)
+                noise = torch.randn((config.num_estimator_samples, dim),device=device)
                 z = x.unsqueeze(1)
                 return -torch.mean(noise * func(z - std * noise), dim=1) / std 
             
@@ -201,20 +201,23 @@ def get_score_function(config, sde, device):
         variance_conv = 1/scaling**2 - 1
         y = x/scaling
         N = x.shape[0]
+        num_samples = config.num_estimator_samples
+        
         score_estimate = torch.zeros_like(x)
-        for i in range(N):
-            print(i)
-            yy = y[i].unsqueeze(0)
-            def potential_p0t(x):
-                return potential(x) - torch.sum((x-yy)**2,dim=1).unsqueeze(-1)/(2*variance_conv)
+        for i, yy in enumerate(y):
+            yy = y.unsqueeze(0)
+            potential_p0t = lambda x : potential(x) - torch.sum((x-yy)**2,dim=1).unsqueeze(-1)/(2*variance_conv)
             gradient_p0t = lambda x : grad_log_density(x) - (x-yy)/variance_conv
+            initial_cond_for_px = yy + torch.randn((num_samples,dim),device=device) \
+                if i == 0 else samples_from_p0t
             
             if config.p0t_method == 'proximal':
-                eta = 0.01
-                M = 2
-                samples_from_p0t = proximal_sampler.get_samples(y, eta,potential_p0t,gradient_p0t,M,device)
+                M = config.proximal_M
+                eta = 1/(M*dim)
+                num_iters = 50 if i == 0 else 5
+                samples_from_p0t, average_rejection_iters = proximal_sampler.get_samples(initial_cond_for_px, eta,potential_p0t,gradient_p0t,M, num_iters, device)
             
-            score_estimate[i] = (torch.mean(scaling * samples_from_p0t[i], dim=0) - x[i])/ var
+            score_estimate[i] = (torch.mean(scaling * samples_from_p0t, dim=0) - x[i])/ var
             
         return score_estimate
     

@@ -22,6 +22,10 @@ def parse_arguments():
     p.add_argument('--score_method', choices=['convolution','quotient-estimator','trained','fourier', 'proximal'])
     p.add_argument('--p0t_method', choices=['proximal','rejection'])
     p.add_argument('--dimension', type=int)
+    
+    # Proximal Sampler details
+    p.add_argument('--proximal_M', type=float)
+    
     # Integrator details
     p.add_argument('--convolution_integrator', choices=['trap','simpson','mc'])
     p.add_argument('--integration_range', type=float)

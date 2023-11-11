@@ -5,6 +5,10 @@ mode: sample
 score_method: proximal
 p0t_method: proximal
 
+# Proximal Method details
+
+proximal_M: 2
+
 # Integrator details 
 convolution_integrator: simpson
 sub_intervals_per_dim: 500
@@ -12,7 +16,7 @@ integration_range: 15
 dimension: 2
 
 # Estimator Information
-num_estimator_samples: 100000
+num_estimator_samples: 5000
 eps_stable: 1e-9
 gradient_estimator: conv
 
@@ -26,7 +30,7 @@ bias: 2
 # Sampling parameters
 sampling_method: em
 num_batches: 1
-sampling_batch_size: 500 
+sampling_batch_size: 50
 sampling_eps: 1e-3
 disc_steps: 25
 
