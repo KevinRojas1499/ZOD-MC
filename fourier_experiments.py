@@ -34,7 +34,7 @@ def run_fourier_experiments(config):
     t = torch.tensor([0.01],device=device)
 
     c, mean_t, var_t = get_gmm_density_at_t(config, sde, t)
-    p0, grad = gmm_logdensity_fnc(c, mean_t, var_t, config.dimension, device)
+    p0, grad = gmm_logdensity_fnc(c, mean_t, var_t, device)
     est_density = utils.score_estimators.get_score_function(config,sde,device)
 
 

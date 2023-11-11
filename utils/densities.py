@@ -52,8 +52,9 @@ def to_tensor_type(x, device):
     return torch.tensor(x,device=device, dtype=torch.float64)
 
 
-def gmm_logdensity_fnc(c,means,variances, dimension, device):
+def gmm_logdensity_fnc(c,means,variances, device):
     n = len(c)
+    dimension = means[0].shape[0]
     means, variances = to_tensor_type(means, device),to_tensor_type(variances,device)
     if dimension == 1:
         gaussians = [OneDimensionalGaussian(means[i],variances[i]) for i in range(n)]
@@ -85,7 +86,7 @@ def get_log_density_fnc(config, device):
         return double_well_log_density
 
     if config.density == 'gmm':
-        return gmm_logdensity_fnc(params['coeffs'], params['means'], params['variances'], config.dimension, device)
+        return gmm_logdensity_fnc(params['coeffs'], params['means'], params['variances'], device)
     elif config.density == 'double-well':
         return double_well_density()
     else:

@@ -1,6 +1,6 @@
 import torch
 import matplotlib.pyplot as plt
-import densities
+# import densities
 from tqdm import tqdm
 def sum_last_dim(x):
     return torch.sum(x,dim=-1).unsqueeze(-1)
@@ -22,21 +22,19 @@ def get_rgo_sampling(xk, yk, eta, potential, gradient, M, device):
     # Sampling from exp(-f(x) - (x-y)^2/2eta)
     num_samples = xk.shape[0]
     d = xk.shape[-1]
-    rej_samp = xk
-    acc_samp = []
     al = 1 # We are assuming this
     delta = 1
     accepted_samples = torch.ones_like(xk)
     num_acc_samples = 0
     grad_f_eta = lambda x : gradient(x) + (x - yk)/eta
-    w = get_approx_minimizer(rej_samp, grad_f_eta, (M*d)**.5)
+    w = get_approx_minimizer(xk, grad_f_eta, (M*d)**.5)
     var = 1/(1/eta - M)
     gradw = gradient(w)
     u = (yk/eta - gradw - M * w) * var
     num_iters = 0
     while num_acc_samples < num_samples * d:
         num_iters+=1
-        z = torch.randn_like(rej_samp)
+        z = torch.randn_like(xk)
         xk = u + var **.5 * accepted_samples * z 
         
         exp_h1 = potential(w) \
@@ -55,6 +53,10 @@ def get_rgo_sampling(xk, yk, eta, potential, gradient, M, device):
     return xk, num_iters
 
 def get_samples(x0, eta, potential, gradient, M, num_iters, num_samples, device):
+    # x0 is [n,d] is the initialization given by the user
+    # m = num_samples is the number of samples per initial condition
+    # i.e. the total number of samples is n * num_samples
+    # returns [n,m,d] 
     n = x0.shape[0]
     xk = x0.repeat((num_samples,1))
     average_rejection_iters = 0
@@ -69,25 +71,28 @@ def get_samples(x0, eta, potential, gradient, M, num_iters, num_samples, device)
     return xk.reshape((n,num_samples,-1)), average_rejection_iters/num_iters
     
 
-device = 'cuda'
-nsamples = 1000
-x = torch.randn((nsamples,2), device=device)
+# device = 'cuda'
+# nsamples = 1000
+# x = torch.randn((nsamples,2), device=device)
 
-mean = 10
-sig = 1
+# mean = 10
+# sig = 1
 
-log_dens, grad = densities.gmm_logdensity_fnc([.25,.25,.25, .25],
-                                              [[5,5],[-5,-5],[5,-5], [-5,5]],
-                                              [[[1,0],[0,1]],[[1,0],[0,1]], [[1,0],[0,1]],[[1,0],[0,1]]],
-                                              2,device)
-def f(x):
-    return -log_dens(x)
-def gradf(x):
-    return - grad(x)/torch.exp(log_dens(x))
+# means = torch.tensor([[5,5],[-5,-5],[5,-5], [-5,5]])
+# variances = torch.tensor([[[1,0],[0,1]],[[1,0],[0,1]], [[1,0],[0,1]],[[1,0],[0,1]]])
+# log_dens, grad = densities.gmm_logdensity_fnc([.25,.25,.25, .25],
+#                                               means,
+#                                               variances,
+#                                               device)
+# def f(x):
+#     return -log_dens(x)
+# def gradf(x):
+#     return - grad(x)/torch.exp(log_dens(x))
 
-num_iterations = 50
-M = 1/sig**2
-eta = 1/(M*2)
+
+# num_iterations = 50
+# M = 1/sig**2
+# eta = 1/(M*2)
 
 
 # times = torch.linspace(0.1,0.1,steps=1,device=device)

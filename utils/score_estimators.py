@@ -200,25 +200,23 @@ def get_score_function(config, sde, device):
         
         variance_conv = 1/scaling**2 - 1
         y = x/scaling
-        N = x.shape[0]
         num_samples = config.num_estimator_samples
         
         score_estimate = torch.zeros_like(x)
-        for i, yy in enumerate(y):
-            yy = y.unsqueeze(0)
-            potential_p0t = lambda x : potential(x) - torch.sum((x-yy)**2,dim=1).unsqueeze(-1)/(2*variance_conv)
-            gradient_p0t = lambda x : grad_log_density(x) - (x-yy)/variance_conv
-            initial_cond_for_px = yy + torch.randn((num_samples,dim),device=device) \
-                if i == 0 else samples_from_p0t
-            
-            if config.p0t_method == 'proximal':
-                M = config.proximal_M
-                eta = 1/(M*dim)
-                num_iters = 50 if i == 0 else 5
-                samples_from_p0t, average_rejection_iters = proximal_sampler.get_samples(initial_cond_for_px, eta,potential_p0t,gradient_p0t,M, num_iters, device)
-            
-            score_estimate[i] = (torch.mean(scaling * samples_from_p0t, dim=0) - x[i])/ var
-            
+        
+        y_for_sampling = y.repeat((num_samples,1))
+        potential_p0t = lambda x : potential(x) - torch.sum((x-y_for_sampling)**2,dim=1).unsqueeze(-1)/(2*variance_conv)
+        gradient_p0t = lambda x : grad_log_density(x) - (x-y_for_sampling)/variance_conv
+                
+        if config.p0t_method == 'proximal':
+            M = config.proximal_M
+            eta = 1/(M*dim)
+            num_iters = 20
+            samples_from_p0t, average_rejection_iters = proximal_sampler.get_samples(x, eta,potential_p0t,gradient_p0t,M, num_iters, num_samples, device)
+            print(f"Average number or rejection steps {average_rejection_iters}")
+        
+        score_estimate = (torch.mean(scaling * samples_from_p0t, dim=1) - x)/ var
+        
         return score_estimate
     
     if config.score_method == 'convolution':

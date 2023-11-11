@@ -86,7 +86,7 @@ def run_experiments(config):
         nonlocal fig, fig2, fig3
         score_est = utils.score_estimators.get_score_function(config,sde,device)
         c, mean_t, var_t = get_gmm_density_at_t(config, sde, t)
-        p0, grad = gmm_logdensity_fnc(c, mean_t, var_t, config.dimension, device)
+        p0, grad = gmm_logdensity_fnc(c, mean_t, var_t, device)
 
         pts = torch.linspace(-10,10,500,device=device).unsqueeze(-1)
         pts = torch.cat((pts,0*torch.ones((500,1),device=device)),dim=1)
