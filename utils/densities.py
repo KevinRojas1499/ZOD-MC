@@ -54,8 +54,8 @@ def to_tensor_type(x, device):
 
 def gmm_logdensity_fnc(c,means,variances, device):
     n = len(c)
-    dimension = means[0].shape[0]
     means, variances = to_tensor_type(means, device),to_tensor_type(variances,device)
+    dimension = means[0].shape[0]
     if dimension == 1:
         gaussians = [OneDimensionalGaussian(means[i],variances[i]) for i in range(n)]
     else:

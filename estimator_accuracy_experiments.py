@@ -71,49 +71,52 @@ def get_gmm_density_at_t(config, sde, t):
 def get_l2_error(real, est):
     return torch.log(torch.mean((real-est)**2)**.5)
 
+
+def plot_at_time(config, device, sde, t, name, figs, plot_real=True, line_mode='solid'):
+    fig, fig2, fig3 = figs
+    score_est = utils.score_estimators.get_score_function(config,sde,device)
+    c, mean_t, var_t = get_gmm_density_at_t(config, sde, t)
+    p0, grad = gmm_logdensity_fnc(c, mean_t, var_t, device)
+
+    pts = torch.linspace(-10,10,500,device=device).unsqueeze(-1)
+    pts = torch.cat((pts,0*torch.ones((500,1),device=device)),dim=1)
+    est_dens, est_grad = score_est(pts,t)
+    real_dens = torch.exp(p0(pts))
+    real_grad = grad(pts)
+
+    real_score = real_grad/real_dens
+    est_score = est_grad/est_dens 
+
+    pts = pts[:,0].to('cpu').detach().numpy()
+    # Reals
+    if plot_real == True:
+        fig.add_trace(go.Scatter(x=pts, y=to_numpy(real_dens) ,mode='lines', name="Real",visible=False, line=dict(dash=line_mode, width=3)))
+        fig2.add_trace(go.Scatter(x=pts, y=to_numpy(real_grad) ,mode='lines', name="Real", visible=False, line=dict(dash=line_mode, width=3)))
+        fig3.add_trace(go.Scatter(x=pts, y=to_numpy(real_score) ,mode='lines', name="Real", visible=False, line=dict(dash=line_mode, width=3)))
+
+    fig.add_trace(go.Scatter(x=pts, y=to_numpy(est_dens),mode='lines', name=f"{name}", visible=False, line=dict(dash=line_mode)))
+    fig2.add_trace(go.Scatter(x=pts, y=to_numpy(est_grad),mode='lines', name=f"{name}", visible=False, line=dict(dash=line_mode)))
+    fig3.add_trace(go.Scatter(x=pts, y=to_numpy(est_score),mode='lines', name=f"{name}", visible=False, line=dict(dash=line_mode)))
+
+    fig3.update_layout(yaxis_range=[-10,10])
+
+    return {"name": name,
+            "diff_dens": get_l2_error(real_dens,est_dens),
+            "diff_grad": get_l2_error(real_grad, est_grad),
+            "diff_score": get_l2_error(real_score, est_score) }
+    
 def run_experiments(config):
     def plot_with_subintervals(config, device, sde, t, num_sub_intervals, plot_real=True,line_mode='solid'):
         config.sub_intervals_per_dim = num_sub_intervals
         name = f"{config.sde_type}, {config.score_method} N= {config.sub_intervals_per_dim}"
-        return plot_at_time(config, device, sde, t, name,plot_real=plot_real, line_mode=line_mode)
+        return plot_at_time(config, device, sde, t, name, figs, plot_real=plot_real, line_mode=line_mode)
 
     def plot_with_samples(config, device, sde, t, num_samples, plot_real=True, line_mode='solid'):
         config.num_estimator_samples = num_samples
         name = f"{config.sde_type}, {config.score_method}  samples {config.num_estimator_samples}"
-        return plot_at_time(config, device, sde, t, name,plot_real=plot_real, line_mode=line_mode)
+        return plot_at_time(config, device, sde, t, name, figs, plot_real=plot_real, line_mode=line_mode)
     
-    def plot_at_time(config, device, sde, t, name, plot_real=True, line_mode='solid'):
-        nonlocal fig, fig2, fig3
-        score_est = utils.score_estimators.get_score_function(config,sde,device)
-        c, mean_t, var_t = get_gmm_density_at_t(config, sde, t)
-        p0, grad = gmm_logdensity_fnc(c, mean_t, var_t, device)
 
-        pts = torch.linspace(-10,10,500,device=device).unsqueeze(-1)
-        pts = torch.cat((pts,0*torch.ones((500,1),device=device)),dim=1)
-        est_dens, est_grad = score_est(pts,t)
-        real_dens = torch.exp(p0(pts))
-        real_grad = grad(pts)
-
-        real_score = real_grad/real_dens
-        est_score = est_grad/est_dens 
-
-        pts = pts[:,0].to('cpu').detach().numpy()
-        # Reals
-        if plot_real == True:
-            fig.add_trace(go.Scatter(x=pts, y=to_numpy(real_dens) ,mode='lines', name="Real",visible=False, line=dict(dash=line_mode, width=3)))
-            fig2.add_trace(go.Scatter(x=pts, y=to_numpy(real_grad) ,mode='lines', name="Real", visible=False, line=dict(dash=line_mode, width=3)))
-            fig3.add_trace(go.Scatter(x=pts, y=to_numpy(real_score) ,mode='lines', name="Real", visible=False, line=dict(dash=line_mode, width=3)))
-
-        fig.add_trace(go.Scatter(x=pts, y=to_numpy(est_dens),mode='lines', name=f"{name}", visible=False, line=dict(dash=line_mode)))
-        fig2.add_trace(go.Scatter(x=pts, y=to_numpy(est_grad),mode='lines', name=f"{name}", visible=False, line=dict(dash=line_mode)))
-        fig3.add_trace(go.Scatter(x=pts, y=to_numpy(est_score),mode='lines', name=f"{name}", visible=False, line=dict(dash=line_mode)))
-
-        fig3.update_layout(yaxis_range=[-10,10])
-
-        return {"name": name,
-                "diff_dens": get_l2_error(real_dens,est_dens),
-                "diff_grad": get_l2_error(real_grad, est_grad),
-                "diff_score": get_l2_error(real_score, est_score) }
 
     init_wandb(config)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -131,9 +134,10 @@ def run_experiments(config):
     diff_dens = torch.zeros((num_plots,N))
     diff_grad = torch.zeros((num_plots,N))
     diff_score = torch.zeros((num_plots,N))
-    fig = go.Figure()
+    fig1 = go.Figure()
     fig2 = go.Figure()
     fig3 = go.Figure()
+    figs = [fig1,fig2,fig3]
 
 
     for i in tqdm(range(N)):

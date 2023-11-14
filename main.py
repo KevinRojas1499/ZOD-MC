@@ -3,6 +3,7 @@ import run_toy
 import estimator_accuracy_experiments
 import generation_accuracy_experiments
 import fourier_experiments
+import experiments_based_on_p0t
 
 def parse_arguments():
     p = configargparse.ArgParser(description='Arguments for nonconvex sampling')
@@ -18,7 +19,7 @@ def parse_arguments():
 
 
     # Mode
-    p.add_argument('--mode', choices=['train','sample','estimator-experiments', 'generation-experiments','fourier-experiments'])
+    p.add_argument('--mode', choices=['train','sample','estimator-experiments', 'generation-experiments','fourier-experiments','p0t-experiments'])
     p.add_argument('--score_method', choices=['convolution','quotient-estimator','trained','fourier', 'proximal'])
     p.add_argument('--p0t_method', choices=['proximal','rejection'])
     p.add_argument('--dimension', type=int)
@@ -71,6 +72,7 @@ def parse_arguments():
     p.add_argument('--density_parameters_path',type=str)
 
     return p.parse_args()
+
 def main(config):
     if config.mode == 'train':
         run_toy.train(config)
@@ -82,6 +84,8 @@ def main(config):
         generation_accuracy_experiments.run_experiments(config)
     elif config.mode == 'fourier-experiments':
         fourier_experiments.run_fourier_experiments(config)
+    elif config.mode == 'p0t-experiments':
+        experiments_based_on_p0t.run_experiments(config)
     else:
         print("Mode doesn't exist")
 

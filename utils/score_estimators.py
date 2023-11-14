@@ -217,7 +217,10 @@ def get_score_function(config, sde, device):
         
         score_estimate = (torch.mean(scaling * samples_from_p0t, dim=1) - x)/ var
         
-        return score_estimate
+        if config.mode == 'sample':
+            return score_estimate
+        else:
+            return score_estimate, average_rejection_iters
     
     if config.score_method == 'convolution':
         return score_gaussian_convolution

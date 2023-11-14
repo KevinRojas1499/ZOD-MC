@@ -1,7 +1,7 @@
 # Wandb info
 wandb_project_name: NonconvexSampling
 
-mode: sample
+mode: p0t-experiments
 score_method: proximal
 p0t_method: proximal
 
