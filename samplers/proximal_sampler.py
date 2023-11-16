@@ -2,36 +2,29 @@ import torch
 import matplotlib.pyplot as plt
 # import densities
 from tqdm import tqdm
+import time
+
+from utils.optimizers import nesterovs_minimizer, newton_conjugate_gradient
+
 def sum_last_dim(x):
-    return torch.sum(x,dim=-1).unsqueeze(-1)
+    return torch.sum(x,dim=-1, keepdim=True)
 
-def get_approx_minimizer(x0,gradient, threshold, al=1e-4):
-    xold = x0
-    xnew = x0
-    k = 0
-    while torch.max(gradient(xnew)) > threshold and k <3000:
-        k+=1
-        bek = (k-1)/(k+2)
-        pk = bek * (xnew-xold)
-        xold = xnew
-        xnew = xnew + pk - al * gradient(xnew+pk)
-    return xnew
-
-
-def get_rgo_sampling(xk, yk, eta, potential, gradient, M, device):
+def get_rgo_sampling(xk, yk, eta, potential, gradient, M, device, initial_cond_for_minimization=None):
     # Sampling from exp(-f(x) - (x-y)^2/2eta)
     num_samples, d = xk.shape #xk is assumed to be [n,d]
     al, delta = 1 ,1 # We are assuming this
     accepted_samples = torch.ones_like(xk)
     num_acc_samples = 0
+    f_eta = lambda x : potential(x) + sum_last_dim((x - yk)**2)/(2 * eta)
     grad_f_eta = lambda x : gradient(x) + (x - yk)/eta
-    w = get_approx_minimizer(xk, grad_f_eta, (M*d)**.5)
+    in_cond = xk if initial_cond_for_minimization == None else initial_cond_for_minimization
+    w = nesterovs_minimizer(in_cond, grad_f_eta, (M*d)**.5)
     var = 1/(1/eta - M)
     gradw = gradient(w)
     u = (yk/eta - gradw - M * w) * var
     
     num_rejection_iters = 0
-    while num_acc_samples < num_samples * d:
+    while num_acc_samples < num_samples * d and num_rejection_iters < 50:
         num_rejection_iters+=1
         z = torch.randn_like(xk)
         xk = u + var **.5 * accepted_samples * z 
@@ -45,21 +38,21 @@ def get_rgo_sampling(xk, yk, eta, potential, gradient, M, device):
         acc_idx = (accepted_samples * torch.exp(-exp_h1) * rand_prob <= torch.exp(-f_eta))
         num_acc_samples += torch.sum(acc_idx)
         accepted_samples = (~acc_idx).long()
-        
-    return xk, num_rejection_iters
+    return xk, num_rejection_iters, w
 
 def get_samples(x0, eta, potential, gradient, M, num_iters, num_samples, device):
     # x0 is [n,d] is the initialization given by the user
     # m = num_samples is the number of samples per initial condition
     # i.e. the total number of samples is n * num_samples
     # returns [n,m,d] 
-    n = x0.shape[0]
+    n, d = x0.shape[0], x0. shape[-1]
     xk = x0.repeat((num_samples,1))
     average_rejection_iters = 0
-    for _ in tqdm(range(num_iters)):
+    w = None
+    for _ in tqdm(range(num_iters),leave=False):
         z = torch.randn_like(xk,device=device)
         yk = xk + z * eta **.5
-        xk, num_iters = get_rgo_sampling(xk, yk, eta, potential, gradient, M, device)
+        xk, num_iters, w = get_rgo_sampling(xk, yk, eta, potential, gradient, M, device, w)
         # plt.scatter(xk[:,0].cpu(),xk[:,1].cpu())
         # plt.savefig(f'./trajectory2/{_}.png')
         # plt.close()
@@ -91,7 +84,7 @@ def get_samples(x0, eta, potential, gradient, M, num_iters, num_samples, device)
 # eta = 1/(M*2)
 
 
-# times = torch.linspace(0.6,2,steps=25,device=device)
+# times = torch.linspace(0.6,.6,steps=1,device=device)
 # rejections = torch.zeros_like(times,device=device)
 
 # for i, t in enumerate(times):

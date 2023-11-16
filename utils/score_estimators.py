@@ -3,8 +3,8 @@ import torch
 
 from utils.integrators import get_integrator
 from utils.densities import get_log_density_fnc
-from utils import rejection_sampler
-from utils import proximal_sampler
+import samplers.rejection_sampler as rejection_sampler
+import samplers.proximal_sampler as proximal_sampler
 from math import pi
 
 
@@ -211,9 +211,8 @@ def get_score_function(config, sde, device):
         if config.p0t_method == 'proximal':
             M = config.proximal_M
             eta = 1/(M*dim)
-            num_iters = 20
+            num_iters = 3
             samples_from_p0t, average_rejection_iters = proximal_sampler.get_samples(x, eta,potential_p0t,gradient_p0t,M, num_iters, num_samples, device)
-            print(f"Average number or rejection steps {average_rejection_iters}")
         
         score_estimate = (torch.mean(scaling * samples_from_p0t, dim=1) - x)/ var
         

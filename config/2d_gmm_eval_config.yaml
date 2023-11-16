@@ -7,7 +7,7 @@ p0t_method: proximal
 
 # Proximal Method details
 
-proximal_M: 2
+proximal_M: 4
 
 # Integrator details 
 convolution_integrator: simpson
