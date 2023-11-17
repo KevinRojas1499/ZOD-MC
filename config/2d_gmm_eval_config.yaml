@@ -1,7 +1,7 @@
 # Wandb info
 wandb_project_name: NonconvexSampling
 
-mode: p0t-experiments
+mode: sample
 score_method: proximal
 p0t_method: proximal
 
@@ -16,7 +16,7 @@ integration_range: 15
 dimension: 2
 
 # Estimator Information
-num_estimator_samples: 5000
+num_estimator_samples: 10000
 eps_stable: 1e-9
 gradient_estimator: conv
 
@@ -30,7 +30,7 @@ bias: 2
 # Sampling parameters
 sampling_method: em
 num_batches: 1
-sampling_batch_size: 50
+sampling_batch_size: 1
 sampling_eps: 1e-3
 disc_steps: 25
 

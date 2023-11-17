@@ -7,7 +7,6 @@ def nesterovs_minimizer(x0,gradient, threshold, al=1e-4):
         xold = x0
         xnew = x0
         k = 0
-        maxxx = 1e9
         while torch.max(gradient(xnew)) > threshold and k <500:
             k+=1
             bek = (k-1)/(k+2)

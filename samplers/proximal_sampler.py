@@ -26,8 +26,7 @@ def get_rgo_sampling(xk, yk, eta, potential, gradient, M, device, initial_cond_f
     num_rejection_iters = 0
     while num_acc_samples < num_samples * d and num_rejection_iters < 50:
         num_rejection_iters+=1
-        z = torch.randn_like(xk)
-        xk = u + var **.5 * accepted_samples * z 
+        xk = u + var **.5 * accepted_samples * torch.randn_like(xk)
         
         exp_h1 = potential(w) \
             + sum_last_dim(gradw * (xk-w)) \
@@ -45,7 +44,7 @@ def get_samples(x0, eta, potential, gradient, M, num_iters, num_samples, device)
     # m = num_samples is the number of samples per initial condition
     # i.e. the total number of samples is n * num_samples
     # returns [n,m,d] 
-    n, d = x0.shape[0], x0. shape[-1]
+    n, d = x0.shape[0], x0.shape[-1]
     xk = x0.repeat((num_samples,1))
     average_rejection_iters = 0
     w = None

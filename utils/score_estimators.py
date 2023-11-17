@@ -195,25 +195,41 @@ def get_score_function(config, sde, device):
     def get_samplers_based_on_sampling_p0t(x,tt):
         scaling = sde.scaling(tt)
         var = scaling**2 * sde.scheduling(tt)**2
-        potential = lambda x : - logdensity(x)
+        potential = lambda x :  - logdensity(x)
         grad_log_density = lambda x : - gradient(x)/p0(x)
         
         variance_conv = 1/scaling**2 - 1
-        y = x/scaling
         num_samples = config.num_estimator_samples
         
         score_estimate = torch.zeros_like(x)
         
-        y_for_sampling = y.repeat((num_samples,1))
-        potential_p0t = lambda x : potential(x) - torch.sum((x-y_for_sampling)**2,dim=1).unsqueeze(-1)/(2*variance_conv)
-        gradient_p0t = lambda x : grad_log_density(x) - (x-y_for_sampling)/variance_conv
+        y_for_sampling = (x/scaling).repeat((num_samples,1))
+        potential_p0t = lambda x : potential(x) + torch.sum((x-y_for_sampling)**2,dim=1, keepdim=True)/(2*variance_conv)
+        gradient_p0t = lambda x : grad_log_density(x) + (x-y_for_sampling)/variance_conv
                 
         if config.p0t_method == 'proximal':
             M = config.proximal_M
             eta = 1/(M*dim)
-            num_iters = 3
+            num_iters = 50
             samples_from_p0t, average_rejection_iters = proximal_sampler.get_samples(x, eta,potential_p0t,gradient_p0t,M, num_iters, num_samples, device)
         
+        import matplotlib.pyplot as plt
+        l = 10
+        
+        fig, (ax1,ax2) = plt.subplots(1,2)
+        nn = 100
+        pts = torch.linspace(-l, l, nn)
+        xx , yy = torch.meshgrid(pts,pts,indexing='xy')
+        pts = torch.cartesian_prod(pts,pts).to(device=device)
+        dens = torch.exp(- (potential(pts) + torch.sum((pts- x/scaling)**2,dim=1, keepdim=True)/(2*variance_conv))).squeeze(-1).cpu()
+        dens = dens.view((nn,nn)).numpy()
+        pts = pts.cpu().numpy()
+        ax1.contourf(xx, yy,dens)
+        sampsx, sampsy = samples_from_p0t[0,:,0] , samples_from_p0t[0,:,1]
+        
+        ax2.hist2d(sampsx.cpu().numpy(),sampsy.cpu().numpy(),bins=100,range= [[-l, l], [-l, l]], density=True)
+        fig.savefig(f'./score_generated_samples/{tt : .3f}.png')      
+        plt.close()  
         score_estimate = (torch.mean(scaling * samples_from_p0t, dim=1) - x)/ var
         
         if config.mode == 'sample':

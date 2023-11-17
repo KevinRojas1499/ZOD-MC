@@ -1,4 +1,6 @@
 import yaml
+import numpy as np
+
 from utils.densities import * 
 
 def get_gmm_density_at_t(config, sde, t, device):

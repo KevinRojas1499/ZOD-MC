@@ -1,8 +1,9 @@
 # Wandb info
 wandb_project_name: NonconvexSampling
 
-mode: fourier-experiments
-score_method: fourier
+mode: p0t-experiments
+score_method: proximal
+p0t_method: proximal
 
 # Integrator details 
 convolution_integrator: simpson
@@ -11,7 +12,7 @@ integration_range: 10
 dimension: 1
 
 # Estimator Information
-num_estimator_samples: 15000
+num_estimator_samples: 5000
 eps_stable: 1e-9
 gradient_estimator: conv
 
@@ -25,8 +26,8 @@ bias: 2
 
 # Sampling parameters
 sampling_method: em
-num_batches: 20
-sampling_batch_size: 500 
+num_batches: 1
+sampling_batch_size: 1 
 sampling_eps: 1e-3
 disc_steps: 25
 
