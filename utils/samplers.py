@@ -3,7 +3,7 @@ from tqdm import tqdm
 
 
 def get_sampler(config, device, sde):
-
+    torch.manual_seed(123)
     def get_euler_maruyama(model):
 
         x_t = sde.prior_sampling((config.sampling_batch_size,config.dimension),device=device)

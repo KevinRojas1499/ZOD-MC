@@ -210,10 +210,17 @@ def get_score_function(config, sde, device):
         if config.p0t_method == 'proximal':
             M = config.proximal_M
             eta = 1/(M*dim)
-            num_iters = 50
-            samples_from_p0t, average_rejection_iters = proximal_sampler.get_samples(x, eta,potential_p0t,gradient_p0t,M, num_iters, num_samples, device)
+            samples_from_p0t, average_rejection_iters = proximal_sampler.get_samples(x, eta,potential_p0t,
+                            gradient_p0t,M, 
+                            config.num_proximal_iterations, 
+                            num_samples, device)
+
+        score_estimate = (scaling * torch.mean(samples_from_p0t, dim=1) - x)/ var
         
         import matplotlib.pyplot as plt
+        from . import gmm_score
+        real_dens, real_grad = gmm_score.get_gmm_density_at_t(config,sde,tt,device)
+        real_score = real_grad(x)/real_dens(x)
         l = 10
         
         fig, (ax1,ax2) = plt.subplots(1,2)
@@ -226,12 +233,12 @@ def get_score_function(config, sde, device):
         pts = pts.cpu().numpy()
         ax1.contourf(xx, yy,dens)
         sampsx, sampsy = samples_from_p0t[0,:,0] , samples_from_p0t[0,:,1]
-        
         ax2.hist2d(sampsx.cpu().numpy(),sampsy.cpu().numpy(),bins=100,range= [[-l, l], [-l, l]], density=True)
+        fig.suptitle(f'Score Error {torch.sum((real_score - score_estimate)**2)**.5}', fontsize=16)
         fig.savefig(f'./score_generated_samples/{tt : .3f}.png')      
         plt.close()  
-        score_estimate = (torch.mean(scaling * samples_from_p0t, dim=1) - x)/ var
-        
+
+
         if config.mode == 'sample':
             return score_estimate
         else:

@@ -26,6 +26,8 @@ def parse_arguments():
     
     # Proximal Sampler details
     p.add_argument('--proximal_M', type=float)
+    p.add_argument('--num_proximal_iterations', type=int)
+    
     
     # Integrator details
     p.add_argument('--convolution_integrator', choices=['trap','simpson','mc'])

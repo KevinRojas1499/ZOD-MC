@@ -8,6 +8,7 @@ p0t_method: proximal
 # Proximal Method details
 
 proximal_M: 4
+num_proximal_iterations: 5
 
 # Integrator details 
 convolution_integrator: simpson
@@ -16,7 +17,7 @@ integration_range: 15
 dimension: 2
 
 # Estimator Information
-num_estimator_samples: 10000
+num_estimator_samples: 5000
 eps_stable: 1e-9
 gradient_estimator: conv
 

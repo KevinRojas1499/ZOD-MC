@@ -1,11 +1,8 @@
-import sys
-sys.path.append('../')
-
 import torch
 import matplotlib.pyplot as plt
 import utils.densities as densities
 import time
-import proximal_sampler
+from . import proximal_sampler
 
 def get_samples(y, eta, potential, gradient, num_samples, M, device):
     # Sampling from potential \prop exp( - f(x) - |x-y|^2/2eta)
