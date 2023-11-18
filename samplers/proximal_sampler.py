@@ -15,7 +15,7 @@ def get_rgo_sampling(xk, yk, eta, potential, gradient, M, device, initial_cond_f
     al, delta = 1 ,1 # We are assuming this
     accepted_samples = torch.ones_like(xk)
     num_acc_samples = 0
-    f_eta = lambda x : potential(x) + sum_last_dim((x - yk)**2)/(2 * eta)
+    f_eta_pot = lambda x : potential(x) + sum_last_dim((x - yk)**2)/(2 * eta)
     grad_f_eta = lambda x : gradient(x) + (x - yk)/eta
     in_cond = xk if initial_cond_for_minimization == None else initial_cond_for_minimization
     w = nesterovs_minimizer(in_cond, grad_f_eta, (M*d)**.5)
