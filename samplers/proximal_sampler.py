@@ -26,6 +26,7 @@ def get_rgo_sampling(xk, yk, eta, potential, gradient, M, device, initial_cond_f
     num_rejection_iters = 0
     while num_acc_samples < num_samples * d and num_rejection_iters < 50:
         num_rejection_iters+=1
+        # TODO : This is wrong because xk doesn't keep the accepted values at all times
         xk = u + var **.5 * accepted_samples * torch.randn_like(xk)
         
         exp_h1 = potential(w) \
@@ -35,7 +36,7 @@ def get_rgo_sampling(xk, yk, eta, potential, gradient, M, device, initial_cond_f
         f_eta = potential(xk) # The other term gets cancelled so I removed them
         rand_prob = torch.rand((num_samples,1),device=device)
         acc_idx = (accepted_samples * torch.exp(-exp_h1) * rand_prob <= torch.exp(-f_eta))
-        num_acc_samples += torch.sum(acc_idx)
+        num_acc_samples = torch.sum(acc_idx)
         accepted_samples = (~acc_idx).long()
     return xk, num_rejection_iters, w
 

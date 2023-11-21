@@ -3,8 +3,10 @@ import torch
 
 from utils.integrators import get_integrator
 from utils.densities import get_log_density_fnc
+from utils.optimizers import nesterovs_minimizer, gradient_descent
 import samplers.rejection_sampler as rejection_sampler
 import samplers.proximal_sampler as proximal_sampler
+import samplers.ula as ula
 from math import pi
 
 
@@ -26,7 +28,10 @@ def get_score_function(config, sde, device):
 
     logdensity, gradient = get_log_density_fnc(config, device)
     p0 = lambda x : torch.exp(logdensity(x))
+    potential = lambda x :  - logdensity(x)
+    grad_potential = lambda x : - gradient(x)/p0(x)
     dim = config.dimension
+    
     def score_gaussian_convolution(x, tt):
         """
             The following method computes the score by making use that:
@@ -86,6 +91,11 @@ def get_score_function(config, sde, device):
         elif config.gradient_estimator == 'direct':
             grad_p_t = get_convolution(gradient,gaussian_density)
 
+        from . import gmm_score
+        real_dens, real_grad = gmm_score.get_gmm_density_at_t(config,sde,tt,device)
+        real_score = real_grad(x)/torch.exp(real_dens(x))
+        score = grad_p_t(x)/(p_t(x) + config.eps_stable)
+        print(f'{tt:.3f} : {torch.sum((real_score - score)**2)**.5}')
         if config.mode == 'sample':
             return grad_p_t(x)/(p_t(x) + config.eps_stable)
         else :
@@ -192,20 +202,24 @@ def get_score_function(config, sde, device):
         
         return get_density_estimator()
 
+    if config.score_method == 'p0t' and config.p0t_method == 'rejection':
+        minimizer = gradient_descent(torch.randn(2,device=device),grad_potential,1e-5)
+        print(f"Minimizer found {minimizer}")
+        minimizer = torch.tensor([0,0],device=device)
+    
     def get_samplers_based_on_sampling_p0t(x,tt):
         scaling = sde.scaling(tt)
         var = scaling**2 * sde.scheduling(tt)**2
-        potential = lambda x :  - logdensity(x)
-        grad_log_density = lambda x : - gradient(x)/p0(x)
+
         
         variance_conv = 1/scaling**2 - 1
         num_samples = config.num_estimator_samples
         
         score_estimate = torch.zeros_like(x)
-        
-        y_for_sampling = (x/scaling).repeat((num_samples,1))
+        y = x/scaling
+        y_for_sampling = y.repeat((num_samples,1))
         potential_p0t = lambda x : potential(x) + torch.sum((x-y_for_sampling)**2,dim=1, keepdim=True)/(2*variance_conv)
-        gradient_p0t = lambda x : grad_log_density(x) + (x-y_for_sampling)/variance_conv
+        gradient_p0t = lambda x : grad_potential(x) + (x-y_for_sampling)/variance_conv
                 
         if config.p0t_method == 'proximal':
             M = config.proximal_M
@@ -214,30 +228,44 @@ def get_score_function(config, sde, device):
                             gradient_p0t,M, 
                             config.num_proximal_iterations, 
                             num_samples, device)
-
-        score_estimate = (scaling * torch.mean(samples_from_p0t, dim=1) - x)/ var
+        if config.p0t_method == 'rejection':
+            samples_from_p0t, average_rejection_iters = rejection_sampler.get_samples(y, variance_conv,
+                                                                                      potential,
+                                                                                      num_samples, 
+                                                                                      config.proximal_M, device,
+                                                                                      minimizer)
+        # samples_from_p0t = ula.get_ula_samples(y,gradient_p0t,.0001,500000).reshape((x.shape[0], -1, dim))
+        score_estimate = (torch.mean(samples_from_p0t, dim=1) - y)/ variance_conv
+        # import matplotlib.pyplot as plt
+        # from . import gmm_score
+        # real_log_dens, real_grad = gmm_score.get_gmm_density_at_t(config,sde,tt,device)
+        # real_score = real_grad(x)/torch.exp(torch.exp(real_log_dens(x)))
+        # l = 10
         
-        import matplotlib.pyplot as plt
-        from . import gmm_score
-        real_dens, real_grad = gmm_score.get_gmm_density_at_t(config,sde,tt,device)
-        real_score = real_grad(x)/real_dens(x)
-        l = 10
-        
-        fig, (ax1,ax2) = plt.subplots(1,2)
-        nn = 100
-        pts = torch.linspace(-l, l, nn)
-        xx , yy = torch.meshgrid(pts,pts,indexing='xy')
-        pts = torch.cartesian_prod(pts,pts).to(device=device)
-        dens = torch.exp(- (potential(pts) + torch.sum((pts- x/scaling)**2,dim=1, keepdim=True)/(2*variance_conv))).squeeze(-1).cpu()
-        dens = dens.view((nn,nn)).numpy()
-        pts = pts.cpu().numpy()
-        ax1.contourf(xx, yy,dens)
-        sampsx, sampsy = samples_from_p0t[0,:,0] , samples_from_p0t[0,:,1]
-        ax2.hist2d(sampsx.cpu().numpy(),sampsy.cpu().numpy(),bins=100,range= [[-l, l], [-l, l]], density=True)
-        fig.suptitle(f'Score Error {torch.sum((real_score - score_estimate)**2)**.5}', fontsize=16)
-        fig.savefig(f'./score_generated_samples/{tt : .3f}.png')      
-        plt.close()  
+        # fig, (ax1,ax2) = plt.subplots(1,2)
+        # nn = 1500
+        # pts = torch.linspace(-l, l, nn)
+        # xx , yy = torch.meshgrid(pts,pts,indexing='xy')
+        # pts = torch.cartesian_prod(pts,pts).to(device=device)
+        # dens = torch.exp(- (potential(pts) + torch.sum((pts- y)**2,dim=1, keepdim=True)/(2*variance_conv))).squeeze(-1).cpu()
 
+        # idx = torch.argmax(dens)
+        # # print(f'Maximizer at {pts[idx]}')
+        # # plt.contourf(xx, yy, potential(pts).squeeze(-1).view(nn,nn).cpu().numpy())
+        # # plt.colorbar()
+        # # plt.show()
+        # dens = dens.view((nn,nn)).numpy()
+        # pts = pts.cpu().numpy()
+        # ax1.contourf(xx, yy,dens)
+        # sampsx, sampsy = samples_from_p0t[0,:,0] , samples_from_p0t[0,:,1]
+        # ax2.hist2d(sampsx.cpu().numpy(),sampsy.cpu().numpy(),bins=100,range= [[-l, l], [-l, l]], density=True)
+        # ax2.scatter(y[:,0].cpu(),y[:,1].cpu(),color='red')
+        # fig.suptitle(f'Score Error {torch.sum((real_score - score_estimate)**2)**.5}', fontsize=16)
+        # fig.savefig(f'./score_generated_samples/{tt : .3f}.png')      
+        # plt.close()
+        
+        # print(f'{tt : .3f} {score_estimate[0].cpu().numpy()} {real_score[0].cpu().numpy()}')
+        # print(f'Mean {torch.mean(samples_from_p0t, dim=1)[0].cpu().numpy()} { pts[idx]}')
 
         if config.mode == 'sample':
             return score_estimate
@@ -250,5 +278,5 @@ def get_score_function(config, sde, device):
         return score_quotient_estimator
     elif config.score_method == 'fourier':
         return get_fourier_estimator
-    elif config.score_method == 'proximal':
+    elif config.score_method == 'p0t':
         return get_samplers_based_on_sampling_p0t
