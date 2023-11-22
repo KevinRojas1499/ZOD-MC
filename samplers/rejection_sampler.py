@@ -30,7 +30,7 @@ def get_rgo_sampling(xk, eta, potential, M, device, minimizer=None):
         num_acc_samples = torch.sum(acc_idx)
         accepted_samples = (~acc_idx).long()
         xk[acc_idx] = proposal[acc_idx]
-    print(f'\n{num_rejection_iters} {num_acc_samples}')
+    # print(f'\n{num_rejection_iters} {num_acc_samples}')
     return xk, num_rejection_iters
 
 def get_samples(y, eta, potential, num_samples, M, device,minimizer=None):

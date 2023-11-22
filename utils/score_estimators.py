@@ -3,7 +3,7 @@ import torch
 
 from utils.integrators import get_integrator
 from utils.densities import get_log_density_fnc
-from utils.optimizers import nesterovs_minimizer, gradient_descent
+import utils.optimizers as optimizers
 import samplers.rejection_sampler as rejection_sampler
 import samplers.proximal_sampler as proximal_sampler
 import samplers.ula as ula
@@ -29,7 +29,7 @@ def get_score_function(config, sde, device):
     logdensity, gradient = get_log_density_fnc(config, device)
     p0 = lambda x : torch.exp(logdensity(x))
     potential = lambda x :  - logdensity(x)
-    grad_potential = lambda x : - gradient(x)/p0(x)
+    grad_potential = lambda x : - gradient(x)/(p0(x) + 1e-8)
     dim = config.dimension
     
     def score_gaussian_convolution(x, tt):
@@ -203,8 +203,8 @@ def get_score_function(config, sde, device):
         return get_density_estimator()
 
     if config.score_method == 'p0t' and config.p0t_method == 'rejection':
-        minimizer = gradient_descent(torch.randn(2,device=device),grad_potential,1e-5)
-        print(f"Minimizer found {minimizer}")
+        # minimizer = optimizers.newton_conjugate_gradient(torch.randn(2,device=device),grad_potential)
+        # print(f"Minimizer found {minimizer}")
         minimizer = torch.tensor([0,0],device=device)
     
     def get_samplers_based_on_sampling_p0t(x,tt):
@@ -234,35 +234,51 @@ def get_score_function(config, sde, device):
                                                                                       num_samples, 
                                                                                       config.proximal_M, device,
                                                                                       minimizer)
-        # samples_from_p0t = ula.get_ula_samples(y,gradient_p0t,.0001,500000).reshape((x.shape[0], -1, dim))
-        score_estimate = (torch.mean(samples_from_p0t, dim=1) - y)/ variance_conv
-        # import matplotlib.pyplot as plt
-        # from . import gmm_score
-        # real_log_dens, real_grad = gmm_score.get_gmm_density_at_t(config,sde,tt,device)
-        # real_score = real_grad(x)/torch.exp(torch.exp(real_log_dens(x)))
-        # l = 10
+        samples_from_p0t = samples_from_p0t.view((-1,dim))
+        samples_from_p0t = ula.get_ula_samples(samples_from_p0t,gradient_p0t,.0001,50).reshape((x.shape[0], -1, dim))
         
-        # fig, (ax1,ax2) = plt.subplots(1,2)
-        # nn = 1500
-        # pts = torch.linspace(-l, l, nn)
-        # xx , yy = torch.meshgrid(pts,pts,indexing='xy')
-        # pts = torch.cartesian_prod(pts,pts).to(device=device)
-        # dens = torch.exp(- (potential(pts) + torch.sum((pts- y)**2,dim=1, keepdim=True)/(2*variance_conv))).squeeze(-1).cpu()
+        samples_from_p0t = torch.randn((1 * num_samples,dim),device=device)
+        
+        samples_from_p0t = samples_from_p0t.view((-1,num_samples, dim))
+        samples_from_p0t = x * torch.exp(-tt) + samples_from_p0t * (1 -torch.exp(- 2 * tt))
+        samples_from_p0t = samples_from_p0t.view((-1,num_samples,dim))
+        mean_estimate = torch.mean(samples_from_p0t, dim=1)
+        score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)
+        import matplotlib.pyplot as plt
+        from . import gmm_score
+        real_log_dens, real_grad = gmm_score.get_gmm_density_at_t(config,sde,tt,device)
+        real_score = real_grad(x)/torch.exp(real_log_dens(x))
+        l = 10
+        
+        fig, (ax1,ax2) = plt.subplots(1,2)
+        nn = 1500
+        pts = torch.linspace(-l, l, nn)
+        xx , yy = torch.meshgrid(pts,pts,indexing='xy')
+        pts = torch.cat((xx.unsqueeze(-1),yy.unsqueeze(-1)),dim=-1).to(device=device)
+        dens = torch.exp(- (potential(pts) + torch.sum((pts - y)**2,dim=-1, keepdim=True)/(2*variance_conv))).squeeze(-1).cpu()
 
-        # idx = torch.argmax(dens)
-        # # print(f'Maximizer at {pts[idx]}')
-        # # plt.contourf(xx, yy, potential(pts).squeeze(-1).view(nn,nn).cpu().numpy())
-        # # plt.colorbar()
-        # # plt.show()
-        # dens = dens.view((nn,nn)).numpy()
-        # pts = pts.cpu().numpy()
-        # ax1.contourf(xx, yy,dens)
-        # sampsx, sampsy = samples_from_p0t[0,:,0] , samples_from_p0t[0,:,1]
-        # ax2.hist2d(sampsx.cpu().numpy(),sampsy.cpu().numpy(),bins=100,range= [[-l, l], [-l, l]], density=True)
-        # ax2.scatter(y[:,0].cpu(),y[:,1].cpu(),color='red')
-        # fig.suptitle(f'Score Error {torch.sum((real_score - score_estimate)**2)**.5}', fontsize=16)
-        # fig.savefig(f'./score_generated_samples/{tt : .3f}.png')      
-        # plt.close()
+        idx = torch.argmax(dens)
+        # print(f'Maximizer at {pts[idx]}')
+        # plt.contourf(xx, yy, potential(pts).squeeze(-1).view(nn,nn).cpu().numpy())
+        # plt.colorbar()
+        # plt.show()
+        integral = torch.sum(dens)
+        pts = pts.cpu().numpy()
+        real_mean = scaling * x
+
+        ax1.contourf(xx, yy,dens)
+        ax1.scatter(real_mean[:,0].cpu(),real_mean[:,1].cpu(),color='green')
+        ax1.grid()
+        sampsx, sampsy = samples_from_p0t[0,:,0] , samples_from_p0t[0,:,1]
+        ax2.hist2d(sampsx.cpu().numpy(),sampsy.cpu().numpy(),bins=100,range= [[-l, l], [-l, l]], density=True)
+        ax2.scatter(y[:,0].cpu(),y[:,1].cpu(),color='red')
+        ax2.scatter(real_mean[:,0].cpu(),real_mean[:,1].cpu(),color='green')
+        ax2.grid()
+        fig.set_figheight(6)
+        fig.set_figwidth(12)
+        fig.suptitle(f'Score Error {torch.sum((real_score - score_estimate)**2)**.5 : .4f} Mean Error {torch.sum((mean_estimate-real_mean)**2)**.5 : .4f}', fontsize=16)
+        fig.savefig(f'./score_generated_samples/{tt : .3f}.png')      
+        plt.close()
         
         # print(f'{tt : .3f} {score_estimate[0].cpu().numpy()} {real_score[0].cpu().numpy()}')
         # print(f'Mean {torch.mean(samples_from_p0t, dim=1)[0].cpu().numpy()} { pts[idx]}')

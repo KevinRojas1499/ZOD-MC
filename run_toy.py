@@ -1,7 +1,8 @@
 import torch
 import wandb
 from tqdm import tqdm
-
+import numpy as np
+import random
 import utils.plots
 import utils.samplers
 import utils.densities
@@ -26,8 +27,17 @@ def init_wandb(config):
     config=config
 )
 
+def setup_seed(seed):
+     torch.manual_seed(seed)
+     torch.cuda.manual_seed_all(seed)
+     np.random.seed(seed)
+     random.seed(seed)
+     torch.backends.cudnn.deterministic = True
+     
 
 def eval(config):
+    setup_seed(1)
+    
     init_wandb(config)
     device = torch.device('cuda:0'if torch.cuda.is_available() else 'cpu')
     # Get SDE:
