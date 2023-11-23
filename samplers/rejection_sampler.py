@@ -24,7 +24,7 @@ def get_rgo_sampling(xk, eta, potential, M, device, minimizer=None):
         proposal = xk + eta **.5 * accepted_samples * torch.randn_like(xk)
         
         exp_h1 = potential(proposal)
-        f_eta = potential(w) 
+        f_eta = potential(w)
         rand_prob = torch.rand((num_samples,1),device=device)
         acc_idx = (accepted_samples * torch.exp(-f_eta) * rand_prob <= torch.exp(-exp_h1))
         num_acc_samples = torch.sum(acc_idx)
@@ -37,7 +37,7 @@ def get_samples(y, eta, potential, num_samples, M, device,minimizer=None):
     # Sampling from potential \prop exp( - f(x) - |x-y|^2/2eta)
     # y = [n,d] outputs [n,num_samples,d]
     n, d = y.shape[0], y.shape[-1]
-    yk = y.repeat((num_samples,1))
+    yk = y.repeat_interleave(num_samples,dim=0)
     samples, rejections = get_rgo_sampling(yk,eta,potential,M,device, minimizer=minimizer)
     samples = samples.reshape((n, -1, d))
     return samples,rejections

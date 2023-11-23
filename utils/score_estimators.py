@@ -205,7 +205,7 @@ def get_score_function(config, sde, device):
     if config.score_method == 'p0t' and config.p0t_method == 'rejection':
         # minimizer = optimizers.newton_conjugate_gradient(torch.randn(2,device=device),grad_potential)
         # print(f"Minimizer found {minimizer}")
-        minimizer = torch.tensor([0,0],device=device)
+        minimizer = torch.tensor([-3,-3],device=device)
     
     def get_samplers_based_on_sampling_p0t(x,tt):
         scaling = sde.scaling(tt)
@@ -217,7 +217,7 @@ def get_score_function(config, sde, device):
         
         score_estimate = torch.zeros_like(x)
         y = x/scaling
-        y_for_sampling = y.repeat((num_samples,1))
+        y_for_sampling = y.repeat_interleave(num_samples,dim=0)
         potential_p0t = lambda x : potential(x) + torch.sum((x-y_for_sampling)**2,dim=1, keepdim=True)/(2*variance_conv)
         gradient_p0t = lambda x : grad_potential(x) + (x-y_for_sampling)/variance_conv
                 
@@ -234,14 +234,9 @@ def get_score_function(config, sde, device):
                                                                                       num_samples, 
                                                                                       config.proximal_M, device,
                                                                                       minimizer)
-        samples_from_p0t = samples_from_p0t.view((-1,dim))
-        samples_from_p0t = ula.get_ula_samples(samples_from_p0t,gradient_p0t,.0001,50).reshape((x.shape[0], -1, dim))
+        # samples_from_p0t = samples_from_p0t.view((-1,dim))
+        # samples_from_p0t = ula.get_ula_samples(samples_from_p0t,gradient_p0t,.0001,50).reshape((x.shape[0], -1, dim))
         
-        samples_from_p0t = torch.randn((1 * num_samples,dim),device=device)
-        
-        samples_from_p0t = samples_from_p0t.view((-1,num_samples, dim))
-        samples_from_p0t = x * torch.exp(-tt) + samples_from_p0t * (1 -torch.exp(- 2 * tt))
-        samples_from_p0t = samples_from_p0t.view((-1,num_samples,dim))
         mean_estimate = torch.mean(samples_from_p0t, dim=1)
         score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)
         import matplotlib.pyplot as plt

@@ -30,15 +30,14 @@ def to_numpy(x):
 
 def get_l2_error_at_time(config, device, sde, t):
     score_fn = utils.score_estimators.get_score_function(config,sde,device)
-    p0, grad = utils.gmm_score.get_gmm_density_at_t(config, sde, t, device)
+    log_density, grad = utils.gmm_score.get_gmm_density_at_t(config, sde, t, device)
 
     l = 1
     n = 2
     pts = torch.linspace(-l,l,n,device=device)
     pts = torch.cartesian_prod(pts,pts)
     est_score, avg_rejections = score_fn(pts,t)
-    real_score = grad(pts)/torch.exp(p0(pts))
-
+    real_score = grad(pts)/torch.exp(log_density(pts))
     return torch.log(torch.mean((real_score-est_score)**2)**.5), avg_rejections
     
 def run_experiments(config):
@@ -51,7 +50,7 @@ def run_experiments(config):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     sde = utils.sde_utils.get_sde(config)
 
-    num_samples = np.exp(np.arange(7,15,step=.5)).round().astype(int)
+    num_samples = np.exp(np.arange(7,10,step=.5)).round().astype(int)
     number_of_plots = len(num_samples)
     names = [0] * number_of_plots
     num_plots =  1 + number_of_plots
@@ -70,6 +69,7 @@ def run_experiments(config):
             avg_num_rejections = 0
             avg_l2_error  = 0
             for k in range(number_of_iters):
+                print(k)
                 l2_error, rejection_steps = get_log_l2_error_with_samples(config, device, sde, t, num_samples=num_samples[j])
                 avg_num_rejections += rejection_steps
                 avg_l2_error += l2_error

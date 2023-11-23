@@ -43,6 +43,7 @@ class VP():
     self.scaling = transition_densities.get_scaling_function(config)
     self.betad = config.multiplier
     self.betamin = config.bias
+    self.delta = config.sampling_eps
 
   def T(self):
     return 1
@@ -54,7 +55,7 @@ class VP():
     return (self.betad * t + self.betamin)**.5
   
   def time_steps(self, n, device):
-    return torch.linspace(1,0,n,device=device)
+    return torch.linspace(1,self.delta,n,device=device)
   
   def prior_sampling(self, shape, device):
     return torch.randn(*shape, device=device)
