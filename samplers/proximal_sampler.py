@@ -1,8 +1,6 @@
 import torch
 import matplotlib.pyplot as plt
-# import densities
 from tqdm import tqdm
-import time
 
 from utils.optimizers import nesterovs_minimizer, newton_conjugate_gradient
 
@@ -26,7 +24,6 @@ def get_rgo_sampling(xk, yk, eta, potential, gradient, M, device, initial_cond_f
     num_rejection_iters = 0
     while num_acc_samples < num_samples * d and num_rejection_iters < 50:
         num_rejection_iters+=1
-        # TODO : This is wrong because xk doesn't keep the accepted values at all times
         xk = u + var **.5 * accepted_samples * torch.randn_like(xk)
         
         exp_h1 = potential(w) \
@@ -38,6 +35,7 @@ def get_rgo_sampling(xk, yk, eta, potential, gradient, M, device, initial_cond_f
         acc_idx = (accepted_samples * torch.exp(-exp_h1) * rand_prob <= torch.exp(-f_eta))
         num_acc_samples = torch.sum(acc_idx)
         accepted_samples = (~acc_idx).long()
+        u[acc_idx] = xk[acc_idx]
     return xk, num_rejection_iters, w
 
 def get_samples(x0, eta, potential, gradient, M, num_iters, num_samples, device):
@@ -53,57 +51,6 @@ def get_samples(x0, eta, potential, gradient, M, num_iters, num_samples, device)
         z = torch.randn_like(xk,device=device)
         yk = xk + z * eta **.5
         xk, num_iters, w = get_rgo_sampling(xk, yk, eta, potential, gradient, M, device, w)
-        # plt.scatter(xk[:,0].cpu(),xk[:,1].cpu())
-        # plt.savefig(f'./trajectory2/{_}.png')
-        # plt.close()
         average_rejection_iters += num_iters    
     return xk.reshape((n,num_samples,-1)), average_rejection_iters/num_iters
     
-
-# device = 'cuda'
-# nsamples = 1000
-# x = torch.randn((nsamples,2), device=device)
-
-# mean = 10
-# sig = 1
-
-# means = torch.tensor([[5,5],[-5,-5],[5,-5], [-5,5]])
-# variances = torch.tensor([[[1,0],[0,1]],[[1,0],[0,1]], [[1,0],[0,1]],[[1,0],[0,1]]])
-# log_dens, grad = densities.gmm_logdensity_fnc([.25,.25,.25, .25],
-#                                               means,
-#                                               variances,
-#                                               device)
-# def f(x):
-#     return -log_dens(x)
-# def gradf(x):
-#     return - grad(x)/torch.exp(log_dens(x))
-
-
-# num_iterations = 50
-# M = 1/sig**2
-# eta = 1/(M*2)
-
-
-# times = torch.linspace(0.6,.6,steps=1,device=device)
-# rejections = torch.zeros_like(times,device=device)
-
-# for i, t in enumerate(times):
-#     print(i)
-#     var_like = torch.exp(2 * t) - 1
-#     potential_t = lambda x : f(x) - sum_last_dim(x**2)/(2*var_like)
-#     grad_t = lambda x : gradf(x) - x/var_like
-#     M_t = M + 1/var_like
-#     eta = 1/(2*M_t)
-#     pts, avg_rejections = get_samples(x,eta,potential_t, grad_t, M_t, num_iterations, 2, device)
-    
-#     rejections[i] = avg_rejections
-#     print(f"Average number of rejections {avg_rejections}")
-#     print(f"Number of nan elements {torch.sum(torch.isnan(pts))}")
-#     plt.xlim([-10,10])
-#     plt.ylim([-10,10])
-#     plt.scatter(pts[:,0].cpu(),pts[:,1].cpu())
-#     plt.savefig(f'./trajectory/{i}_{t : .3f}.png')
-#     plt.close()
-
-# plt.plot(times.cpu().numpy(), rejections.cpu().numpy())
-# plt.show()

@@ -11,20 +11,21 @@ from utils.optimizers import nesterovs_minimizer, gradient_descent
 def sum_last_dim(x):
     return torch.sum(x,dim=-1, keepdim=True)
 
-def get_rgo_sampling(xk, eta, potential, M, device, minimizer=None):
+def get_rgo_sampling(xk, eta, potential, max_iters, device, threshold, minimizer=None):
     # Sampling from exp(-f(x) - (x-y)^2/2eta)
     num_samples, d = xk.shape #xk is assumed to be [n,d]
     accepted_samples = torch.ones_like(xk)
     num_acc_samples = 0
-    w = nesterovs_minimizer(xk, potential, (M*d)**.5) if \
+    w = nesterovs_minimizer(xk, potential, threshold) if \
         minimizer == None else minimizer
     num_rejection_iters = 0
-    while num_acc_samples < num_samples * d and num_rejection_iters > -1:
+    f_eta = potential(w)
+
+    while num_acc_samples < num_samples * d and num_rejection_iters < max_iters:
         num_rejection_iters+=1
         proposal = xk + eta **.5 * accepted_samples * torch.randn_like(xk)
         
         exp_h1 = potential(proposal)
-        f_eta = potential(w)
         rand_prob = torch.rand((num_samples,1),device=device)
         acc_idx = (accepted_samples * torch.exp(-f_eta) * rand_prob <= torch.exp(-exp_h1))
         num_acc_samples = torch.sum(acc_idx)
@@ -33,12 +34,12 @@ def get_rgo_sampling(xk, eta, potential, M, device, minimizer=None):
     # print(f'\n{num_rejection_iters} {num_acc_samples}')
     return xk, num_rejection_iters
 
-def get_samples(y, eta, potential, num_samples, M, device,minimizer=None):
+def get_samples(y, eta, potential, num_samples, max_iters, device,threshold=1e-3,minimizer=None):
     # Sampling from potential \prop exp( - f(x) - |x-y|^2/2eta)
     # y = [n,d] outputs [n,num_samples,d]
     n, d = y.shape[0], y.shape[-1]
     yk = y.repeat_interleave(num_samples,dim=0)
-    samples, rejections = get_rgo_sampling(yk,eta,potential,M,device, minimizer=minimizer)
+    samples, rejections = get_rgo_sampling(yk,eta,potential,max_iters,device, threshold, minimizer=minimizer)
     samples = samples.reshape((n, -1, d))
     return samples,rejections
 

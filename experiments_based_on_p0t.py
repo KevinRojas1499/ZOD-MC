@@ -69,7 +69,6 @@ def run_experiments(config):
             avg_num_rejections = 0
             avg_l2_error  = 0
             for k in range(number_of_iters):
-                print(k)
                 l2_error, rejection_steps = get_log_l2_error_with_samples(config, device, sde, t, num_samples=num_samples[j])
                 avg_num_rejections += rejection_steps
                 avg_l2_error += l2_error
