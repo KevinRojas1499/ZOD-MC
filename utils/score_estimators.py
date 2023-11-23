@@ -203,9 +203,7 @@ def get_score_function(config, sde, device):
         return get_density_estimator()
 
     if config.score_method == 'p0t' and config.p0t_method == 'rejection':
-        # minimizer = optimizers.newton_conjugate_gradient(torch.randn(2,device=device),grad_potential)
-        # print(f"Minimizer found {minimizer}")
-        minimizer = torch.tensor([-3,-3],device=device)
+        minimizer = optimizers.newton_conjugate_gradient(torch.randn(2,device=device),potential)
     
     def get_samplers_based_on_sampling_p0t(x,tt):
         scaling = sde.scaling(tt)
@@ -237,8 +235,7 @@ def get_score_function(config, sde, device):
         # samples_from_p0t = samples_from_p0t.view((-1,dim))
         # samples_from_p0t = ula.get_ula_samples(samples_from_p0t,gradient_p0t,.0001,50).reshape((x.shape[0], -1, dim))
         
-        mean_estimate = torch.mean(samples_from_p0t, dim=1)
-        score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)
+        score_estimate = (scaling * torch.mean(samples_from_p0t, dim=1) - x)/(1 - scaling**2)
         import matplotlib.pyplot as plt
         from . import gmm_score
         real_log_dens, real_grad = gmm_score.get_gmm_density_at_t(config,sde,tt,device)
@@ -251,13 +248,6 @@ def get_score_function(config, sde, device):
         xx , yy = torch.meshgrid(pts,pts,indexing='xy')
         pts = torch.cat((xx.unsqueeze(-1),yy.unsqueeze(-1)),dim=-1).to(device=device)
         dens = torch.exp(- (potential(pts) + torch.sum((pts - y)**2,dim=-1, keepdim=True)/(2*variance_conv))).squeeze(-1).cpu()
-
-        idx = torch.argmax(dens)
-        # print(f'Maximizer at {pts[idx]}')
-        # plt.contourf(xx, yy, potential(pts).squeeze(-1).view(nn,nn).cpu().numpy())
-        # plt.colorbar()
-        # plt.show()
-        integral = torch.sum(dens)
         pts = pts.cpu().numpy()
         real_mean = scaling * x
 
@@ -271,7 +261,7 @@ def get_score_function(config, sde, device):
         ax2.grid()
         fig.set_figheight(6)
         fig.set_figwidth(12)
-        fig.suptitle(f'Score Error {torch.sum((real_score - score_estimate)**2)**.5 : .4f} Mean Error {torch.sum((mean_estimate-real_mean)**2)**.5 : .4f}', fontsize=16)
+        fig.suptitle(f'Score Error {torch.sum((real_score - score_estimate)**2)**.5 : .4f}', fontsize=16)
         fig.savefig(f'./score_generated_samples/{tt : .3f}.png')      
         plt.close()
         

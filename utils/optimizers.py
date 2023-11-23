@@ -31,5 +31,5 @@ def newton_conjugate_gradient(x0, potential):
         method='newton-cg', 
         options=dict(line_search='strong-wolfe'),
         max_iter=50,
-        disp=2
-    )
+        disp=0 # Verbose level
+    ).x
