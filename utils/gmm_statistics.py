@@ -1,57 +1,29 @@
-import numpy as np
+import yaml
+import torch
 
-def compute_stats_gmm(data):
-    limit = 3
-    bias = 0
-    clusters = [ [] for i in range(5)]
-    # center, up right, up left , down left, down right
+def compute_stats_gmm(data, means):
+    N = means.shape[0]
+    empirical_means = torch.zeros_like(means)
+    num_cluster = torch.zeros((N,1))
+    tot = data.shape[0]
     for point in data:
-        x,y = point
-        point = point.numpy()
-        if x > limit + bias and y > limit + bias:
-            clusters[1].append(point)
-        elif x < -limit + bias and y > limit + bias:
-            clusters[2].append(point)
-        elif x < -limit + bias and y < -limit + bias:
-            clusters[3].append(point)
-        elif x > limit + bias and y < -limit + bias:
-            clusters[4].append(point)
-        else:
-            clusters[0].append(point)
+        diffs = torch.sum((means - point)**2,dim=-1)
+        idx = torch.argmin(diffs)
+        empirical_means[idx] += point
+        num_cluster[idx] += 1
 
-    stats_x = {"center":0,"up right":0, "up left":0, "down left": 0, "down right":0}
-    stats_y = {"center":0,"up right":0, "up left":0, "down left": 0, "down right":0}
-    weights = {"center":0,"up right":0, "up left":0, "down left": 0, "down right":0}
 
-    for i, (key, value) in enumerate((stats_x.items())):
-        mean = np.mean(np.array(clusters[i]),axis=0) 
-        stats_x[key] = mean[0]
-        stats_y[key] = mean[1]
-        weights[key] = len(clusters[i])/len(data)
-    
-    return stats_x, stats_y, weights
+    return empirical_means/num_cluster, num_cluster/tot
 
-def to_np_array(data):
-    np_data = np.zeros(len(data))
-    for i, (key, value) in enumerate((data.items())):
-        np_data[i] = value
-    
-    return np_data
+def get_l2_norm(x):
+    return torch.sum(torch.sum(x**2,dim=-1)**.5)
 
-def summarized_stats(data):
-    stats_x, stats_y, weights = compute_stats_gmm(data)
-    weights = to_np_array(weights)
-    real_weights = np.array([.2,.2,.2,.2,.2])
-    w = np.sum((weights-real_weights)**2)**.5
+def summarized_stats(config,data):
+    params = yaml.safe_load(open(config.density_parameters_path))
+    real_means, real_weights = torch.tensor(params['means'],dtype=torch.float32), torch.tensor(params['coeffs'],dtype=torch.float32)
+    means, weights = compute_stats_gmm(data, real_means)
 
-    means_x, means_y = np.expand_dims(to_np_array(stats_x),axis=1), np.expand_dims(to_np_array(stats_y),axis=1)
-    m = 0
-    b = 5
-    real_means = np.array([[m,m],[m+b,m+b],[m-b,m+b],[m-b, m -b],[m + b,m - b]])
-    means = np.concatenate((means_x,means_y), axis=1)
-    error_means = 0
-    for i, mean in enumerate(real_means):
-        error_means += np.sum((real_means[i]-means[i])**2)**.5
-
-    return w, error_means
+    error_means = get_l2_norm(means-real_means)
+    error_weights = get_l2_norm(weights-real_weights)
+    return error_weights, error_means
 

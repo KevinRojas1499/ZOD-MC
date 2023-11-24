@@ -1,7 +1,7 @@
 # Wandb info
 wandb_project_name: NonconvexSampling
 
-mode: sample
+mode: generation-experiments
 score_method: p0t
 p0t_method: rejection
 
@@ -9,7 +9,7 @@ p0t_method: rejection
 
 proximal_M: 4
 num_proximal_iterations: 5
-
+max_rejection_iters : 100
 # Integrator details 
 convolution_integrator: simpson
 sub_intervals_per_dim: 500
@@ -17,7 +17,7 @@ integration_range: 15
 dimension: 2
 
 # Estimator Information
-num_estimator_samples: 10000
+num_estimator_samples: 1000
 eps_stable: 1e-9
 gradient_estimator: conv
 
@@ -31,7 +31,7 @@ bias: 2
 # Sampling parameters
 sampling_method: em
 num_batches: 1
-sampling_batch_size: 10
+sampling_batch_size: 1000
 sampling_eps: 1e-3
 disc_steps: 25
 

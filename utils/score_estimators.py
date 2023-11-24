@@ -204,6 +204,7 @@ def get_score_function(config, sde, device):
 
     if config.score_method == 'p0t' and config.p0t_method == 'rejection':
         minimizer = optimizers.newton_conjugate_gradient(torch.randn(2,device=device),potential)
+        # minimizer = torch.tensor([3,-2],device=device)
         print(f'Found minimizer {minimizer.cpu().numpy()}')
         
     def get_samplers_based_on_sampling_p0t(x,tt):
@@ -228,8 +229,8 @@ def get_score_function(config, sde, device):
                             config.num_proximal_iterations, 
                             num_samples, device)
         if config.p0t_method == 'rejection':
-            max_iters = 500
-            num_iters = 10
+            max_iters = config.max_rejection_iters
+            num_iters = 1
             mean_estimate = 0
             for _ in range(num_iters):
                 samples_from_p0t, average_rejection_iters = rejection_sampler.get_samples(y, variance_conv,
@@ -273,7 +274,7 @@ def get_score_function(config, sde, device):
         # plt.close()
         
 
-        if config.mode == 'sample':
+        if config.mode == 'sample' or config.mode == 'generation-experiments':
             return score_estimate
         else:
             return score_estimate, average_rejection_iters

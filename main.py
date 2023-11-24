@@ -27,7 +27,7 @@ def parse_arguments():
     # Proximal Sampler details
     p.add_argument('--proximal_M', type=float)
     p.add_argument('--num_proximal_iterations', type=int)
-    
+    p.add_argument('--max_rejection_iters',type=int)
     
     # Integrator details
     p.add_argument('--convolution_integrator', choices=['trap','simpson','mc'])
@@ -38,15 +38,6 @@ def parse_arguments():
     p.add_argument('--num_estimator_samples', type=int, default=10000)
     p.add_argument('--eps_stable',type=float, default=1e-9)
     p.add_argument('--gradient_estimator',choices=['conv','direct'])
-
-    # Optimizer
-    p.add_argument('--optimizer',choices=['Adam'])
-    p.add_argument('--lr',type=float)
-
-    # Training
-    p.add_argument('--train_iters',type=int)
-    p.add_argument('--batch_size',type=int)
-    p.add_argument('--snapshot_freq',type=int)
 
     # ODE Solver
     p.add_argument('--atol',type=float)
