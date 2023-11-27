@@ -1,5 +1,6 @@
-import numpy as np
 import torch
+import wandb
+from math import pi
 
 from utils.integrators import get_integrator
 from utils.densities import get_log_density_fnc
@@ -7,7 +8,6 @@ import utils.optimizers as optimizers
 import samplers.rejection_sampler as rejection_sampler
 import samplers.proximal_sampler as proximal_sampler
 import samplers.ula as ula
-from math import pi
 
 
 def get_score_function(config, sde, device):
@@ -30,6 +30,7 @@ def get_score_function(config, sde, device):
     p0 = lambda x : torch.exp(logdensity(x))
     potential = lambda x :  - logdensity(x)
     grad_potential = lambda x : - gradient(x)/(p0(x) + 1e-8)
+    score_0 = lambda x : gradient(x)/(p0(x) + 1e-8)
     dim = config.dimension
     
     def score_gaussian_convolution(x, tt):
@@ -91,11 +92,6 @@ def get_score_function(config, sde, device):
         elif config.gradient_estimator == 'direct':
             grad_p_t = get_convolution(gradient,gaussian_density)
 
-        from . import gmm_score
-        real_dens, real_grad = gmm_score.get_gmm_density_at_t(config,sde,tt,device)
-        real_score = real_grad(x)/torch.exp(real_dens(x))
-        score = grad_p_t(x)/(p_t(x) + config.eps_stable)
-        print(f'{tt:.3f} : {torch.sum((real_score - score)**2)**.5}')
         if config.mode == 'sample':
             return grad_p_t(x)/(p_t(x) + config.eps_stable)
         else :
@@ -204,10 +200,12 @@ def get_score_function(config, sde, device):
 
     if config.score_method == 'p0t' and config.p0t_method == 'rejection':
         minimizer = optimizers.newton_conjugate_gradient(torch.randn(2,device=device),potential)
-        # minimizer = torch.tensor([3,-2],device=device)
+        minimizer = torch.tensor([3.,-2.],device=device)
         print(f'Found minimizer {minimizer.cpu().numpy()}')
         
     def get_samplers_based_on_sampling_p0t(x,tt):
+        if tt == 0:
+            return score_0(x)
         scaling = sde.scaling(tt)
         var = scaling**2 * sde.scheduling(tt)**2
 
@@ -233,13 +231,18 @@ def get_score_function(config, sde, device):
             num_iters = 1
             mean_estimate = 0
             for _ in range(num_iters):
-                samples_from_p0t, average_rejection_iters = rejection_sampler.get_samples(y, variance_conv,
+                samples_from_p0t, acc_idx, average_rejection_iters = rejection_sampler.get_samples(y, variance_conv,
                                                                                         potential,
                                                                                         num_samples, 
                                                                                         max_iters,
                                                                                         device,
                                                                                         minimizer=minimizer)
-                mean_estimate += torch.mean(samples_from_p0t,dim=1)
+                # print(torch.sum(torch.isnan(samples_from_p0t)))
+                num_good_samples = torch.sum(acc_idx, dim=(1,2)).unsqueeze(-1).to(torch.float32)
+                # print(num_good_samples[:10].squeeze(-1).cpu().numpy())
+                wandb.log({'Average Acc Samples' : torch.mean(num_good_samples).detach().item(), 
+                           'Min Acc Samples' : torch.min(num_good_samples).detach().item()})
+                mean_estimate += torch.sum(samples_from_p0t * acc_idx,dim=1)/num_good_samples
                 
             mean_estimate/=(num_iters)
 
@@ -257,15 +260,13 @@ def get_score_function(config, sde, device):
         # pts = torch.cat((xx.unsqueeze(-1),yy.unsqueeze(-1)),dim=-1).to(device=device)
         # dens = torch.exp(- (potential(pts) + torch.sum((pts - y)**2,dim=-1, keepdim=True)/(2*variance_conv))).squeeze(-1).cpu()
         # pts = pts.cpu().numpy()
-        # real_mean = scaling * x
 
         # ax1.contourf(xx, yy,dens)
-        # ax1.scatter(real_mean[:,0].cpu(),real_mean[:,1].cpu(),color='green')
+        # ax1.scatter(x[:,0].cpu(),x[:,1].cpu(),color='green')
         # ax1.grid()
         # sampsx, sampsy = samples_from_p0t[0,:,0] , samples_from_p0t[0,:,1]
         # ax2.hist2d(sampsx.cpu().numpy(),sampsy.cpu().numpy(),bins=100,range= [[-l, l], [-l, l]], density=True)
-        # ax2.scatter(y[:,0].cpu(),y[:,1].cpu(),color='red')
-        # ax2.scatter(real_mean[:,0].cpu(),real_mean[:,1].cpu(),color='green')
+        # ax2.scatter(x[:,0].cpu(),x[:,1].cpu(),color='green')
         # ax2.grid()
         # fig.set_figheight(6)
         # fig.set_figwidth(12)

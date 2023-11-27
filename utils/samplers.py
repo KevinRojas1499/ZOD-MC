@@ -1,7 +1,7 @@
 import torch
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-
+import samplers.ula as ula
 def get_sampler(config, device, sde):
     torch.manual_seed(123)
     def get_euler_maruyama(model):
@@ -9,7 +9,6 @@ def get_sampler(config, device, sde):
         x_t = sde.prior_sampling((config.sampling_batch_size,config.dimension),device=device)
 
         time_pts = sde.time_steps(config.disc_steps, device)
-
         pbar = tqdm(range(len(time_pts) - 1),leave=False)
         for i in pbar:
             t = time_pts[i]
@@ -23,8 +22,9 @@ def get_sampler(config, device, sde):
             # plt.savefig(f'./trajectory/{i}_{t : .3f}.png')
             # plt.close()
         pbar.close()
+        neg_grad = lambda x : - model(x,0.)
+        # x_t = ula.get_ula_samples(x_t, neg_grad, .0001,1000)
         return x_t
-
-
+    
     if config.sampling_method == 'em':
         return get_euler_maruyama

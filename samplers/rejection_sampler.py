@@ -31,17 +31,18 @@ def get_rgo_sampling(xk, eta, potential, max_iters, device, threshold, minimizer
         num_acc_samples = torch.sum(acc_idx)
         accepted_samples = (~acc_idx).long()
         xk[acc_idx] = proposal[acc_idx]
-    # print(f'\n{num_rejection_iters} {num_acc_samples}')
-    return xk, num_rejection_iters
+    # print(f'\n{num_rejection_iters} {num_acc_samples/d}')
+    return xk, acc_idx, num_rejection_iters
 
 def get_samples(y, eta, potential, num_samples, max_iters, device,threshold=1e-3,minimizer=None):
     # Sampling from potential \prop exp( - f(x) - |x-y|^2/2eta)
     # y = [n,d] outputs [n,num_samples,d]
     n, d = y.shape[0], y.shape[-1]
     yk = y.repeat_interleave(num_samples,dim=0)
-    samples, rejections = get_rgo_sampling(yk,eta,potential,max_iters,device, threshold, minimizer=minimizer)
+    samples, accepted_idx, rejections = get_rgo_sampling(yk,eta,potential,max_iters,device, threshold, minimizer=minimizer)
     samples = samples.reshape((n, -1, d))
-    return samples,rejections
+    accepted_idx = accepted_idx.reshape((n,-1,d))
+    return samples, accepted_idx, rejections
 
 # device = 'cuda'
 # nsamples = 1

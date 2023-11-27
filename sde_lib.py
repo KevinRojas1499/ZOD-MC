@@ -46,7 +46,7 @@ class VP():
     self.delta = config.sampling_eps
 
   def T(self):
-    return 1
+    return 3
 
   def drift(self, x,t):
     return - (self.betad * t + self.betamin) * x /2
@@ -55,7 +55,7 @@ class VP():
     return (self.betad * t + self.betamin)**.5
   
   def time_steps(self, n, device):
-    return torch.linspace(1,self.delta,n,device=device)
+    return torch.linspace(self.T(),self.delta,n,device=device)
   
   def prior_sampling(self, shape, device):
     return torch.randn(*shape, device=device)

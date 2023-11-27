@@ -12,11 +12,11 @@ def histogram(x, log_density=None):
     plt.hist(x, bins = points, density=True)
     if log_density is not None:
         plt.plot(points, np.exp(log_density(points_torch).to('cpu').numpy()))
-    wandb.log({'my_histogram': plt})
+    wandb.log({'Histogram': plt})
 
 def plot_2d_dist(data):
     L = 15
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=data[:,0], y=data[:,1],mode='markers'))
 
-    wandb.log({"Sampling" : fig})
+    wandb.log({"Samples" : fig})

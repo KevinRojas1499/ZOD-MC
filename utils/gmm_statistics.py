@@ -8,12 +8,17 @@ def compute_stats_gmm(data, means):
     tot = data.shape[0]
     for point in data:
         diffs = torch.sum((means - point)**2,dim=-1)
-        idx = torch.argmin(diffs)
+        idx = torch.argmin(diffs).item()
+        print(idx)
         empirical_means[idx] += point
         num_cluster[idx] += 1
-
-
-    return empirical_means/num_cluster, num_cluster/tot
+    print(empirical_means)
+    empirical_means /= num_cluster
+    weights = num_cluster/tot
+    print(empirical_means.cpu().numpy())
+    print(weights.cpu().numpy())
+    
+    return empirical_means, weights
 
 def get_l2_norm(x):
     return torch.sum(torch.sum(x**2,dim=-1)**.5)
