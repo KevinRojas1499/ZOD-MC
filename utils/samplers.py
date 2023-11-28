@@ -22,8 +22,6 @@ def get_sampler(config, device, sde):
             plt.savefig(f'./trajectory/{i}_{t : .3f}.png')
             plt.close()
         pbar.close()
-        neg_grad = lambda x : - model(x,0.)
-        # x_t = ula.get_ula_samples(x_t, neg_grad, .0001,1000)
         return x_t
     
     if config.sampling_method == 'em':
