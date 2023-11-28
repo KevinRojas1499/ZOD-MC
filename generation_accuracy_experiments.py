@@ -8,7 +8,7 @@ import utils.samplers
 import utils.densities
 import utils.score_estimators
 import utils.sde_utils
-import utils.gmm_statistics
+import utils.gmm_utils
 
 def get_run_name(config):
     return f"Generation Evaluation {config.density}"
@@ -38,7 +38,7 @@ def sample_and_add_stats(name,config, device, weights_per_model, means_per_model
     samples = samples.view((-1,dim))
     print(torch.sum(torch.isnan(samples)))
     utils.plots.plot_2d_dist(to_numpy(samples))
-    error_weights, error_means = utils.gmm_statistics.summarized_stats(config, samples)
+    error_weights, error_means = utils.gmm_utils.summarized_stats(config, samples)
     weights_per_model[name].append(error_weights)
     means_per_model[name].append(error_means)
 

@@ -34,3 +34,19 @@ def summarized_stats(config,data):
     error_weights = get_l2_norm(weights-real_weights)
     return error_weights, error_means
 
+def to_tensor(x):
+    return torch.tensor(x,dtype=torch.float32)
+
+
+def sample_from_gmm(config, num_samples):
+    from torch.distributions.multivariate_normal import MultivariateNormal
+    params = yaml.safe_load(open(config.density_parameters_path))
+    c, means, variances = to_tensor(params['coeffs']), to_tensor(params['means']), to_tensor(params['variances'])
+    n = len(c)
+    d = means[0].shape[0]
+    gaussians = [MultivariateNormal(means[i],variances[i]) for i in range(n)]
+    samples = torch.zeros(num_samples,d)
+    for i in range(num_samples):
+        idx = torch.randint(0,n, (1,))
+        samples[i] = gaussians[idx].sample()
+    return samples    

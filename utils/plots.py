@@ -14,9 +14,11 @@ def histogram(x, log_density=None):
         plt.plot(points, np.exp(log_density(points_torch).to('cpu').numpy()))
     wandb.log({'Histogram': plt})
 
-def plot_2d_dist(data):
+def plot_2d_dist(data,ground_truth=None):
     L = 15
     fig = go.Figure()
+    if ground_truth is not None:
+        fig.add_trace(go.Scatter(x=ground_truth[:,0],y = ground_truth[:,1],mode='markers',name='Real'))
     fig.add_trace(go.Scatter(x=data[:,0], y=data[:,1],mode='markers'))
 
     wandb.log({"Samples" : fig})

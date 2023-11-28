@@ -17,7 +17,7 @@ integration_range: 15
 dimension: 2
 
 # Estimator Information
-num_estimator_samples: 1000
+num_estimator_samples: 2000
 eps_stable: 1e-9
 gradient_estimator: conv
 

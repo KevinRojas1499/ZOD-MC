@@ -8,7 +8,7 @@ import utils.samplers
 import utils.densities
 import utils.score_estimators
 import utils.sde_utils
-import utils.gmm_statistics
+import utils.gmm_utils as gmm_utils
 
 def get_run_name(config):
     if config.score_method == 'quotient-estimator':
@@ -48,21 +48,23 @@ def eval(config):
     sampler = utils.samplers.get_sampler(config,device, sde)
 
     n_batch = config.num_batches
+    n_samples = config.sampling_batch_size
     dim = config.dimension
-    samples = torch.zeros((n_batch,config.sampling_batch_size, dim))
+    samples = torch.zeros((n_batch,n_samples, dim))
     pbar = tqdm(range(n_batch))
     for i in pbar:
         pbar.set_description(f"Batch {i}/{n_batch}")
         samples[i] = sampler(model)
     samples = samples.view((-1,dim))
     print(torch.sum(torch.isnan(samples)))
-    # w, error_means = utils.gmm_statistics.summarized_stats(samples)
+    # w, error_means = utils.gmm_utils.summarized_stats(samples)
     # wandb.log({"Error Weights": w, "Error Means": error_means})
 
     if config.dimension == 1:
         utils.plots.histogram(to_numpy(samples.squeeze(-1)), log_density= utils.densities.get_log_density_fnc(config,device=device)[0])
     elif config.dimension == 2:
-        utils.plots.plot_2d_dist(to_numpy(samples))
+        real_samples = gmm_utils.sample_from_gmm(config,n_samples * n_batch)
+        utils.plots.plot_2d_dist(to_numpy(samples),to_numpy(real_samples))
 
     wandb.finish()
 

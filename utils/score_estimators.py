@@ -228,7 +228,7 @@ def get_score_function(config, sde, device):
                             num_samples, device)
         if config.p0t_method == 'rejection':
             max_iters = config.max_rejection_iters
-            num_iters = 1000
+            num_iters = 500
             mean_estimate = 0
             num_good_samples = torch.zeros((x.shape[0],1),device=device)
             for _ in range(num_iters):
