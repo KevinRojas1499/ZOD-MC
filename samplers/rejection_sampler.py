@@ -14,7 +14,7 @@ def sum_last_dim(x):
 def get_rgo_sampling(xk, eta, potential, max_iters, device, threshold, minimizer=None):
     # Sampling from exp(-f(x) - (x-y)^2/2eta)
     num_samples, d = xk.shape #xk is assumed to be [n,d]
-    accepted_samples = torch.ones_like(xk)
+    accepted_samples = torch.ones_like(xk) # 1 if rejected 0 if accepted
     num_acc_samples = 0
     w = nesterovs_minimizer(xk, potential, threshold) if \
         minimizer == None else minimizer
@@ -31,7 +31,6 @@ def get_rgo_sampling(xk, eta, potential, max_iters, device, threshold, minimizer
         num_acc_samples = torch.sum(acc_idx)
         accepted_samples = (~acc_idx).long()
         xk[acc_idx] = proposal[acc_idx]
-    # print(f'\n{num_rejection_iters} {num_acc_samples/d}')
     return xk, acc_idx, num_rejection_iters
 
 def get_samples(y, eta, potential, num_samples, max_iters, device,threshold=1e-3,minimizer=None):

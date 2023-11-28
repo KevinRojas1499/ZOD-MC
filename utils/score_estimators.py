@@ -228,8 +228,9 @@ def get_score_function(config, sde, device):
                             num_samples, device)
         if config.p0t_method == 'rejection':
             max_iters = config.max_rejection_iters
-            num_iters = 1
+            num_iters = 1000
             mean_estimate = 0
+            num_good_samples = torch.zeros((x.shape[0],1),device=device)
             for _ in range(num_iters):
                 samples_from_p0t, acc_idx, average_rejection_iters = rejection_sampler.get_samples(y, variance_conv,
                                                                                         potential,
@@ -237,15 +238,14 @@ def get_score_function(config, sde, device):
                                                                                         max_iters,
                                                                                         device,
                                                                                         minimizer=minimizer)
-                num_good_samples = torch.sum(acc_idx, dim=(1,2)).unsqueeze(-1).to(torch.float32)/dim
-                # print(num_good_samples[:10].squeeze(-1).cpu().numpy())
-                bad_pts = [i for i in range(num_good_samples.shape[0]) if num_good_samples[i] == 0]
-                # print(bad_pts)
-                wandb.log({'Average Acc Samples' : torch.mean(num_good_samples).detach().item(), 
-                           'Min Acc Samples' : torch.min(num_good_samples).detach().item()})
-                mean_estimate += torch.sum(samples_from_p0t * acc_idx,dim=1)/num_good_samples
-                
-            mean_estimate/=(num_iters)
+                # print(torch.sum(acc_idx)/dim)
+                num_good_samples += torch.sum(acc_idx, dim=(1,2)).unsqueeze(-1).to(torch.float32)/dim
+                mean_estimate += torch.sum(samples_from_p0t * acc_idx,dim=1)
+            # print(num_good_samples.squeeze(-1).cpu().numpy())
+
+            wandb.log({'Average Acc Samples' : torch.mean(num_good_samples).detach().item(), 
+                        'Min Acc Samples' : torch.min(num_good_samples).detach().item()})
+            mean_estimate /= num_good_samples
 
         score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)
         # import matplotlib.pyplot as plt
