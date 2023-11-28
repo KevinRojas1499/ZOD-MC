@@ -237,9 +237,10 @@ def get_score_function(config, sde, device):
                                                                                         max_iters,
                                                                                         device,
                                                                                         minimizer=minimizer)
-                # print(torch.sum(torch.isnan(samples_from_p0t)))
-                num_good_samples = torch.sum(acc_idx, dim=(1,2)).unsqueeze(-1).to(torch.float32)
+                num_good_samples = torch.sum(acc_idx, dim=(1,2)).unsqueeze(-1).to(torch.float32)/dim
                 # print(num_good_samples[:10].squeeze(-1).cpu().numpy())
+                bad_pts = [i for i in range(num_good_samples.shape[0]) if num_good_samples[i] == 0]
+                # print(bad_pts)
                 wandb.log({'Average Acc Samples' : torch.mean(num_good_samples).detach().item(), 
                            'Min Acc Samples' : torch.min(num_good_samples).detach().item()})
                 mean_estimate += torch.sum(samples_from_p0t * acc_idx,dim=1)/num_good_samples

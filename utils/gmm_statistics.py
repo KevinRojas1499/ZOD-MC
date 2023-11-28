@@ -5,14 +5,16 @@ def compute_stats_gmm(data, means):
     N = means.shape[0]
     empirical_means = torch.zeros_like(means)
     num_cluster = torch.zeros((N,1))
-    tot = data.shape[0]
+    tot = 0
     for point in data:
+        if torch.sum(torch.isnan(point)) > 0 :
+            print("Point is bad")
+            continue
         diffs = torch.sum((means - point)**2,dim=-1)
         idx = torch.argmin(diffs).item()
-        print(idx)
         empirical_means[idx] += point
         num_cluster[idx] += 1
-    print(empirical_means)
+        tot +=1
     empirical_means /= num_cluster
     weights = num_cluster/tot
     print(empirical_means.cpu().numpy())

@@ -18,9 +18,9 @@ def get_sampler(config, device, sde):
             tot_drift = sde.drift(x_t,t) - diffusion**2 * score
             # euler-maruyama step
             x_t += tot_drift * dt + diffusion * torch.randn_like(x_t) * torch.abs(dt) ** 0.5
-            # plt.plot(x_t[:,0].cpu(), x_t[:,1].cpu(),'.')
-            # plt.savefig(f'./trajectory/{i}_{t : .3f}.png')
-            # plt.close()
+            plt.plot(x_t[:,0].cpu(), x_t[:,1].cpu(),'.')
+            plt.savefig(f'./trajectory/{i}_{t : .3f}.png')
+            plt.close()
         pbar.close()
         neg_grad = lambda x : - model(x,0.)
         # x_t = ula.get_ula_samples(x_t, neg_grad, .0001,1000)

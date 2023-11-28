@@ -48,11 +48,11 @@ def run_experiments(config):
 
     quot_estim = 'quotient-estimator'
     estimators = ['p0t']
-    num_estimator_samples = [500,1000]
+    num_estimator_samples = [1000,2000]
     num_subintervals_per_dims = [151,201,301,501]
     weights_per_model = {}
     means_per_model = {}
-
+    # 1000 * 1000 * 1000
     for estimator in estimators:
         name = f"{estimator}"
         weights_per_model[name] = []

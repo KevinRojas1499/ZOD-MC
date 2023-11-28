@@ -9,7 +9,7 @@ p0t_method: rejection
 
 proximal_M: 4
 num_proximal_iterations: 5
-max_rejection_iters : 500
+max_rejection_iters : 1000
 # Integrator details 
 convolution_integrator: simpson
 sub_intervals_per_dim: 500
