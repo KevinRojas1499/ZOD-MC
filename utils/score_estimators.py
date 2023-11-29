@@ -228,7 +228,7 @@ def get_score_function(config, sde, device):
                             num_samples, device)
         if config.p0t_method == 'rejection':
             max_iters = config.max_rejection_iters
-            num_iters = 500
+            num_iters = 10
             mean_estimate = 0
             num_good_samples = torch.zeros((x.shape[0],1),device=device)
             for _ in range(num_iters):
@@ -238,7 +238,6 @@ def get_score_function(config, sde, device):
                                                                                         max_iters,
                                                                                         device,
                                                                                         minimizer=minimizer)
-                # print(torch.sum(acc_idx)/dim)
                 num_good_samples += torch.sum(acc_idx, dim=(1,2)).unsqueeze(-1).to(torch.float32)/dim
                 mean_estimate += torch.sum(samples_from_p0t * acc_idx,dim=1)
             # print(num_good_samples.squeeze(-1).cpu().numpy())

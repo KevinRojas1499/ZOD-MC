@@ -46,7 +46,7 @@ class VP():
     self.delta = config.sampling_eps
 
   def T(self):
-    return 3
+    return 2
 
   def drift(self, x,t):
     return - (self.betad * t + self.betamin) * x /2
@@ -54,13 +54,24 @@ class VP():
   def diffusion(self, x,t):
     return (self.betad * t + self.betamin)**.5
   
-  def time_steps(self, n, device):
-    return torch.linspace(self.T(),self.delta,n,device=device)
+  def time_steps(self, n, device, sampling_method='em'):
+    k  = n//2
+    if sampling_method == 'em':
+      cut_off = 5 * self.T() / 7 # Think of this better
+      h = cut_off/k
+      first_steps = torch.linspace(self.T(),cut_off+h,k, device=device)
+      second_steps = torch.linspace(cut_off, self.delta, n - k, device=device)
+    else:
+      cut_off = 4 * self.T() / 7 # Think of this better
+      h = cut_off/k
+      first_steps = torch.linspace(0,cut_off-h,k, device=device)
+      second_steps = torch.linspace(cut_off, self.T() - self.delta, n-k, device=device)
+    return torch.cat((first_steps,second_steps))
   
   def prior_sampling(self, shape, device):
     return torch.randn(*shape, device=device)
 
-    
+
 class VE(SDE):
   def __init__(self,config):
     super().__init__()

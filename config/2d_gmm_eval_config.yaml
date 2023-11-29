@@ -17,7 +17,7 @@ integration_range: 15
 dimension: 2
 
 # Estimator Information
-num_estimator_samples: 2000
+num_estimator_samples: 10000
 eps_stable: 1e-9
 gradient_estimator: conv
 
@@ -32,7 +32,7 @@ bias: 2
 sampling_method: em
 num_batches: 1
 sampling_batch_size: 1000
-sampling_eps: 1e-3
+sampling_eps: 1e-4
 disc_steps: 25
 
 # Problem Specifics
