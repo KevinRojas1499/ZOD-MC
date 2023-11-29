@@ -241,6 +241,7 @@ def get_score_function(config, dist : Distribution, sde, device):
 
             wandb.log({'Average Acc Samples' : torch.mean(num_good_samples).detach().item(), 
                         'Min Acc Samples' : torch.min(num_good_samples).detach().item()})
+            num_good_samples[num_good_samples == 0] += 1 # Ask if this is fine
             mean_estimate /= num_good_samples
 
         score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)

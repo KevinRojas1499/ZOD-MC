@@ -6,10 +6,11 @@ def get_sampler(config, device, sde):
     torch.manual_seed(123)
     
     def plot_trajectory(x_t, i, t):
-        plt.xlim([-8,8])
-        plt.ylim([-8,8])
+        l = 3 if config.density == 'mueller' else 8 
+        plt.xlim([-l,l])
+        plt.ylim([-l,l])
         plt.plot(x_t[:,0].cpu(), x_t[:,1].cpu(),'.')
-        plt.savefig(f'./trajectory/{i}_{t : .3f}.png')
+        plt.savefig(f'./trajectory_{config.sampling_method}/{i}_{t : .3f}.png')
         plt.close()
     
     def get_euler_maruyama(model):
@@ -17,6 +18,8 @@ def get_sampler(config, device, sde):
         x_t = sde.prior_sampling((config.sampling_batch_size,config.dimension),device=device)
 
         time_pts = sde.time_steps(config.disc_steps, device)
+        torch.set_printoptions(precision=3,sci_mode=False)
+        print(time_pts)
         pbar = tqdm(range(len(time_pts) - 1),leave=False)
         for i in pbar:
             t = time_pts[i]
@@ -36,6 +39,7 @@ def get_sampler(config, device, sde):
 
         time_pts = sde.time_steps(config.disc_steps, device, config.sampling_method)
         T = sde.T()
+        torch.set_printoptions(precision=3,sci_mode=False)
         print(time_pts)
         pbar = tqdm(range(len(time_pts) - 1),leave=False)
         for i in pbar:

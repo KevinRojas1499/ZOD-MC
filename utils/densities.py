@@ -14,7 +14,8 @@ class Distribution(abc.ABC):
         pass
     
     def grad_log_prob(self,x):
-        with torch.enable_grad:
+        with torch.enable_grad():
+            x = x.detach().requires_grad_()
             pot = self.log_prob(x)
             return torch.autograd.grad(pot.sum(),x)[0].detach()
     

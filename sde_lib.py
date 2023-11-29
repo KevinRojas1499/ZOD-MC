@@ -56,17 +56,17 @@ class VP(SDE):
   
   def time_steps(self, n, device, sampling_method='em'):
     k  = n//2
-    if sampling_method == 'em':
-      cut_off = 5 * self.T() / 7 # Think of this better
-      h = cut_off/k
-      first_steps = torch.linspace(self.T(),cut_off+h,k, device=device)
-      second_steps = torch.linspace(cut_off, self.delta, n - k, device=device)
-    else:
-      cut_off = 4 * self.T() / 7 # Think of this better
-      h = cut_off/k
-      first_steps = torch.linspace(0,cut_off-h,k, device=device)
-      second_steps = torch.linspace(cut_off, self.T() - self.delta, n-k, device=device)
-    return torch.cat((first_steps,second_steps))
+    c = 1.3
+    gamma = 0.01
+    idx = torch.arange(0,k+1,device=device)
+    first_steps = gamma * (1 - c**idx)/(1-c)
+    second_steps = torch.linspace(first_steps[-1], self.T() - self.delta, n-k, device=device)
+    first_steps = first_steps[:-1]
+    steps = torch.cat((first_steps,second_steps))
+    steps = self.T() - steps
+    if sampling_method == 'ei':
+      steps = torch.flip(steps,dims=(0,))
+    return steps
   
   def prior_sampling(self, shape, device):
     return torch.randn(*shape, device=device)

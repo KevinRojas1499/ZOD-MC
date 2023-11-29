@@ -9,6 +9,7 @@ import utils.densities
 import utils.score_estimators
 import utils.sde_utils
 import utils.gmm_utils as gmm_utils
+import samplers.ula as ula
 
 def get_run_name(config):
     if config.score_method == 'quotient-estimator':
@@ -16,7 +17,7 @@ def get_run_name(config):
     if config.score_method == 'convolution':
         return f"SAMPLING {config.density} {config.sde_type} {config.score_method} {config.sub_intervals_per_dim}"
     if config.score_method == 'p0t':
-        return f'Sampling {config.density} {config.p0t_method} {config.num_estimator_samples}'
+        return f'Sampling {config.density} {config.p0t_method} {config.num_estimator_samples} {config.sampling_method}'
 
 def init_wandb(config):
     wandb.init(
@@ -61,6 +62,15 @@ def eval(config):
     # w, error_means = utils.gmm_utils.summarized_stats(samples)
     # wandb.log({"Error Weights": w, "Error Means": error_means})
 
+    plot_samples(config, distribution, n_batch, n_samples, samples)
+    if config.ula_steps > 0:
+        samples = samples.to(device=device)
+        samples = ula.get_ula_samples(samples,distribution.grad_log_prob,0.001,config.ula_steps)
+        plot_samples(config, distribution, n_batch, n_samples, samples)
+        
+    wandb.finish()
+
+def plot_samples(config, distribution, n_batch, n_samples, samples):
     if config.dimension == 1:
         utils.plots.histogram(to_numpy(samples.squeeze(-1)), log_density=distribution.log_prob)
     elif config.dimension == 2:
@@ -69,9 +79,6 @@ def eval(config):
             utils.plots.plot_2d_dist(to_numpy(samples),to_numpy(real_samples))
         else:
             utils.plots.plot_2d_dist_with_contour(to_numpy(samples),distribution.log_prob)
-            
-
-    wandb.finish()
 
 def to_numpy(x):
     return x.cpu().detach().numpy()
