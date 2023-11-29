@@ -13,13 +13,13 @@ class Distribution(abc.ABC):
     def log_prob(self, x):
         pass
     
-    @abc.abstractmethod
     def grad_log_prob(self,x):
         with torch.enable_grad:
             pot = self.log_prob(x)
             return torch.autograd.grad(pot.sum(),x)[0].detach()
     
 class ModifiedMueller(Distribution):
+    # TODO : Implement the grad_log_prob
     def __init__(self):
         super().__init__()
         self.dim = 2
@@ -41,12 +41,7 @@ class ModifiedMueller(Distribution):
         
         return -0.1 * (V_q + V_m).view(new_shape)
     
-    def grad_log_prob(self, x):
-        with torch.enable_grad:
-            pot = self.log_prob(x)
-            return torch.autograd.grad(pot.sum(),x)[0].detach()
 class MultivariateGaussian():
-
     # This is a wrapper for Multivariate Normal
     def __init__(self, mean, cov):
         # super().__init__()
@@ -68,14 +63,14 @@ class MultivariateGaussian():
         return log_prob
 
     def gradient(self, x):
-        # TODO : This is wrong
+        # This is the gradient of p(x)
         curr_shape = x.shape
         x = x.view((-1,self.dim))
         dens = torch.exp(self.log_prob(x))
         grad = - dens * (self.inv_cov @ (x - self.mean).T).T
         grad = grad.view(curr_shape)
         return grad
-
+    
 class OneDimensionalGaussian(Distribution):
 
     # This is a wrapper for Normal
@@ -92,49 +87,58 @@ class OneDimensionalGaussian(Distribution):
         dens = torch.exp(self.log_prob(x))
         return - dens * (x - self.mean)/self.cov
 
-def to_tensor_type(x, device):
-    return torch.tensor(x,device=device, dtype=torch.float64)
+class DoubleWell(Distribution):
+    def __init__(self):
+        super().__init__()
+    
+    def log_prob(self,x):
+        return -(x**2 - 1.)**2/2
+    
+    def grad_log_prob(self, x):
+        return - (x**2 -1 ) * 2 * x
 
+class GaussianMixture(Distribution):
+    # TODO : Implement the grad_log_prob
 
-def gmm_logdensity_fnc(c,means,variances, device):
-    n = len(c)
-    means, variances = to_tensor_type(means, device),to_tensor_type(variances,device)
-    dimension = means[0].shape[0]
-    if dimension == 1:
-        gaussians = [OneDimensionalGaussian(means[i],variances[i]) for i in range(n)]
-    else:
-        gaussians = [MultivariateGaussian(means[i],variances[i]) for i in range(n)]
+    def to_tensor_type(self, x, device):
+        return torch.tensor(x,device=device, dtype=torch.float64)
 
-    def log_density(x):
+    def __init__(self,c,means,variances, device):
+        self.n = len(c)
+        self.c = c
+        means, variances = self.to_tensor_type(means, device),self.to_tensor_type(variances,device)
+        dimension = means[0].shape[0]
+        if dimension == 1:
+            self.gaussians = [OneDimensionalGaussian(means[i],variances[i]) for i in range(self.n)]
+        else:
+            self.gaussians = [MultivariateGaussian(means[i],variances[i]) for i in range(self.n)]
+
+    def log_prob(self, x):
         p = 0
-        for i in range(n):
-            p+= c[i] * torch.exp(gaussians[i].log_prob(x))
+        for i in range(self.n):
+            p+= self.c[i] * torch.exp(self.gaussians[i].log_prob(x))
         return torch.log(p)
     
-    def gradient(x):
+    def gradient(self, x):
         grad = 0
-        for i in range(n):
-            grad+= c[i] * gaussians[i].gradient(x)
+        for i in range(self.n):
+            grad+= self.c[i] * self.gaussians[i].gradient(x)
         return grad
+    
+    def grad_log_prob(self, x):
+        return self.gradient(x)/torch.exp(self.log_prob(x))
+    
 
-    return log_density, gradient
 
-def get_log_density_fnc(config, device):
+def get_distribution(config, device):
     params = yaml.safe_load(open(config.density_parameters_path))
 
-    def double_well_density():
-        def double_well_log_density(x):
-            potential = lambda x :  (x**2 - 1.)**2/2
-            return -potential(x)
-        # TODO : Add gradient for this function 
-        return double_well_log_density
-
     if config.density == 'gmm':
-        return gmm_logdensity_fnc(params['coeffs'], params['means'], params['variances'], device)
+        return GaussianMixture(params['coeffs'], params['means'], params['variances'], device)
     elif config.density == 'double-well':
-        return double_well_density()
+        return DoubleWell()
     elif config.density == 'mueller':
-        return ModifiedMueller().log_prob, ModifiedMueller().grad_log_prob
+        return ModifiedMueller()
     else:
         print("Density not implemented yet")
         return

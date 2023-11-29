@@ -17,7 +17,7 @@ integration_range: 15
 dimension: 2
 
 # Estimator Information
-num_estimator_samples: 100000
+num_estimator_samples: 10000
 eps_stable: 1e-9
 gradient_estimator: conv
 
@@ -29,12 +29,12 @@ multiplier: 0
 bias: 2
 
 # Sampling parameters
-sampling_method: ei
+sampling_method: em
 num_batches: 1
-sampling_batch_size: 1
+sampling_batch_size: 1000
 sampling_eps: 1e-4
 disc_steps: 25
 
 # Problem Specifics
-density: mueller
+density: gmm
 density_parameters_path: config/density_parameters/2d_gmm.yaml

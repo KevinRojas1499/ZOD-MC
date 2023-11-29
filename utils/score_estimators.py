@@ -3,14 +3,14 @@ import wandb
 from math import pi
 
 from utils.integrators import get_integrator
-from utils.densities import get_log_density_fnc
+from utils.densities import Distribution
 import utils.optimizers as optimizers
 import samplers.rejection_sampler as rejection_sampler
 import samplers.proximal_sampler as proximal_sampler
 import samplers.ula as ula
 
 
-def get_score_function(config, sde, device):
+def get_score_function(config, dist : Distribution, sde, device):
     """
         The following method returns a method that approximates the score
     """
@@ -26,11 +26,10 @@ def get_score_function(config, sde, device):
         
         return push_forward
 
-    logdensity, gradient = get_log_density_fnc(config, device)
+    logdensity, grad_logdensity = dist.log_prob, dist.grad_log_prob
     p0 = lambda x : torch.exp(logdensity(x))
     potential = lambda x :  - logdensity(x)
-    grad_potential = lambda x : - gradient(x)/(p0(x) + 1e-8)
-    score_0 = lambda x : gradient(x)/(p0(x) + 1e-8)
+    gradient = lambda x : p0(x) * grad_logdensity(x)
     dim = config.dimension
     
     def score_gaussian_convolution(x, tt):
@@ -204,8 +203,6 @@ def get_score_function(config, sde, device):
         print(f'Found minimizer {minimizer.cpu().numpy()}')
         
     def get_samplers_based_on_sampling_p0t(x,tt):
-        if tt == 0:
-            return score_0(x)
         scaling = sde.scaling(tt)
         var = scaling**2 * sde.scheduling(tt)**2
 
@@ -216,19 +213,19 @@ def get_score_function(config, sde, device):
         score_estimate = torch.zeros_like(x)
         y = x/scaling
         y_for_sampling = y.repeat_interleave(num_samples,dim=0)
-        potential_p0t = lambda x : potential(x) + torch.sum((x-y_for_sampling)**2,dim=1, keepdim=True)/(2*variance_conv)
-        # gradient_p0t = lambda x : grad_potential(x) + (x-y_for_sampling)/variance_conv
+        potential_p0t = lambda x : -logdensity(x) + torch.sum((x-y_for_sampling)**2,dim=1, keepdim=True)/(2*variance_conv)
+        gradient_p0t = lambda x : - grad_logdensity(x) + (x-y_for_sampling)/variance_conv
                 
-        # if config.p0t_method == 'proximal':
-        #     M = config.proximal_M
-        #     eta = 1/(M*dim)
-        #     samples_from_p0t, average_rejection_iters = proximal_sampler.get_samples(x, eta,potential_p0t,
-        #                     gradient_p0t,M, 
-        #                     config.num_proximal_iterations, 
-        #                     num_samples, device)
+        if config.p0t_method == 'proximal':
+            M = config.proximal_M
+            eta = 1/(M*dim)
+            samples_from_p0t, average_rejection_iters = proximal_sampler.get_samples(x, eta,potential_p0t,
+                            gradient_p0t,M, 
+                            config.num_proximal_iterations, 
+                            num_samples, device)
         if config.p0t_method == 'rejection':
             max_iters = config.max_rejection_iters
-            num_iters = 1
+            num_iters = 10
             mean_estimate = 0
             num_good_samples = torch.zeros((x.shape[0],1),device=device)
             for _ in range(num_iters):
@@ -247,33 +244,33 @@ def get_score_function(config, sde, device):
             mean_estimate /= num_good_samples
 
         score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)
-        import matplotlib.pyplot as plt
-        from . import gmm_score
-        real_log_dens, real_grad = gmm_score.get_gmm_density_at_t(config,sde,tt,device)
-        real_score = real_grad(x)/torch.exp(real_log_dens(x))
-        l = 3
+        # import matplotlib.pyplot as plt
+        # from . import gmm_score
+        # real_log_dens, real_grad = gmm_score.get_gmm_density_at_t(config,sde,tt,device)
+        # real_score = real_grad(x)/torch.exp(real_log_dens(x))
+        # l = 3
         
-        fig, (ax1,ax2) = plt.subplots(1,2)
-        nn = 1500
-        pts = torch.linspace(-l, l, nn)
-        xx , yy = torch.meshgrid(pts,pts,indexing='xy')
-        pts = torch.cat((xx.unsqueeze(-1),yy.unsqueeze(-1)),dim=-1).to(device=device)
-        dens = torch.exp(- (potential(pts) + torch.sum((pts - y)**2,dim=-1, keepdim=True)/(2*variance_conv))).squeeze(-1).cpu()
-        pts = pts.cpu().numpy()
+        # fig, (ax1,ax2) = plt.subplots(1,2)
+        # nn = 1500
+        # pts = torch.linspace(-l, l, nn)
+        # xx , yy = torch.meshgrid(pts,pts,indexing='xy')
+        # pts = torch.cat((xx.unsqueeze(-1),yy.unsqueeze(-1)),dim=-1).to(device=device)
+        # dens = torch.exp(- (potential(pts) + torch.sum((pts - y)**2,dim=-1, keepdim=True)/(2*variance_conv))).squeeze(-1).cpu()
+        # pts = pts.cpu().numpy()
 
-        ax1.contourf(xx, yy,dens)
-        ax1.scatter(x[:,0].cpu(),x[:,1].cpu(),color='green')
-        ax1.grid()
-        samples_from_p0t = samples_from_p0t[acc_idx].view((-1,dim))
-        sampsx, sampsy = samples_from_p0t[:,0] , samples_from_p0t[:,1]
-        ax2.hist2d(sampsx.cpu().numpy(),sampsy.cpu().numpy(),bins=100,range= [[-l, l], [-l, l]], density=True)
-        ax2.scatter(x[:,0].cpu(),x[:,1].cpu(),color='green')
-        ax2.grid()
-        fig.set_figheight(6)
-        fig.set_figwidth(12)
-        fig.suptitle(f'Score Error {torch.sum((real_score - score_estimate)**2)**.5 : .4f}', fontsize=16)
-        fig.savefig(f'./score_generated_samples/{tt : .3f}.png')      
-        plt.close()
+        # ax1.contourf(xx, yy,dens)
+        # ax1.scatter(x[:,0].cpu(),x[:,1].cpu(),color='green')
+        # ax1.grid()
+        # samples_from_p0t = samples_from_p0t[acc_idx].view((-1,dim))
+        # sampsx, sampsy = samples_from_p0t[:,0] , samples_from_p0t[:,1]
+        # ax2.hist2d(sampsx.cpu().numpy(),sampsy.cpu().numpy(),bins=100,range= [[-l, l], [-l, l]], density=True)
+        # ax2.scatter(x[:,0].cpu(),x[:,1].cpu(),color='green')
+        # ax2.grid()
+        # fig.set_figheight(6)
+        # fig.set_figwidth(12)
+        # fig.suptitle(f'Score Error {torch.sum((real_score - score_estimate)**2)**.5 : .4f}', fontsize=16)
+        # fig.savefig(f'./score_generated_samples/{tt : .3f}.png')      
+        # plt.close()
         
 
         if config.mode == 'sample' or config.mode == 'generation-experiments':

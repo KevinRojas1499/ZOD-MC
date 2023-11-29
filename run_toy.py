@@ -28,11 +28,11 @@ def init_wandb(config):
 )
 
 def setup_seed(seed):
-     torch.manual_seed(seed)
-     torch.cuda.manual_seed_all(seed)
-     np.random.seed(seed)
-     random.seed(seed)
-     torch.backends.cudnn.deterministic = True
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+    torch.backends.cudnn.deterministic = True
      
 
 def eval(config):
@@ -41,8 +41,9 @@ def eval(config):
     init_wandb(config)
     device = torch.device('cuda:0'if torch.cuda.is_available() else 'cpu')
     # Get SDE:
+    distribution = utils.densities.get_distribution(config,device)
     sde = utils.sde_utils.get_sde(config)
-    model = utils.score_estimators.get_score_function(config, sde, device)
+    model = utils.score_estimators.get_score_function(config,distribution,  sde, device)
     
     # Get Sampler
     sampler = utils.samplers.get_sampler(config,device, sde)
@@ -61,14 +62,13 @@ def eval(config):
     # wandb.log({"Error Weights": w, "Error Means": error_means})
 
     if config.dimension == 1:
-        utils.plots.histogram(to_numpy(samples.squeeze(-1)), log_density= utils.densities.get_log_density_fnc(config,device=device)[0])
+        utils.plots.histogram(to_numpy(samples.squeeze(-1)), log_density=distribution.log_prob)
     elif config.dimension == 2:
         if config.density == 'gmm':
             real_samples = gmm_utils.sample_from_gmm(config,n_samples * n_batch)
             utils.plots.plot_2d_dist(to_numpy(samples),to_numpy(real_samples))
         else:
-            log_prob = utils.densities.ModifiedMueller().log_prob
-            utils.plots.plot_2d_dist_with_contour(to_numpy(samples),log_prob)
+            utils.plots.plot_2d_dist_with_contour(to_numpy(samples),distribution.log_prob)
             
 
     wandb.finish()
