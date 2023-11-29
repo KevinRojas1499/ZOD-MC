@@ -22,3 +22,17 @@ def plot_2d_dist(data,ground_truth=None):
     fig.add_trace(go.Scatter(x=data[:,0], y=data[:,1],mode='markers'))
 
     wandb.log({"Samples" : fig})
+    
+def plot_2d_dist_with_contour(data,log_prob):
+    l = 3
+    nn = 100
+    pts = torch.linspace(-l, l, nn)
+    xx , yy = torch.meshgrid(pts,pts,indexing='xy')
+    pts_grid = torch.cat((xx.unsqueeze(-1),yy.unsqueeze(-1)),dim=-1).to(device='cuda')
+    dens = torch.exp(log_prob(pts_grid)).squeeze(-1).cpu()
+    pts = pts.cpu().numpy()
+    fig = go.Figure()
+    fig.add_trace(go.Contour(z=dens, x=pts, y=pts, connectgaps=True))
+    fig.add_trace(go.Scatter(x=data[:,0], y=data[:,1],mode='markers'))
+
+    wandb.log({"Samples" : fig})

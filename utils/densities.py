@@ -1,12 +1,55 @@
+import abc
 import torch
 from torch.distributions import Normal, MultivariateNormal
 import yaml
 from math import pi, log
 
+class Distribution(abc.ABC):
+    """ Potentials abstract class """
+    def __init__(self):
+        super().__init__()
+    
+    @abc.abstractmethod
+    def log_prob(self, x):
+        pass
+    
+    @abc.abstractmethod
+    def grad_log_prob(self,x):
+        with torch.enable_grad:
+            pot = self.log_prob(x)
+            return torch.autograd.grad(pot.sum(),x)[0].detach()
+    
+class ModifiedMueller(Distribution):
+    def __init__(self):
+        super().__init__()
+        self.dim = 2
+        
+    def log_prob(self, xx):
+        new_shape = list(xx.shape)
+        new_shape[-1] = 1
+        new_shape = tuple(new_shape)
+        xx = xx.view(-1,self.dim)
+        x = xx[:,0]
+        y = xx[:,1]
+        x_c = -0.033923
+        y_c = 0.465694
+        V_m = -200 * torch.exp( - (x-1)**2 - 10 * y**2) \
+            -100 * torch.exp(-x**2 - 10 * (y-0.5)**2) \
+            -170 * torch.exp(-6.5 * (x + 0.5)**2 + 11 * (x + 0.5)* (y-1.5) - 6.5 * (y-1.5)**2) \
+            +15 * torch.exp(0.7 * (x+1)**2 + 0.6 * (x+1)*(y-1) + 0.7 * (y-1)**2)
+        V_q = 35.0136 * (x-x_c)**2 + 59.8399 * (y-y_c)**2
+        
+        return -0.1 * (V_q + V_m).view(new_shape)
+    
+    def grad_log_prob(self, x):
+        with torch.enable_grad:
+            pot = self.log_prob(x)
+            return torch.autograd.grad(pot.sum(),x)[0].detach()
 class MultivariateGaussian():
 
     # This is a wrapper for Multivariate Normal
     def __init__(self, mean, cov):
+        # super().__init__()
         self.mean = mean
         self.cov = cov
         self.inv_cov = torch.linalg.inv(cov)
@@ -33,10 +76,11 @@ class MultivariateGaussian():
         grad = grad.view(curr_shape)
         return grad
 
-class OneDimensionalGaussian():
+class OneDimensionalGaussian(Distribution):
 
     # This is a wrapper for Normal
     def __init__(self, mean, cov):
+        super().__init__()
         self.mean = mean
         self.cov = cov
         self.dist = Normal(loc=mean, scale=cov**.5)
@@ -89,6 +133,8 @@ def get_log_density_fnc(config, device):
         return gmm_logdensity_fnc(params['coeffs'], params['means'], params['variances'], device)
     elif config.density == 'double-well':
         return double_well_density()
+    elif config.density == 'mueller':
+        return ModifiedMueller().log_prob, ModifiedMueller().grad_log_prob
     else:
         print("Density not implemented yet")
         return

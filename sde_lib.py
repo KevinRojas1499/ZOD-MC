@@ -35,7 +35,7 @@ class SDE(abc.ABC):
   def time_steps(self, num, device):
     """When discretizing the backwards SDE using Eulers method which steps to use"""
 
-class VP():
+class VP(SDE):
 
   def __init__(self,config):
     super().__init__()

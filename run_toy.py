@@ -63,8 +63,13 @@ def eval(config):
     if config.dimension == 1:
         utils.plots.histogram(to_numpy(samples.squeeze(-1)), log_density= utils.densities.get_log_density_fnc(config,device=device)[0])
     elif config.dimension == 2:
-        real_samples = gmm_utils.sample_from_gmm(config,n_samples * n_batch)
-        utils.plots.plot_2d_dist(to_numpy(samples),to_numpy(real_samples))
+        if config.density == 'gmm':
+            real_samples = gmm_utils.sample_from_gmm(config,n_samples * n_batch)
+            utils.plots.plot_2d_dist(to_numpy(samples),to_numpy(real_samples))
+        else:
+            log_prob = utils.densities.ModifiedMueller().log_prob
+            utils.plots.plot_2d_dist_with_contour(to_numpy(samples),log_prob)
+            
 
     wandb.finish()
 
