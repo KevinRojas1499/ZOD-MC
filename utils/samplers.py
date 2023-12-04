@@ -18,8 +18,8 @@ def get_sampler(config, device, sde):
         x_t = sde.prior_sampling((config.sampling_batch_size,config.dimension),device=device)
 
         time_pts = sde.time_steps(config.disc_steps, device)
-        torch.set_printoptions(precision=3,sci_mode=False)
-        print(time_pts)
+        # torch.set_printoptions(precision=3,sci_mode=False)
+        # print(time_pts)
         pbar = tqdm(range(len(time_pts) - 1),leave=False)
         for i in pbar:
             t = time_pts[i]
@@ -39,8 +39,8 @@ def get_sampler(config, device, sde):
 
         time_pts = sde.time_steps(config.disc_steps, device, config.sampling_method)
         T = sde.T()
-        torch.set_printoptions(precision=3,sci_mode=False)
-        print(time_pts)
+        # torch.set_printoptions(precision=3,sci_mode=False)
+        # print(time_pts)
         pbar = tqdm(range(len(time_pts) - 1),leave=False)
         for i in pbar:
             t = time_pts[i]

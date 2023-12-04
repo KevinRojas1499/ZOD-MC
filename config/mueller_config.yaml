@@ -29,13 +29,13 @@ multiplier: 0
 bias: 2
 
 # Sampling parameters
-sampling_method: em
+sampling_method: ei
 num_batches: 1
 sampling_batch_size: 1000
 sampling_eps: 5e-2
 disc_steps: 25
-ula_steps: 50
+ula_steps: 0
 
 # Problem Specifics
-density: gmm
-density_parameters_path: config/density_parameters/2d_gmm.yaml
+density: mueller
+density_parameters_path: config/density_parameters/mueller.yaml

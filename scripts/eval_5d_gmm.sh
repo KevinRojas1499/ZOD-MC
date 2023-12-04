@@ -1,0 +1,1 @@
+python3 main.py --config config/5d_gmm_eval_config.yaml

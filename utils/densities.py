@@ -13,6 +13,7 @@ class Distribution(abc.ABC):
     def log_prob(self, x):
         pass
     
+    @abc.abstractmethod
     def grad_log_prob(self,x):
         with torch.enable_grad():
             x = x.detach().requires_grad_()
@@ -21,10 +22,20 @@ class Distribution(abc.ABC):
     
 class ModifiedMueller(Distribution):
     # TODO : Implement the grad_log_prob
-    def __init__(self):
+    def __init__(self, A, a, b, c, XX, YY):
         super().__init__()
         self.dim = 2
-        
+        self.n = 4
+        self.A = A
+        self.a = a
+        self.b = b
+        self.c = c
+        self.XX = XX
+        self.YY = YY
+        self.x_c = -0.033923
+        self.y_c = 0.465694      
+        self.beta = 2
+          
     def log_prob(self, xx):
         new_shape = list(xx.shape)
         new_shape[-1] = 1
@@ -32,16 +43,41 @@ class ModifiedMueller(Distribution):
         xx = xx.view(-1,self.dim)
         x = xx[:,0]
         y = xx[:,1]
-        x_c = -0.033923
-        y_c = 0.465694
-        V_m = -200 * torch.exp( - (x-1)**2 - 10 * y**2) \
-            -100 * torch.exp(-x**2 - 10 * (y-0.5)**2) \
-            -170 * torch.exp(-6.5 * (x + 0.5)**2 + 11 * (x + 0.5)* (y-1.5) - 6.5 * (y-1.5)**2) \
-            +15 * torch.exp(0.7 * (x+1)**2 + 0.6 * (x+1)*(y-1) + 0.7 * (y-1)**2)
-        V_q = 35.0136 * (x-x_c)**2 + 59.8399 * (y-y_c)**2
+
+        V_m = 0
+        for i in range(self.n):
+            xi = x- self.XX[i]
+            yi = y-self.YY[i]
+            V_m+= self.A[i] * torch.exp(self.a[i]* xi**2 \
+                    + self.b[i] * xi * yi \
+                    + self.c[i] * yi**2)
+        V_q = 35.0136 * (x-self.x_c)**2 + 59.8399 * (y-self.y_c)**2
         
-        return -0.1 * (V_q + V_m).view(new_shape)
+        return -self.beta * (V_q + V_m).view(new_shape)
     
+    def grad_log_prob(self, xx):
+            new_shape = list(xx.shape)
+            xx = xx.view(-1,self.dim)
+            x = xx[:,0]
+            y = xx[:,1]
+
+            grad_x = 0
+            grad_y = 0
+            for i in range(self.n):
+                xi = x- self.XX[i]
+                yi = y-self.YY[i]
+                ee = self.A[i] * torch.exp(self.a[i]* xi**2 \
+                    + self.b[i] * xi * yi \
+                    + self.c[i] * yi**2)
+                grad_x+=  ee * (2 * self.a[i] * xi + self.b[i] * yi)
+                grad_y+=  ee * (self.b[i] * xi + 2 * self.c[i] * yi)
+            
+            # V_q
+            grad_x += 2 * 35.0136 * (x-self.x_c)
+            grad_y += 2 * 59.8399 * (y-self.y_c)
+            grad_x = grad_x.unsqueeze(-1)
+            grad_y = grad_y.unsqueeze(-1)
+            return -self.beta * torch.cat((grad_x,grad_y),dim=-1).view(new_shape)
 class MultivariateGaussian():
     # This is a wrapper for Multivariate Normal
     def __init__(self, mean, cov):
@@ -100,14 +136,9 @@ class DoubleWell(Distribution):
 
 class GaussianMixture(Distribution):
     # TODO : Implement the grad_log_prob
-
-    def to_tensor_type(self, x, device):
-        return torch.tensor(x,device=device, dtype=torch.float64)
-
-    def __init__(self,c,means,variances, device):
+    def __init__(self,c,means,variances):
         self.n = len(c)
         self.c = c
-        means, variances = self.to_tensor_type(means, device),self.to_tensor_type(variances,device)
         dimension = means[0].shape[0]
         if dimension == 1:
             self.gaussians = [OneDimensionalGaussian(means[i],variances[i]) for i in range(self.n)]
@@ -130,16 +161,26 @@ class GaussianMixture(Distribution):
         return self.gradient(x)/torch.exp(self.log_prob(x))
     
 
-
+    
 def get_distribution(config, device):
+    def to_tensor_type(x):
+        return torch.tensor(x,device=device, dtype=torch.float64)    
+
     params = yaml.safe_load(open(config.density_parameters_path))
 
     if config.density == 'gmm':
-        return GaussianMixture(params['coeffs'], params['means'], params['variances'], device)
+        return GaussianMixture(to_tensor_type(params['coeffs']), 
+                               to_tensor_type(params['means']), 
+                               to_tensor_type(params['variances']))
     elif config.density == 'double-well':
         return DoubleWell()
     elif config.density == 'mueller':
-        return ModifiedMueller()
+        return ModifiedMueller(to_tensor_type(params['A']),
+                               to_tensor_type(params['a']), 
+                               to_tensor_type(params['b']), 
+                               to_tensor_type(params['c']),
+                               to_tensor_type(params['XX']), 
+                               to_tensor_type(params['YY']))
     else:
         print("Density not implemented yet")
         return

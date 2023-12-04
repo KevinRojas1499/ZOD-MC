@@ -22,7 +22,7 @@ def get_run_name(config):
 def init_wandb(config):
     wandb.init(
     # set the wandb project where this run will be logged
-    project=config.wandb_project_name,
+    project=f'{config.wandb_project_name} {config.dimension}d {config.density}',
     name= get_run_name(config),
     # track hyperparameters and run metadata
     config=config
@@ -71,14 +71,19 @@ def eval(config):
     wandb.finish()
 
 def plot_samples(config, distribution, n_batch, n_samples, samples):
-    if config.dimension == 1:
+    dim = config.dimension
+    if dim == 1:
         utils.plots.histogram(to_numpy(samples.squeeze(-1)), log_density=distribution.log_prob)
-    elif config.dimension == 2:
+    elif dim == 2:
         if config.density == 'gmm':
             real_samples = gmm_utils.sample_from_gmm(config,n_samples * n_batch)
             utils.plots.plot_2d_dist(to_numpy(samples),to_numpy(real_samples))
         else:
             utils.plots.plot_2d_dist_with_contour(to_numpy(samples),distribution.log_prob)
-
+    else:
+        real_samples = gmm_utils.sample_from_gmm(config,n_samples * n_batch)
+        for i in range(dim):
+            utils.plots.histogram_2(to_numpy(samples[:,i]),ground_truth=to_numpy(real_samples[:,i]))
+            
 def to_numpy(x):
     return x.cpu().detach().numpy()

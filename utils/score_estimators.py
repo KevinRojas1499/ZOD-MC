@@ -198,7 +198,7 @@ def get_score_function(config, dist : Distribution, sde, device):
         return get_density_estimator()
 
     if config.score_method == 'p0t' and config.p0t_method == 'rejection':
-        minimizer = optimizers.newton_conjugate_gradient(torch.randn(2,device=device),potential)
+        minimizer = optimizers.newton_conjugate_gradient(torch.randn(dim,device=device),potential)
         # minimizer = torch.tensor([3.,-2.],device=device)
         print(f'Found minimizer {minimizer.cpu().numpy()}')
         
@@ -225,10 +225,13 @@ def get_score_function(config, dist : Distribution, sde, device):
                             num_samples, device)
         if config.p0t_method == 'rejection':
             max_iters = config.max_rejection_iters
-            num_iters = 10
+            num_iters = 100
             mean_estimate = 0
             num_good_samples = torch.zeros((x.shape[0],1),device=device)
-            for _ in range(num_iters):
+            k = 0
+            while k < num_iters:
+                if torch.min(num_good_samples).detach().item() >= 5:
+                    break
                 samples_from_p0t, acc_idx, average_rejection_iters = rejection_sampler.get_samples(y, variance_conv,
                                                                                         potential,
                                                                                         num_samples, 
@@ -237,6 +240,9 @@ def get_score_function(config, dist : Distribution, sde, device):
                                                                                         minimizer=minimizer)
                 num_good_samples += torch.sum(acc_idx, dim=(1,2)).unsqueeze(-1).to(torch.float32)/dim
                 mean_estimate += torch.sum(samples_from_p0t * acc_idx,dim=1)
+                k+=1
+            # print(len(num_good_samples[num_good_samples == 0]))
+
             # print(num_good_samples.squeeze(-1).cpu().numpy())
 
             wandb.log({'Average Acc Samples' : torch.mean(num_good_samples).detach().item(), 
