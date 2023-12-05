@@ -19,9 +19,9 @@ multiplier: 0
 bias: 2
 
 # Sampling parameters
-sampling_method: em
+sampling_method: ei
 num_batches: 1
 sampling_batch_size: 1000
-sampling_eps: 5e-2
+sampling_eps: 5e-3
 disc_steps: 25
 ula_steps: 0

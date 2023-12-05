@@ -53,7 +53,6 @@ def eval(config):
     n_samples = config.sampling_batch_size
     dim = config.dimension
     samples = torch.zeros((n_batch,n_samples, dim))
-    print(samples.shape)
     pbar = tqdm(range(n_batch))
     for i in pbar:
         pbar.set_description(f"Batch {i}/{n_batch}")

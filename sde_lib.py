@@ -46,7 +46,7 @@ class VP(SDE):
     self.delta = config.sampling_eps
 
   def T(self):
-    return 2
+    return 2.
 
   def drift(self, x,t):
     return - (self.betad * t + self.betamin) * x /2
@@ -54,19 +54,26 @@ class VP(SDE):
   def diffusion(self, x,t):
     return (self.betad * t + self.betamin)**.5
   
-  def time_steps(self, n, device, sampling_method='em'):
-    k  = n//2
-    c = 1.3
-    gamma = 0.01
-    idx = torch.arange(0,k+1,device=device)
-    first_steps = gamma * (1 - c**idx)/(1-c)
-    second_steps = torch.linspace(first_steps[-1], self.T() - self.delta, n-k, device=device)
-    first_steps = first_steps[:-1]
-    steps = torch.cat((first_steps,second_steps))
-    steps = self.T() - steps
-    if sampling_method == 'ei':
-      steps = torch.flip(steps,dims=(0,))
-    return steps
+  def time_steps(self, n, device):
+    from math import exp, log
+    c = 1.6 * (exp(log(self.T()/self.delta)/n) - 1)
+    t_steps = torch.zeros(n,device=device)
+    t_steps[0] = self.delta
+    exp_step = True
+    for i in range(1,n):
+      if exp_step:
+        t_steps[i] = t_steps[i-1] + c * t_steps[i-1]
+        if t_steps[i] >= 1:
+          c = (self.T() - t_steps[i-1])/(n-i)
+          t_steps[i] = t_steps[i-1] + c
+          exp_step = False
+      else:
+        t_steps[i] = t_steps[i-1] + c
+    
+    t_steps[-1] = self.T()
+    t_steps = self.T() - t_steps  
+    t_steps = torch.flip(t_steps,dims=(0,))
+    return t_steps
   
   def prior_sampling(self, shape, device):
     return torch.randn(*shape, device=device)
