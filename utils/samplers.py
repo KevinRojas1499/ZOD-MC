@@ -29,7 +29,7 @@ def get_sampler(config, device, sde):
             tot_drift = sde.drift(x_t,t) - diffusion**2 * score
             # euler-maruyama step
             x_t += tot_drift * dt + diffusion * torch.randn_like(x_t) * torch.abs(dt) ** 0.5
-            plot_trajectory(x_t, i, t)
+            # plot_trajectory(x_t, i, t)
         pbar.close()
         return x_t
     
@@ -49,7 +49,7 @@ def get_sampler(config, device, sde):
             e_h = torch.exp(dt)
             # exponential integrator step
             x_t = e_h * x_t + 2 * (1- e_h) * score + (2*(1-e_h**2))**.5 * torch.randn_like(x_t)
-            plot_trajectory(x_t, i, t)
+            # plot_trajectory(x_t, i, t)
         pbar.close()
         return x_t
     if config.sampling_method == 'em':

@@ -5,10 +5,8 @@ mode: sample
 score_method: p0t
 p0t_method: rejection
 
-# Rejection Sampler Info
-max_rejection_iters : 1
-
 # Estimator Information
+num_estimator_batches: 1
 num_estimator_samples: 10000
 eps_stable: 1e-9
 gradient_estimator: conv

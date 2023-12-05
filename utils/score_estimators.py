@@ -224,18 +224,16 @@ def get_score_function(config, dist : Distribution, sde, device):
                             config.num_proximal_iterations, 
                             num_samples, device)
         if config.p0t_method == 'rejection':
-            max_iters = config.max_rejection_iters
-            num_iters = 100
+            num_iters = config.num_estimator_batches
             mean_estimate = 0
             num_good_samples = torch.zeros((x.shape[0],1),device=device)
             k = 0
             while k < num_iters:
                 if torch.min(num_good_samples).detach().item() >= 5:
                     break
-                samples_from_p0t, acc_idx, average_rejection_iters = rejection_sampler.get_samples(y, variance_conv,
+                samples_from_p0t, acc_idx = rejection_sampler.get_samples(y, variance_conv,
                                                                                         potential,
                                                                                         num_samples, 
-                                                                                        max_iters,
                                                                                         device,
                                                                                         minimizer=minimizer)
                 num_good_samples += torch.sum(acc_idx, dim=(1,2)).unsqueeze(-1).to(torch.float32)/dim

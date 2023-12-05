@@ -1,6 +1,6 @@
 import abc
 import torch
-from torch.distributions import Normal, MultivariateNormal
+from torch.distributions import Normal
 import yaml
 from math import pi, log
 
