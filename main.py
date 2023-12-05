@@ -61,7 +61,7 @@ def parse_arguments():
     p.add_argument('--ula_steps',type=int,default=0)
 
     # Problem Specifics
-    p.add_argument('--density',choices=['gmm','double-well','mueller'])
+    p.add_argument('--density',choices=['gmm','double-well','mueller','funnel'])
     p.add_argument('--density_parameters_path',type=str)
 
     return p.parse_args()

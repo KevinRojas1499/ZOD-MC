@@ -53,6 +53,7 @@ def eval(config):
     n_samples = config.sampling_batch_size
     dim = config.dimension
     samples = torch.zeros((n_batch,n_samples, dim))
+    print(samples.shape)
     pbar = tqdm(range(n_batch))
     for i in pbar:
         pbar.set_description(f"Batch {i}/{n_batch}")
@@ -62,28 +63,38 @@ def eval(config):
     # w, error_means = utils.gmm_utils.summarized_stats(samples)
     # wandb.log({"Error Weights": w, "Error Means": error_means})
 
-    plot_samples(config, distribution, n_batch, n_samples, samples)
+    plot_samples(config, distribution,samples)
     if config.ula_steps > 0:
         samples = samples.to(device=device)
         samples = ula.get_ula_samples(samples,distribution.grad_log_prob,0.001,config.ula_steps)
-        plot_samples(config, distribution, n_batch, n_samples, samples)
+        plot_samples(config, distribution, samples)
         
     wandb.finish()
 
-def plot_samples(config, distribution, n_batch, n_samples, samples):
+def plot_samples(config, distribution, samples):
     dim = config.dimension
+    num_samples = samples.shape[0]
     if dim == 1:
         utils.plots.histogram(to_numpy(samples.squeeze(-1)), log_density=distribution.log_prob)
     elif dim == 2:
         if config.density == 'gmm':
-            real_samples = gmm_utils.sample_from_gmm(config,n_samples * n_batch)
+            real_samples = gmm_utils.sample_from_gmm(config,num_samples)
             utils.plots.plot_2d_dist(to_numpy(samples),to_numpy(real_samples))
         else:
             utils.plots.plot_2d_dist_with_contour(to_numpy(samples),distribution.log_prob)
     else:
-        real_samples = gmm_utils.sample_from_gmm(config,n_samples * n_batch)
-        for i in range(dim):
-            utils.plots.histogram_2(to_numpy(samples[:,i]),ground_truth=to_numpy(real_samples[:,i]))
+        if config.density == 'gmm':
+            real_samples = gmm_utils.sample_from_gmm(config,num_samples)
+            for i in range(dim):
+                utils.plots.histogram_2(to_numpy(samples[:,i]),ground_truth=to_numpy(real_samples[:,i]))
+                
+        if config.density == 'funnel':
+            print(samples.shape)
+            for i in range(1,dim):
+                data = to_numpy(torch.cat((samples[:,0].unsqueeze(-1),
+                                           samples[:,i].unsqueeze(-1)),
+                                          dim=-1))
+                utils.plots.plot_2d_dist(data)
             
 def to_numpy(x):
     return x.cpu().detach().numpy()

@@ -26,6 +26,7 @@ def gradient_descent(x0,gradient, threshold, al=1e-4):
 
 
 def newton_conjugate_gradient(x0, potential):
+    torch.autograd.set_detect_anomaly(True)
     return minimize(
         potential, x0, 
         method='newton-cg', 

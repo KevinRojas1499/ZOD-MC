@@ -5,16 +5,8 @@ mode: sample
 score_method: p0t
 p0t_method: rejection
 
-# Proximal Method details
-
-proximal_M: 4
-num_proximal_iterations: 5
+# Rejection Sampler Info
 max_rejection_iters : 1
-# Integrator details 
-convolution_integrator: simpson
-sub_intervals_per_dim: 500
-integration_range: 15
-dimension: 5
 
 # Estimator Information
 num_estimator_samples: 10000
@@ -35,7 +27,3 @@ sampling_batch_size: 1000
 sampling_eps: 5e-2
 disc_steps: 25
 ula_steps: 0
-
-# Problem Specifics
-density: gmm
-density_parameters_path: config/density_parameters/5d_gmm.yaml

@@ -13,7 +13,6 @@ class Distribution(abc.ABC):
     def log_prob(self, x):
         pass
     
-    @abc.abstractmethod
     def grad_log_prob(self,x):
         with torch.enable_grad():
             x = x.detach().requires_grad_()
@@ -21,7 +20,6 @@ class Distribution(abc.ABC):
             return torch.autograd.grad(pot.sum(),x)[0].detach()
     
 class ModifiedMueller(Distribution):
-    # TODO : Implement the grad_log_prob
     def __init__(self, A, a, b, c, XX, YY):
         super().__init__()
         self.dim = 2
@@ -78,10 +76,9 @@ class ModifiedMueller(Distribution):
             grad_x = grad_x.unsqueeze(-1)
             grad_y = grad_y.unsqueeze(-1)
             return -self.beta * torch.cat((grad_x,grad_y),dim=-1).view(new_shape)
-class MultivariateGaussian():
-    # This is a wrapper for Multivariate Normal
+class MultivariateGaussian(Distribution):
     def __init__(self, mean, cov):
-        # super().__init__()
+        super().__init__()
         self.mean = mean
         self.cov = cov
         self.inv_cov = torch.linalg.inv(cov)
@@ -109,7 +106,6 @@ class MultivariateGaussian():
         return grad
     
 class OneDimensionalGaussian(Distribution):
-
     # This is a wrapper for Normal
     def __init__(self, mean, cov):
         super().__init__()
@@ -135,8 +131,8 @@ class DoubleWell(Distribution):
         return - (x**2 -1 ) * 2 * x
 
 class GaussianMixture(Distribution):
-    # TODO : Implement the grad_log_prob
     def __init__(self,c,means,variances):
+        super().__init__()
         self.n = len(c)
         self.c = c
         dimension = means[0].shape[0]
@@ -160,7 +156,25 @@ class GaussianMixture(Distribution):
     def grad_log_prob(self, x):
         return self.gradient(x)/torch.exp(self.log_prob(x))
     
+class FunnelDistribution(Distribution):
+    def __init__(self, sigma, dim):
+        super().__init__()
+        self.dim = dim
+        self.sigma = sigma
 
+    def log_prob(self, xx):
+        new_shape = list(xx.shape)
+        new_shape[-1] = 1
+        new_shape = tuple(new_shape)
+        xx = xx.view(-1,self.dim)
+        x1 = xx[:,0]
+        y = xx[:,1:]
+
+        log_prob = -.5 * (self.dim * log(2 * pi) + log(self.sigma**2) \
+            + x1**2/self.sigma**2 + (self.dim -1) * x1 \
+            + torch.sum(y**2,dim=-1) * torch.exp(-x1)
+            ).view(new_shape)
+        return log_prob
     
 def get_distribution(config, device):
     def to_tensor_type(x):
@@ -168,19 +182,22 @@ def get_distribution(config, device):
 
     params = yaml.safe_load(open(config.density_parameters_path))
 
-    if config.density == 'gmm':
+    density = config.density 
+    if  density == 'gmm':
         return GaussianMixture(to_tensor_type(params['coeffs']), 
                                to_tensor_type(params['means']), 
                                to_tensor_type(params['variances']))
-    elif config.density == 'double-well':
+    elif density == 'double-well':
         return DoubleWell()
-    elif config.density == 'mueller':
+    elif density == 'mueller':
         return ModifiedMueller(to_tensor_type(params['A']),
                                to_tensor_type(params['a']), 
                                to_tensor_type(params['b']), 
                                to_tensor_type(params['c']),
                                to_tensor_type(params['XX']), 
                                to_tensor_type(params['YY']))
+    elif density == 'funnel':
+        return FunnelDistribution(3.,10)
     else:
         print("Density not implemented yet")
         return
