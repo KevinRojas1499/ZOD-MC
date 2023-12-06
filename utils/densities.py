@@ -32,7 +32,7 @@ class ModifiedMueller(Distribution):
         self.YY = YY
         self.x_c = -0.033923
         self.y_c = 0.465694      
-        self.beta = .1
+        self.beta = 2
           
     def log_prob(self, xx):
         new_shape = list(xx.shape)

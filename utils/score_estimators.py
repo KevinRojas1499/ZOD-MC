@@ -8,6 +8,7 @@ import utils.optimizers as optimizers
 import samplers.rejection_sampler as rejection_sampler
 import samplers.proximal_sampler as proximal_sampler
 import samplers.ula as ula
+import samplers.metropolis_random_walk as met_rand_walk
 
 
 def get_score_function(config, dist : Distribution, sde, device):
@@ -239,20 +240,25 @@ def get_score_function(config, dist : Distribution, sde, device):
                 mean_estimate += torch.sum(samples_from_p0t * acc_idx,dim=1)
                 k+=1
             # print(len(num_good_samples[num_good_samples == 0]))
-
-            # print(num_good_samples.squeeze(-1).cpu().numpy())
-
-            wandb.log({'Average Acc Samples' : torch.mean(num_good_samples).detach().item(), 
+            wandb.log({'Average Acc Samples' : torch.mean(num_good_samples).detach().item(),
+                       'Small Num Acc < 10' : len(num_good_samples[num_good_samples <= 10]),
                         'Min Acc Samples' : torch.min(num_good_samples).detach().item()})
             num_good_samples[num_good_samples == 0] += 1 # Ask if this is fine
             mean_estimate /= num_good_samples
-
+        elif config.p0t_method == 'random_walk':
+            samples_from_p0t = met_rand_walk.get_samples(x,1/scaling, 
+                                                         variance_conv,
+                                                         potential,num_samples, 
+                                                         config.num_sampler_iterations, 
+                                                         device)
+            mean_estimate = torch.mean(samples_from_p0t, dim=1)
+            
         score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)
         # import matplotlib.pyplot as plt
         # from . import gmm_score
         # real_log_dens, real_grad = gmm_score.get_gmm_density_at_t(config,sde,tt,device)
         # real_score = real_grad(x)/torch.exp(real_log_dens(x))
-        # l = 3
+        # l = 15
         
         # fig, (ax1,ax2) = plt.subplots(1,2)
         # nn = 1500
@@ -265,7 +271,8 @@ def get_score_function(config, dist : Distribution, sde, device):
         # ax1.contourf(xx, yy,dens)
         # ax1.scatter(x[:,0].cpu(),x[:,1].cpu(),color='green')
         # ax1.grid()
-        # samples_from_p0t = samples_from_p0t[acc_idx].view((-1,dim))
+        # # samples_from_p0t = samples_from_p0t[acc_idx].view((-1,dim))
+        # samples_from_p0t = samples_from_p0t.view((-1,dim))
         # sampsx, sampsy = samples_from_p0t[:,0] , samples_from_p0t[:,1]
         # ax2.hist2d(sampsx.cpu().numpy(),sampsy.cpu().numpy(),bins=100,range= [[-l, l], [-l, l]], density=True)
         # ax2.scatter(x[:,0].cpu(),x[:,1].cpu(),color='green')

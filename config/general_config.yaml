@@ -6,10 +6,9 @@ score_method: p0t
 p0t_method: rejection
 
 # Estimator Information
-num_estimator_batches: 1
+num_estimator_batches: 25
 num_estimator_samples: 10000
-eps_stable: 1e-9
-gradient_estimator: conv
+num_sampler_iterations: 10
 
 # SDEs Parameters
 sde_type: vp

@@ -1,15 +1,19 @@
 import yaml
-import numpy as np
+import torch
 
 from utils.densities import * 
 
 def get_gmm_density_at_t(config, sde, t, device):
+    def to_tensor_type(x):
+        return torch.tensor(x,device=device, dtype=torch.float64)    
     params = yaml.safe_load(open(config.density_parameters_path))
 
-    c, means, variances = params['coeffs'], np.array(params['means']), np.array(params['variances'])
-    scale = sde.scaling(t).cpu().numpy()
+    c = to_tensor_type(params['coeffs'])
+    means = to_tensor_type(params['means'])
+    variances = to_tensor_type(params['variances'])
+    scale = sde.scaling(t)
     mean_t = means * scale
-    var_t = variances * scale**2 + (1-scale**2) * np.eye(2)
-    logdensity, grad = gmm_logdensity_fnc(c, mean_t, var_t, device)
+    var_t = variances * scale**2 + (1-scale**2) * torch.eye(2,device=device)
+    dist = GaussianMixture(c, mean_t, var_t)
 
-    return logdensity, grad
+    return dist.log_prob, dist.gradient

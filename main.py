@@ -21,12 +21,12 @@ def parse_arguments():
     # Mode
     p.add_argument('--mode', choices=['train','sample','estimator-experiments', 'generation-experiments','fourier-experiments','p0t-experiments'])
     p.add_argument('--score_method', choices=['convolution','quotient-estimator','trained','fourier', 'p0t'])
-    p.add_argument('--p0t_method', choices=['proximal','rejection'])
+    p.add_argument('--p0t_method', choices=['proximal','rejection','random_walk'])
     p.add_argument('--dimension', type=int)
     
-    # Proximal Sampler details
+    # Sampler details
     p.add_argument('--proximal_M', type=float)
-    p.add_argument('--num_proximal_iterations', type=int)
+    p.add_argument('--num_sampler_iterations', type=int)
     
     # Integrator details
     p.add_argument('--convolution_integrator', choices=['trap','simpson','mc'])
