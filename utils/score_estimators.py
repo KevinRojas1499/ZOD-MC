@@ -161,42 +161,14 @@ def get_score_function(config, dist : Distribution, sde, device):
         var = (scaling * sde.scheduling(tt))**2
         l = config.integration_range
         num_samples = config.sub_intervals_per_dim
-        pt = get_push_forward(scaling,p0)
-        phase = -l/2.
+        gaussian = lambda x : torch.exp(- x**2/(var))
         dx = l/num_samples
-        pts_for_ifft = torch.fft.fftfreq(num_samples,d=dx, device=device)
-        pts_for_ifft = torch.fft.fftshift(pts_for_ifft)
-        pts = torch.linspace(phase, -phase, num_samples, device=device)
-        correct_phase = (pi * torch.arange(0,num_samples, device= device)).unsqueeze(-1)
-        correct_phase = torch.view_as_complex(torch.concat([torch.zeros_like(correct_phase,device=device),correct_phase],dim=-1))
-        correct_phase = correct_phase.unsqueeze(-1)
+        pts = torch.linspace(-l, l, num_samples, device=device)
+        pts = torch.fft.fftshift(pts)
+        print(pts)
 
-        fft_pts = torch.fft.fft(pt(pts),norm='ortho').unsqueeze(-1)
-        fft_pts = torch.fft.fftshift(fft_pts)
-        # fft_pts = correct_phase * fft_pts
-        fft_pts = torch.abs(fft_pts)
-        print(fft_pts)
-        gaussian_part = torch.exp(-2 * pi **2 * (1-scaling**2) * pts_for_ifft**2).unsqueeze(-1)
-        non_osc = (fft_pts * gaussian_part)
-        import matplotlib.pyplot as plt
-        exact_vals = torch.exp(-2 * pi **2 * scaling ** 2 * pts_for_ifft **2 )
-
-        plt.plot(pts_for_ifft.cpu().numpy(), fft_pts.cpu().numpy())
-        plt.plot(pts_for_ifft.cpu().numpy(), exact_vals.cpu().numpy())
-        plt.legend(['approximated','real'])
-        plt.show()
-        def get_density_estimator():
-            x_shaped = x.unsqueeze(-1)
-            points = pts_for_ifft.unsqueeze(-1)
-            exponent = 2. * pi * points * x_shaped
-            exponent = torch.view_as_complex(torch.concat([torch.zeros_like(exponent,device=device),exponent],dim=-1))
-            osc = torch.exp(exponent).real.unsqueeze(-1)
-            complex_part = (osc * non_osc).real
-            unnormalized = (l * torch.mean(complex_part, dim=(1,2))).real
-
-            return  unnormalized 
         
-        return get_density_estimator()
+        return 0
 
     if config.score_method == 'p0t' and config.p0t_method == 'rejection':
         minimizer = optimizers.newton_conjugate_gradient(torch.randn(dim,device=device),potential)
@@ -240,9 +212,7 @@ def get_score_function(config, dist : Distribution, sde, device):
                 mean_estimate += torch.sum(samples_from_p0t * acc_idx,dim=1)
                 k+=1
             # print(len(num_good_samples[num_good_samples == 0]))
-            wandb.log({'Average Acc Samples' : torch.mean(num_good_samples).detach().item(),
-                       'Small Num Acc < 10' : len(num_good_samples[num_good_samples <= 10]),
-                        'Min Acc Samples' : torch.min(num_good_samples).detach().item()})
+
             num_good_samples[num_good_samples == 0] += 1 # Ask if this is fine
             mean_estimate /= num_good_samples
         elif config.p0t_method == 'random_walk':
@@ -258,6 +228,10 @@ def get_score_function(config, dist : Distribution, sde, device):
         # from . import gmm_score
         # real_log_dens, real_grad = gmm_score.get_gmm_density_at_t(config,sde,tt,device)
         # real_score = real_grad(x)/torch.exp(real_log_dens(x))
+        
+        wandb.log({'Average Acc Samples' : torch.mean(num_good_samples).detach().item(),
+            'Small Num Acc < 10' : len(num_good_samples[num_good_samples <= 10]),
+            'Min Acc Samples' : torch.min(num_good_samples).detach().item()})
         # l = 15
         
         # fig, (ax1,ax2) = plt.subplots(1,2)

@@ -16,7 +16,7 @@ def histogram(x, log_density=None):
 
 def histogram_2(x, ground_truth=None):
     # Creating histogram
-    L = 6.
+    L = 20
     n = 60
     xbins=dict(start=-L,end=L, size=2*L/n)
     fig = go.Figure()

@@ -13,7 +13,7 @@ def get_gmm_density_at_t(config, sde, t, device):
     variances = to_tensor_type(params['variances'])
     scale = sde.scaling(t)
     mean_t = means * scale
-    var_t = variances * scale**2 + (1-scale**2) * torch.eye(2,device=device)
+    var_t = variances * scale**2 + (1-scale**2) * torch.eye(config.dimension,device=device)
     dist = GaussianMixture(c, mean_t, var_t)
 
     return dist.log_prob, dist.gradient
