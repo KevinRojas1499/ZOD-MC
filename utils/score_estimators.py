@@ -27,10 +27,9 @@ def get_score_function(config, dist : Distribution, sde, device):
         
         return push_forward
 
-    logdensity, grad_logdensity = dist.log_prob, dist.grad_log_prob
+    logdensity, grad_logdensity, gradient = dist.log_prob, dist.grad_log_prob, dist.gradient
     p0 = lambda x : torch.exp(logdensity(x))
     potential = lambda x :  - logdensity(x)
-    gradient = lambda x : p0(x) * grad_logdensity(x)
     dim = config.dimension
     
     def score_gaussian_convolution(x, tt):
@@ -155,20 +154,41 @@ def get_score_function(config, dist : Distribution, sde, device):
         else :
             return p_t(x), grad_p_t(x)
 
+    
+    if config.score_method == 'fourier':
+        lu = config.integration_range
+        m = config.sub_intervals_per_dim
+        dx = lu/m
+        idx = torch.arange(-m/2,m/2,device=device)
+        pts = idx * dx
+        pts = torch.fft.ifftshift(pts)
+        fft = torch.fft.fft(p0(pts)) * dx     
+        dw = 1/lu
+        
     def get_fourier_estimator(x,tt):
         x = x.unsqueeze(-1)
         scaling = sde.scaling(tt) #e**-t
-        var = (scaling * sde.scheduling(tt))**2
-        l = config.integration_range
-        num_samples = config.sub_intervals_per_dim
-        gaussian = lambda x : torch.exp(- x**2/(var))
-        dx = l/num_samples
-        pts = torch.linspace(-l, l, num_samples, device=device)
-        pts = torch.fft.fftshift(pts)
-        print(pts)
+        inv_sc = 1/scaling #e**t
 
+        density = 0
+        gradient = 0
+        grad_exp = torch.view_as_complex(torch.tensor([0,2 * pi * dw],device=device))
+        exp = torch.view_as_complex(torch.cat((torch.zeros_like(x),
+                                        2 * pi * dw * x),dim=-1))
+        for k in idx:
+            k = k.long().item()
+            next_term = fft[k] \
+                * torch.exp(-2 * (inv_sc**2 - 1) * pi **2 * dw **2 * k**2) \
+                * torch.exp(inv_sc * k * exp)
+            density = density + next_term
+            gradient = gradient + next_term * grad_exp * k
+        density = inv_sc * dw * density
+        gradient = inv_sc**2 * dw * gradient
         
-        return 0
+        if config.mode == 'sample':
+            return gradient.real/density.real
+        else:
+            return torch.abs(density.real), gradient.real
 
     if config.score_method == 'p0t' and config.p0t_method == 'rejection':
         minimizer = optimizers.newton_conjugate_gradient(torch.randn(dim,device=device),potential)
@@ -176,8 +196,6 @@ def get_score_function(config, dist : Distribution, sde, device):
         
     def get_samplers_based_on_sampling_p0t(x,tt):
         scaling = sde.scaling(tt)
-        var = scaling**2 * sde.scheduling(tt)**2
-
         
         variance_conv = 1/scaling**2 - 1
         num_samples = config.num_estimator_samples

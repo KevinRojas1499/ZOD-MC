@@ -1,15 +1,20 @@
 # Wandb info
 wandb_project_name: NonconvexSampling
 
-mode: sample
-score_method: p0t
+mode: fourier-experiments
+score_method: fourier
 p0t_method: rejection
 
 # Estimator Information
 num_estimator_batches: 1
-num_estimator_samples: 10000
+num_estimator_samples: 1000
 num_sampler_iterations: 10
 
+# Fourier Parameters
+integration_range: 20
+sub_intervals_per_dim: 10
+convolution_integrator: simpson
+gradient_estimator: conv
 # SDEs Parameters
 sde_type: vp
 sigma_min: 0.02
@@ -19,7 +24,7 @@ bias: 2
 
 # Sampling parameters
 sampling_method: ei
-num_batches: 1
+num_batches: 10
 sampling_batch_size: 1000
 sampling_eps: 5e-3
 disc_steps: 25

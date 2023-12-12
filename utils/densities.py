@@ -19,6 +19,8 @@ class Distribution(abc.ABC):
             pot = self.log_prob(x)
             return torch.autograd.grad(pot.sum(),x)[0].detach()
     
+    def gradient(self, x):
+        return torch.exp(self.log_prob(x)) * self.grad_log_prob(x)    
 class ModifiedMueller(Distribution):
     def __init__(self, A, a, b, c, XX, YY):
         super().__init__()
