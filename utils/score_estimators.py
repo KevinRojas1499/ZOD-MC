@@ -203,9 +203,9 @@ def get_score_function(config, dist : Distribution, sde, device):
         score_estimate = torch.zeros_like(x)
         y = x/scaling
         y_for_sampling = y.repeat_interleave(num_samples,dim=0)
-        potential_p0t = lambda x : -logdensity(x) + torch.sum((x-y_for_sampling)**2,dim=1, keepdim=True)/(2*variance_conv)
-        gradient_p0t = lambda x : - grad_logdensity(x) + (x-y_for_sampling)/variance_conv
-                
+        potential_p0t = lambda x : - logdensity(x) + torch.sum((x-y_for_sampling)**2,dim=1, keepdim=True)/(2*variance_conv)
+        gradient_p0t  = lambda x : - grad_logdensity(x) + (x-y_for_sampling)/variance_conv
+        grad_log_prob_0t = lambda x : grad_logdensity(x) - (x-y_for_sampling)/variance_conv
         if config.p0t_method == 'proximal':
             M = config.proximal_M
             eta = 1/(M*dim)
@@ -213,7 +213,7 @@ def get_score_function(config, dist : Distribution, sde, device):
                             gradient_p0t,M, 
                             config.num_proximal_iterations, 
                             num_samples, device)
-        if config.p0t_method == 'rejection':
+        elif config.p0t_method == 'rejection':
             num_iters = config.num_estimator_batches
             mean_estimate = 0
             num_good_samples = torch.zeros((x.shape[0],1),device=device)
@@ -229,10 +229,15 @@ def get_score_function(config, dist : Distribution, sde, device):
                 num_good_samples += torch.sum(acc_idx, dim=(1,2)).unsqueeze(-1).to(torch.float32)/dim
                 mean_estimate += torch.sum(samples_from_p0t * acc_idx,dim=1)
                 k+=1
-            # print(len(num_good_samples[num_good_samples == 0]))
-
             num_good_samples[num_good_samples == 0] += 1 # Ask if this is fine
             mean_estimate /= num_good_samples
+            wandb.log({'Average Acc Samples' : torch.mean(num_good_samples).detach().item(),
+                        'Small Num Acc < 10' : len(num_good_samples[num_good_samples <= 10]),
+                        'Min Acc Samples' : torch.min(num_good_samples).detach().item()})
+        elif config.p0t_method == 'ula':
+            samples_from_p0t = ula.get_ula_samples(y_for_sampling,grad_log_prob_0t,.01,config.num_sampler_iterations)
+            samples_from_p0t = samples_from_p0t.view((-1,num_samples,dim))
+            mean_estimate = torch.mean(samples_from_p0t, dim = 1)
         elif config.p0t_method == 'random_walk':
             samples_from_p0t = met_rand_walk.get_samples(x,1/scaling, 
                                                          variance_conv,
@@ -247,9 +252,7 @@ def get_score_function(config, dist : Distribution, sde, device):
         # real_log_dens, real_grad = gmm_score.get_gmm_density_at_t(config,sde,tt,device)
         # real_score = real_grad(x)/torch.exp(real_log_dens(x))
         
-        wandb.log({'Average Acc Samples' : torch.mean(num_good_samples).detach().item(),
-            'Small Num Acc < 10' : len(num_good_samples[num_good_samples <= 10]),
-            'Min Acc Samples' : torch.min(num_good_samples).detach().item()})
+
         # l = 15
         
         # fig, (ax1,ax2) = plt.subplots(1,2)
@@ -263,8 +266,10 @@ def get_score_function(config, dist : Distribution, sde, device):
         # ax1.contourf(xx, yy,dens)
         # ax1.scatter(x[:,0].cpu(),x[:,1].cpu(),color='green')
         # ax1.grid()
-        # # samples_from_p0t = samples_from_p0t[acc_idx].view((-1,dim))
-        # samples_from_p0t = samples_from_p0t.view((-1,dim))
+        # if config.p0t_method == 'rejection':
+        #     samples_from_p0t = samples_from_p0t[acc_idx].view((-1,dim))
+        # else:
+        #     samples_from_p0t = samples_from_p0t.view((-1,dim))
         # sampsx, sampsy = samples_from_p0t[:,0] , samples_from_p0t[:,1]
         # ax2.hist2d(sampsx.cpu().numpy(),sampsy.cpu().numpy(),bins=100,range= [[-l, l], [-l, l]], density=True)
         # ax2.scatter(x[:,0].cpu(),x[:,1].cpu(),color='green')

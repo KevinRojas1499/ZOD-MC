@@ -21,7 +21,7 @@ def parse_arguments():
     # Mode
     p.add_argument('--mode', choices=['train','sample','estimator-experiments', 'generation-experiments','fourier-experiments','p0t-experiments'])
     p.add_argument('--score_method', choices=['convolution','quotient-estimator','trained','fourier', 'p0t'])
-    p.add_argument('--p0t_method', choices=['proximal','rejection','random_walk'])
+    p.add_argument('--p0t_method', choices=['proximal','rejection','random_walk','ula'])
     p.add_argument('--dimension', type=int)
     
     # Sampler details

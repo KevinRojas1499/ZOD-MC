@@ -16,6 +16,7 @@ class Distribution(abc.ABC):
     def grad_log_prob(self,x):
         with torch.enable_grad():
             x = x.detach().requires_grad_()
+            torch.autograd.set_detect_anomaly(True)
             pot = self.log_prob(x)
             return torch.autograd.grad(pot.sum(),x)[0].detach()
     
@@ -85,6 +86,7 @@ class MultivariateGaussian(Distribution):
         self.cov = cov
         self.inv_cov = torch.linalg.inv(cov)
         self.L = torch.linalg.cholesky(self.inv_cov)
+        self.log_det = torch.log(torch.linalg.det(self.cov))
         self.dim = mean.shape[0]
     
     def log_prob(self,x):
@@ -92,9 +94,8 @@ class MultivariateGaussian(Distribution):
         new_shape[-1] = 1
         new_shape = tuple(new_shape)
         x = x.view((-1,self.dim))
-        log_det = torch.log(torch.linalg.det(self.cov))
         shift_cov = (self.L @ (x-self.mean).T).T
-        log_prob = -.5 * ( self.dim * log(2 * pi) +  log_det + torch.sum(shift_cov**2,dim=1)) 
+        log_prob = -.5 * ( self.dim * log(2 * pi) +  self.log_det + torch.sum(shift_cov**2,dim=1)) 
         log_prob = log_prob.view(new_shape)
         return log_prob
 
