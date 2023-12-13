@@ -3,12 +3,12 @@ wandb_project_name: NonconvexSampling
 
 mode: sample
 score_method: p0t
-p0t_method: rejection
+p0t_method: ula
 
 # Estimator Information
 num_estimator_batches: 1
-num_estimator_samples: 10000
-num_sampler_iterations: 1000
+num_estimator_samples: 1000
+num_sampler_iterations: 10
 
 # Fourier Parameters
 integration_range: 20
@@ -24,8 +24,8 @@ bias: 2
 
 # Sampling parameters
 sampling_method: ei
-num_batches: 10
-sampling_batch_size: 1000
+num_batches: 1
+sampling_batch_size: 1
 sampling_eps: 5e-3
 disc_steps: 25
-ula_steps: 25
+ula_steps: 0

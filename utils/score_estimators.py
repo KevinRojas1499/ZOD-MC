@@ -199,21 +199,10 @@ def get_score_function(config, dist : Distribution, sde, device):
         
         variance_conv = 1/scaling**2 - 1
         num_samples = config.num_estimator_samples
-        
         score_estimate = torch.zeros_like(x)
-        y = x/scaling
-        y_for_sampling = y.repeat_interleave(num_samples,dim=0)
-        potential_p0t = lambda x : - logdensity(x) + torch.sum((x-y_for_sampling)**2,dim=1, keepdim=True)/(2*variance_conv)
-        gradient_p0t  = lambda x : - grad_logdensity(x) + (x-y_for_sampling)/variance_conv
-        grad_log_prob_0t = lambda x : grad_logdensity(x) - (x-y_for_sampling)/variance_conv
-        if config.p0t_method == 'proximal':
-            M = config.proximal_M
-            eta = 1/(M*dim)
-            samples_from_p0t, average_rejection_iters = proximal_sampler.get_samples(x, eta,potential_p0t,
-                            gradient_p0t,M, 
-                            config.num_proximal_iterations, 
-                            num_samples, device)
-        elif config.p0t_method == 'rejection':
+        big_x = x.repeat_interleave(num_samples,dim=0)
+        grad_log_prob_0t = lambda x0 : grad_logdensity(x0) + scaling * (big_x - scaling * x0)/(1 - scaling**2)
+        if config.p0t_method == 'rejection':
             num_iters = config.num_estimator_batches
             mean_estimate = 0
             num_good_samples = torch.zeros((x.shape[0],1),device=device)
@@ -221,7 +210,7 @@ def get_score_function(config, dist : Distribution, sde, device):
             while k < num_iters:
                 if torch.min(num_good_samples).detach().item() >= 5:
                     break
-                samples_from_p0t, acc_idx = rejection_sampler.get_samples(y, variance_conv,
+                samples_from_p0t, acc_idx = rejection_sampler.get_samples(x/scaling, variance_conv,
                                                                                         potential,
                                                                                         num_samples, 
                                                                                         device,
@@ -235,25 +224,19 @@ def get_score_function(config, dist : Distribution, sde, device):
                         'Small Num Acc < 10' : len(num_good_samples[num_good_samples <= 10]),
                         'Min Acc Samples' : torch.min(num_good_samples).detach().item()})
         elif config.p0t_method == 'ula':
-            samples_from_p0t = ula.get_ula_samples(y_for_sampling,grad_log_prob_0t,.01,config.num_sampler_iterations)
+            samples_from_p0t = ula.get_ula_samples(big_x,grad_log_prob_0t,.01,config.num_sampler_iterations)
+            print(torch.sum(torch.isnan(samples_from_p0t)))
             samples_from_p0t = samples_from_p0t.view((-1,num_samples,dim))
             mean_estimate = torch.mean(samples_from_p0t, dim = 1)
-        elif config.p0t_method == 'random_walk':
-            samples_from_p0t = met_rand_walk.get_samples(x,1/scaling, 
-                                                         variance_conv,
-                                                         potential,num_samples, 
-                                                         config.num_sampler_iterations, 
-                                                         device)
-            mean_estimate = torch.mean(samples_from_p0t, dim=1)
             
         score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)
-        # import matplotlib.pyplot as plt
+        import matplotlib.pyplot as plt
         # from . import gmm_score
         # real_log_dens, real_grad = gmm_score.get_gmm_density_at_t(config,sde,tt,device)
         # real_score = real_grad(x)/torch.exp(real_log_dens(x))
         
 
-        # l = 15
+        # l = 15 if config.density == 'gmm' else 3
         
         # fig, (ax1,ax2) = plt.subplots(1,2)
         # nn = 1500
@@ -281,10 +264,7 @@ def get_score_function(config, dist : Distribution, sde, device):
         # plt.close()
         
 
-        if config.mode == 'sample' or config.mode == 'generation-experiments':
-            return score_estimate
-        else:
-            return score_estimate, average_rejection_iters
+        return score_estimate
     
     if config.score_method == 'convolution':
         return score_gaussian_convolution
