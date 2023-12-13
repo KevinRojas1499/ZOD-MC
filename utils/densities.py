@@ -76,7 +76,6 @@ class ModifiedMueller(Distribution):
             # V_q
             grad_x += 2 * 35.0136 * (x-self.x_c)
             grad_y += 2 * 59.8399 * (y-self.y_c)
-            # print(x[torch.isnan(grad_x)])
             grad_x = grad_x.unsqueeze(-1)
             grad_y = grad_y.unsqueeze(-1)
             return -self.beta * torch.cat((grad_x,grad_y),dim=-1).view(new_shape)

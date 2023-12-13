@@ -6,7 +6,7 @@ score_method: p0t
 p0t_method: ula
 
 # Estimator Information
-num_estimator_batches: 1
+num_estimator_batches: 5
 num_estimator_samples: 1000
 num_sampler_iterations: 10
 
@@ -25,7 +25,8 @@ bias: 2
 # Sampling parameters
 sampling_method: ei
 num_batches: 1
-sampling_batch_size: 1
+sampling_batch_size: 1000
 sampling_eps: 5e-3
 disc_steps: 25
 ula_steps: 0
+ula_step_size: 0.00001

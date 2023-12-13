@@ -224,7 +224,7 @@ def get_score_function(config, dist : Distribution, sde, device):
                         'Small Num Acc < 10' : len(num_good_samples[num_good_samples <= 10]),
                         'Min Acc Samples' : torch.min(num_good_samples).detach().item()})
         elif config.p0t_method == 'ula':
-            samples_from_p0t = ula.get_ula_samples(big_x,grad_log_prob_0t,.01,config.num_sampler_iterations)
+            samples_from_p0t = ula.get_ula_samples(big_x,grad_log_prob_0t,config.ula_step_size,config.num_sampler_iterations)
             print(torch.sum(torch.isnan(samples_from_p0t)))
             samples_from_p0t = samples_from_p0t.view((-1,num_samples,dim))
             mean_estimate = torch.mean(samples_from_p0t, dim = 1)
