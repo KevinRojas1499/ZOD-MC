@@ -12,7 +12,7 @@ def parse_arguments():
 
     # Wandb
     p.add_argument('--wandb_project_name', type=str)
-
+    p.add_argument('--tags', type=str)
     
     # Checkpoint path
     p.add_argument('--ckpt_path',required=False)
@@ -47,8 +47,6 @@ def parse_arguments():
 
     # SDE Parameters
     p.add_argument('--sde_type', choices=['vp','ve','edm'])
-    p.add_argument('--sigma_min', type=float) # For VE
-    p.add_argument('--sigma_max', type=float) # For VE
     p.add_argument('--multiplier', default=4, type=float)
     p.add_argument('--bias', default=0., type=float)
 

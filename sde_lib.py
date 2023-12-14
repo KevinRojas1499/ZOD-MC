@@ -1,8 +1,5 @@
 import abc
 import torch
-import numpy as np
-import utils.transition_densities as transition_densities
-
 class SDE(abc.ABC):
   """SDE abstract class. Functions are designed for a mini-batch of inputs."""
 
@@ -39,14 +36,17 @@ class VP(SDE):
 
   def __init__(self,config):
     super().__init__()
-    self.scheduling = transition_densities.get_sigma_function(config)
-    self.scaling = transition_densities.get_scaling_function(config)
     self.betad = config.multiplier
     self.betamin = config.bias
     self.delta = config.sampling_eps
 
+  def scheduling(self, t):
+        return (torch.exp(self.betad * t**2/2 + self.betamin *t) -1)**.5
+  def scaling(self, t):
+    return torch.exp(-(self.betad * t**2/2 + self.betamin * t)/2)
+  
   def T(self):
-    return 2.
+    return 10.
 
   def drift(self, x,t):
     return - (self.betad * t + self.betamin) * x /2
@@ -78,69 +78,6 @@ class VP(SDE):
   def prior_sampling(self, shape, device):
     return torch.randn(*shape, device=device)
 
-
-class VE(SDE):
-  def __init__(self,config):
-    super().__init__()
-    self.scheduling = transition_densities.get_sigma_function(config)
-    self.scaling = transition_densities.get_scaling_function(config)
-    self.sigma_min = config.sigma_min
-    self.sigma_max = config.sigma_max
-
-  def T(self):
-    return self.sigma_max
-  
-  def drift(self, x,t):
-    return torch.zeros_like(x)
-  
-  def diffusion(self, x, t):
-    return 1.
-
-  def prior_sampling(self, shape, device):
-    return torch.randn(*shape, device=device) * self.sigma_max
-
-  def prior_logp(self, z):
-    shape = z.shape
-    N = np.prod(shape[1:])
-    return -N / 2. * np.log(2 * np.pi * self.sigma_max ** 2) - torch.sum(z ** 2, dim=(1, 2, 3)) / (2 * self.sigma_max ** 2)
-
-  def time_steps(self, n, device):
-    # TODO: Maybe put this in configs
-    quot = (self.sigma_min/self.sigma_max)**2
-    step_indices = torch.arange(n, dtype=torch.float64, device=device)/(n-1.)
-    t_steps = self.sigma_max**2 * torch.pow(quot,step_indices)
-    t_steps = torch.cat([t_steps, torch.zeros_like(t_steps[:1])]) # t_N = 0
-    return t_steps
-  
-class EDM(SDE):
-  def __init__(self,config):
-    super().__init__()
-    self.scheduling = transition_densities.get_sigma_function(config)
-    self.scaling = transition_densities.get_scaling_function(config)
-    self.sigma_min = config.sigma_min
-    self.sigma_max = config.sigma_max
-
-  def T(self):
-    return self.sigma_max
-  
-  def drift(self, x,t):
-    return torch.zeros_like(x)
-  
-  def diffusion(self, x, t):
-    return (2. * t)**.5
-
-  def prior_sampling(self, shape, device):
-    return torch.randn(*shape, device=device) * self.sigma_max
-
-  def prior_logp(self, z):
-    shape = z.shape
-    N = np.prod(shape[1:])
-    return -N / 2. * np.log(2 * np.pi * self.sigma_max ** 2) - torch.sum(z ** 2, dim=(1, 2, 3)) / (2 * self.sigma_max ** 2)
-
-  def time_steps(self, n,device):
-    # TODO: Maybe put this in configs
-    rho=7
-    step_indices = torch.arange(n, dtype=torch.float64, device=device)
-    t_steps = (self.sigma_max ** (1 / rho) + step_indices / (n - 1) * (self.sigma_min ** (1 / rho) - self.sigma_max ** (1 / rho))) ** rho
-    t_steps = torch.cat([t_steps, torch.zeros_like(t_steps[:1])]) # t_N = 0
-    return t_steps
+def get_sde(config):
+    if config.sde_type == 'vp':
+        return VP(config)

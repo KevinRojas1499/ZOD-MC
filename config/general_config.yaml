@@ -1,12 +1,14 @@
 # Wandb info
 wandb_project_name: NonconvexSampling
+tags: testing
 
+# Method
 mode: sample
 score_method: p0t
-p0t_method: ula
+p0t_method: rejection
 
 # Estimator Information
-num_estimator_batches: 5
+num_estimator_batches: 1
 num_estimator_samples: 1000
 num_sampler_iterations: 10
 
@@ -17,8 +19,6 @@ convolution_integrator: simpson
 gradient_estimator: conv
 # SDEs Parameters
 sde_type: vp
-sigma_min: 0.02
-sigma_max: 80
 multiplier: 0
 bias: 2
 
@@ -27,6 +27,6 @@ sampling_method: ei
 num_batches: 1
 sampling_batch_size: 1000
 sampling_eps: 5e-3
-disc_steps: 25
+disc_steps: 200
 ula_steps: 0
-ula_step_size: 0.00001
+ula_step_size: 0.1

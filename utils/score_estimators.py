@@ -225,12 +225,12 @@ def get_score_function(config, dist : Distribution, sde, device):
                         'Min Acc Samples' : torch.min(num_good_samples).detach().item()})
         elif config.p0t_method == 'ula':
             samples_from_p0t = ula.get_ula_samples(big_x,grad_log_prob_0t,config.ula_step_size,config.num_sampler_iterations)
-            print(torch.sum(torch.isnan(samples_from_p0t)))
             samples_from_p0t = samples_from_p0t.view((-1,num_samples,dim))
+            
             mean_estimate = torch.mean(samples_from_p0t, dim = 1)
             
         score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)
-        import matplotlib.pyplot as plt
+        # import matplotlib.pyplot as plt
         # from . import gmm_score
         # real_log_dens, real_grad = gmm_score.get_gmm_density_at_t(config,sde,tt,device)
         # real_score = real_grad(x)/torch.exp(real_log_dens(x))
@@ -243,7 +243,7 @@ def get_score_function(config, dist : Distribution, sde, device):
         # pts = torch.linspace(-l, l, nn)
         # xx , yy = torch.meshgrid(pts,pts,indexing='xy')
         # pts = torch.cat((xx.unsqueeze(-1),yy.unsqueeze(-1)),dim=-1).to(device=device)
-        # dens = torch.exp(- (potential(pts) + torch.sum((pts - y)**2,dim=-1, keepdim=True)/(2*variance_conv))).squeeze(-1).cpu()
+        # dens = torch.exp(- (potential(pts) + torch.sum((scaling * pts - x)**2,dim=-1, keepdim=True)/(2*variance_conv))).squeeze(-1).cpu()
         # pts = pts.cpu().numpy()
 
         # ax1.contourf(xx, yy,dens)

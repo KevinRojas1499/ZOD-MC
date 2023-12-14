@@ -7,7 +7,7 @@ import utils.plots
 import utils.samplers
 import utils.densities
 import utils.score_estimators
-import utils.sde_utils
+import sde_lib
 import utils.gmm_utils as gmm_utils
 import samplers.ula as ula
 
@@ -24,6 +24,7 @@ def init_wandb(config):
     # set the wandb project where this run will be logged
     project=f'{config.wandb_project_name} {config.dimension}d {config.density}',
     name= get_run_name(config),
+    tags= [config.tags],
     # track hyperparameters and run metadata
     config=config
 )
@@ -43,7 +44,7 @@ def eval(config):
     device = torch.device('cuda:0'if torch.cuda.is_available() else 'cpu')
     # Get SDE:
     distribution = utils.densities.get_distribution(config,device)
-    sde = utils.sde_utils.get_sde(config)
+    sde = sde_lib.get_sde(config)
     model = utils.score_estimators.get_score_function(config,distribution,  sde, device)
     
     # Get Sampler

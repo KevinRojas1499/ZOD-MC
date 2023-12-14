@@ -1,7 +1,7 @@
 import torch
 import utils.integrators
 import utils.score_estimators
-import utils.sde_utils
+import sde_lib
 import utils.gmm_score
 from utils.densities import * 
 from utils.plots import *
@@ -48,7 +48,7 @@ def run_experiments(config):
 
     init_wandb(config)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    sde = utils.sde_utils.get_sde(config)
+    sde = sde_lib.get_sde(config)
 
     num_samples = np.exp(np.arange(7,10,step=.5)).round().astype(int)
     number_of_plots = len(num_samples)

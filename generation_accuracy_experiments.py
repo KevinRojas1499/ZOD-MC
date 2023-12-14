@@ -7,7 +7,7 @@ import utils.plots
 import utils.samplers
 import utils.densities
 import utils.score_estimators
-import utils.sde_utils
+import sde_lib
 import utils.gmm_utils
 
 def get_run_name(config):
@@ -25,7 +25,7 @@ def init_wandb(config):
 def sample_and_add_stats(name,config, device, weights_per_model, means_per_model):
     n_batch = config.num_batches
     dim = config.dimension
-    sde = utils.sde_utils.get_sde(config)
+    sde = sde_lib.get_sde(config)
     model = utils.score_estimators.get_score_function(config, sde, device)
     # Get Sampler
     sampler = utils.samplers.get_sampler(config,device, sde)

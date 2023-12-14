@@ -1,7 +1,7 @@
 import torch
 import utils.integrators
 import utils.score_estimators
-import utils.sde_utils
+import sde_lib
 import utils.gmm_score
 import utils.densities
 from utils.plots import *
@@ -44,7 +44,7 @@ def get_l2_error_at_time(config, device, sde, t):
 def run_experiments(config):
     init_wandb(config)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    sde = utils.sde_utils.get_sde(config)
+    sde = sde_lib.get_sde(config)
 
 
     num_sub_intervals = [14,64,100,150,200,274,500,1000,2000]
