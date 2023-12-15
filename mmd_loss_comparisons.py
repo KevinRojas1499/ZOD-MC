@@ -58,7 +58,7 @@ def eval(config):
     samples = torch.zeros((n_batch,n_samples, dim))
     real_samples=None
     if config.density == 'gmm':
-        real_samples = distribution.sample(num_samples)
+        real_samples = gmm_utils.sample_from_gmm(config,num_samples)
         
     pbar = tqdm(range(n_batch))
     for i in pbar:
@@ -68,15 +68,17 @@ def eval(config):
     print(torch.sum(torch.isnan(samples)))
     # w, error_means = utils.gmm_utils.summarized_stats(samples)
     # wandb.log({"Error Weights": w, "Error Means": error_means})
+
     plot_samples(config, distribution,samples,real_samples=real_samples)
     if config.ula_steps > 0:
         samples = samples.to(device=device)
-        samples = ula.get_ula_samples(samples,distribution.grad_log_prob,config.ula_step_size,config.ula_steps)
-        plot_samples(config, distribution, samples,real_samples)
+        samples = ula.get_ula_samples(samples,distribution.grad_log_prob,0.001,config.ula_steps)
+        plot_samples(config, distribution, samples, real_samples)
     
     if real_samples is not None:
         mmd = utils.mmd.MMDLoss()
         print(mmd.get_mmd_squared(samples,real_samples))
+        
     wandb.finish()
 
 def plot_samples(config, distribution, samples,real_samples=None):

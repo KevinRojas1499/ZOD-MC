@@ -89,6 +89,11 @@ class MultivariateGaussian(Distribution):
         self.log_det = torch.log(torch.linalg.det(self.cov))
         self.dim = mean.shape[0]
     
+    def sample(self):
+        # TODO: Make this in batches
+        z = torch.randn_like(self.mean)
+        return self.L @ z + self.mean
+    
     def log_prob(self,x):
         new_shape = list(x.shape)
         new_shape[-1] = 1
@@ -116,6 +121,10 @@ class OneDimensionalGaussian(Distribution):
         self.cov = cov
         self.dist = Normal(loc=mean, scale=cov**.5)
     
+    def sample(self):
+        # TODO: Make this in batches
+        return self.dist.sample()
+    
     def log_prob(self,x):
         return self.dist.log_prob(x)
 
@@ -138,8 +147,8 @@ class GaussianMixture(Distribution):
         super().__init__()
         self.n = len(c)
         self.c = c
-        dimension = means[0].shape[0]
-        if dimension == 1:
+        self.dim = means[0].shape[0]
+        if self.dim == 1:
             self.gaussians = [OneDimensionalGaussian(means[i],variances[i]) for i in range(self.n)]
         else:
             self.gaussians = [MultivariateGaussian(means[i],variances[i]) for i in range(self.n)]
@@ -158,6 +167,15 @@ class GaussianMixture(Distribution):
     
     def grad_log_prob(self, x):
         return self.gradient(x)/torch.exp(self.log_prob(x))
+    
+    def sample(self, num_samples):
+        samples = torch.zeros(num_samples,self.dim,
+                              dtype=self.gaussians[0].mean.dtype,
+                              device=self.gaussians[0].mean.device)
+        for i in range(num_samples):
+            idx = torch.randint(0,self.n, (1,))
+            samples[i] = self.gaussians[idx].sample()
+        return samples    
     
 class FunnelDistribution(Distribution):
     def __init__(self, sigma, dim):
@@ -181,7 +199,7 @@ class FunnelDistribution(Distribution):
     
 def get_distribution(config, device):
     def to_tensor_type(x):
-        return torch.tensor(x,device=device, dtype=torch.float64)    
+        return torch.tensor(x,device=device, dtype=torch.double)    
 
     params = yaml.safe_load(open(config.density_parameters_path))
 

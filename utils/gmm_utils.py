@@ -27,21 +27,22 @@ def get_l2_norm(x):
 
 def summarized_stats(config,data):
     params = yaml.safe_load(open(config.density_parameters_path))
-    real_means, real_weights = torch.tensor(params['means'],dtype=torch.float32), torch.tensor(params['coeffs'],dtype=torch.float32)
+    real_means, real_weights = torch.tensor(params['means'],dtype=torch.double), torch.tensor(params['coeffs'],dtype=torch.double)
     means, weights = compute_stats_gmm(data, real_means)
 
     error_means = get_l2_norm(means-real_means)
     error_weights = get_l2_norm(weights-real_weights)
     return error_weights, error_means
 
-def to_tensor(x):
-    return torch.tensor(x,dtype=torch.float32)
+def to_tensor(x,device):
+    return torch.tensor(x,dtype=torch.double,device=device)
 
 
-def sample_from_gmm(config, num_samples):
+def sample_from_gmm(config, num_samples,device):
+    # Only use this if you dont want to  make a distribution
     from torch.distributions.multivariate_normal import MultivariateNormal
     params = yaml.safe_load(open(config.density_parameters_path))
-    c, means, variances = to_tensor(params['coeffs']), to_tensor(params['means']), to_tensor(params['variances'])
+    c, means, variances = to_tensor(params['coeffs'],device), to_tensor(params['means'],device), to_tensor(params['variances'],device)
     n = len(c)
     d = means[0].shape[0]
     gaussians = [MultivariateNormal(means[i],variances[i]) for i in range(n)]

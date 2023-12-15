@@ -215,7 +215,7 @@ def get_score_function(config, dist : Distribution, sde, device):
                                                                                         num_samples, 
                                                                                         device,
                                                                                         minimizer=minimizer)
-                num_good_samples += torch.sum(acc_idx, dim=(1,2)).unsqueeze(-1).to(torch.float32)/dim
+                num_good_samples += torch.sum(acc_idx, dim=(1,2)).unsqueeze(-1).to(torch.double)/dim
                 mean_estimate += torch.sum(samples_from_p0t * acc_idx,dim=1)
                 k+=1
             num_good_samples[num_good_samples == 0] += 1 # Ask if this is fine
