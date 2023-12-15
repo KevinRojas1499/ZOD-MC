@@ -23,9 +23,9 @@ def get_run_name(config):
 def init_wandb(config):
     wandb.init(
     # set the wandb project where this run will be logged
-    project=f'{config.wandb_project_name} {config.dimension}d {config.density}',
+    project=f'{config.wandb_project_name}',
     name= get_run_name(config),
-    tags= [config.tags],
+    tags= [config.tags, f'{config.dimension}d',config.density],
     # track hyperparameters and run metadata
     config=config
 )
@@ -55,7 +55,7 @@ def eval(config):
     n_samples = config.sampling_batch_size
     num_samples = n_batch * n_samples
     dim = config.dimension
-    samples = torch.zeros((n_batch,n_samples, dim))
+    samples = torch.zeros((n_batch,n_samples, dim),dtype=torch.double, device=device)
     real_samples=None
     if config.density == 'gmm':
         real_samples = distribution.sample(num_samples)

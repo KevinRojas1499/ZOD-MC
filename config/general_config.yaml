@@ -8,9 +8,9 @@ score_method: p0t
 p0t_method: rejection
 
 # Estimator Information
-num_estimator_batches: 5
-num_estimator_samples: 50000
-num_sampler_iterations: 10
+num_estimator_batches: 10
+num_estimator_samples: 10000
+num_sampler_iterations: 100
 
 # Fourier Parameters
 integration_range: 20
@@ -26,7 +26,7 @@ bias: 2
 sampling_method: ei
 num_batches: 1
 sampling_batch_size: 1000
-sampling_eps: 5e-3
-disc_steps: 25
-ula_steps: 100
+sampling_eps: 5e-2
+disc_steps: 10
+ula_steps: 0
 ula_step_size: 0.1

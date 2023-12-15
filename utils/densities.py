@@ -166,7 +166,7 @@ class GaussianMixture(Distribution):
         return grad
     
     def grad_log_prob(self, x):
-        return self.gradient(x)/torch.exp(self.log_prob(x))
+        return self.gradient(x)/(torch.exp(self.log_prob(x)) + 1e-8)
     
     def sample(self, num_samples):
         samples = torch.zeros(num_samples,self.dim,
