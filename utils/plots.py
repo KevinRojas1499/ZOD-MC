@@ -49,3 +49,27 @@ def plot_2d_dist_with_contour(data,log_prob):
     fig.add_trace(go.Scatter(x=data[:,0], y=data[:,1],mode='markers'))
 
     wandb.log({"Samples" : fig})
+
+def to_numpy(x):
+    return x.cpu().detach().numpy()
+   
+def plot_samples(config, distribution, samples,real_samples=None):
+    dim = config.dimension
+    if dim == 1:
+        histogram(to_numpy(samples.squeeze(-1)), log_density=distribution.log_prob)
+    elif dim == 2:
+        if real_samples is not None:
+            plot_2d_dist(to_numpy(samples),to_numpy(real_samples))
+        else:
+            plot_2d_dist_with_contour(to_numpy(samples),distribution.log_prob)
+    else:
+        if real_samples is not None:
+            for i in range(dim):
+                histogram_2(to_numpy(samples[:,i]),ground_truth=to_numpy(real_samples[:,i]))
+                
+        if config.density == 'funnel':
+            for i in range(1,dim):
+                data = to_numpy(torch.cat((samples[:,0].unsqueeze(-1),
+                                           samples[:,i].unsqueeze(-1)),
+                                          dim=-1))
+                plot_2d_dist(data)
