@@ -191,7 +191,7 @@ def get_score_function(config, dist : Distribution, sde, device):
             return torch.abs(density.real), gradient.real
 
     if config.score_method == 'p0t' and config.p0t_method == 'rejection':
-        minimizer = optimizers.newton_conjugate_gradient(torch.randn(dim,device=device),potential)
+        minimizer = optimizers.newton_conjugate_gradient(torch.randn(dim,device=device),potential, config.max_iters_optimization)
         print(f'Found minimizer {minimizer.cpu().numpy()}')
         
     def get_samplers_based_on_sampling_p0t(x,tt):

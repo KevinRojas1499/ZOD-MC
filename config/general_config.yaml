@@ -5,13 +5,13 @@ tags: testing
 # Method
 mode: sample
 score_method: p0t
-p0t_method: rejection
+p0t_method: ula
 
 # Estimator Information
 num_estimator_batches: 10
 num_estimator_samples: 10000
 num_sampler_iterations: 100
-
+max_iters_optimization: 50
 # Fourier Parameters
 integration_range: 20
 sub_intervals_per_dim: 10
@@ -27,6 +27,6 @@ sampling_method: ei
 num_batches: 1
 sampling_batch_size: 1000
 sampling_eps: 5e-2
-disc_steps: 10
+disc_steps: 25
 ula_steps: 0
 ula_step_size: 0.1

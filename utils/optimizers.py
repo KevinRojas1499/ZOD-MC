@@ -25,12 +25,12 @@ def gradient_descent(x0,gradient, threshold, al=1e-4):
         return xnew
 
 
-def newton_conjugate_gradient(x0, potential):
+def newton_conjugate_gradient(x0, potential,max_iters=50):
     torch.autograd.set_detect_anomaly(True)
     return minimize(
         potential, x0, 
         method='newton-cg', 
         options=dict(line_search='strong-wolfe'),
-        max_iter=50,
+        max_iter=max_iters,
         disp=0 # Verbose level
     ).x
