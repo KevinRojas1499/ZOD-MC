@@ -46,7 +46,7 @@ def sample_from_gmm(config, num_samples,device):
     n = len(c)
     d = means[0].shape[0]
     gaussians = [MultivariateNormal(means[i],variances[i]) for i in range(n)]
-    samples = torch.zeros(num_samples,d)
+    samples = torch.zeros(num_samples,d,dtype=torch.double,device=device)
     for i in range(num_samples):
         idx = torch.randint(0,n, (1,))
         samples[i] = gaussians[idx].sample()

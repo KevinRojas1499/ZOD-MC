@@ -6,10 +6,7 @@ from utils.integrators import get_integrator
 from utils.densities import Distribution
 import utils.optimizers as optimizers
 import samplers.rejection_sampler as rejection_sampler
-import samplers.proximal_sampler as proximal_sampler
 import samplers.ula as ula
-import samplers.metropolis_random_walk as met_rand_walk
-
 
 def get_score_function(config, dist : Distribution, sde, device):
     """
@@ -192,12 +189,12 @@ def get_score_function(config, dist : Distribution, sde, device):
 
     if config.score_method == 'p0t' and config.p0t_method == 'rejection':
         minimizer = optimizers.newton_conjugate_gradient(torch.randn(dim,device=device),potential, config.max_iters_optimization)
-        print(f'Found minimizer {minimizer.cpu().numpy()}')
+        # print(f'Found minimizer {minimizer.cpu().numpy()}')
         
     def get_samplers_based_on_sampling_p0t(x,tt):
         scaling = sde.scaling(tt)
-        
-        variance_conv = 1/scaling**2 - 1
+        inv_scaling = 1/scaling
+        variance_conv = inv_scaling**2 - 1
         num_samples = config.num_estimator_samples
         score_estimate = torch.zeros_like(x)
         big_x = x.repeat_interleave(num_samples,dim=0)
@@ -210,7 +207,7 @@ def get_score_function(config, dist : Distribution, sde, device):
             while k < num_iters:
                 if torch.min(num_good_samples).detach().item() >= 5:
                     break
-                samples_from_p0t, acc_idx = rejection_sampler.get_samples(x/scaling, variance_conv,
+                samples_from_p0t, acc_idx = rejection_sampler.get_samples(inv_scaling * x, variance_conv,
                                                                                         potential,
                                                                                         num_samples, 
                                                                                         device,
@@ -224,7 +221,8 @@ def get_score_function(config, dist : Distribution, sde, device):
                         'Small Num Acc < 10' : len(num_good_samples[num_good_samples <= 10]),
                         'Min Acc Samples' : torch.min(num_good_samples).detach().item()})
         elif config.p0t_method == 'ula':
-            samples_from_p0t = ula.get_ula_samples(big_x,grad_log_prob_0t,config.ula_step_size,config.num_sampler_iterations)
+            x0 = inv_scaling * big_x + torch.randn_like(big_x) * variance_conv
+            samples_from_p0t = ula.get_ula_samples(x0,grad_log_prob_0t,config.ula_step_size,config.num_sampler_iterations)
             samples_from_p0t = samples_from_p0t.view((-1,num_samples,dim))
             
             mean_estimate = torch.mean(samples_from_p0t, dim = 1)
@@ -263,9 +261,29 @@ def get_score_function(config, dist : Distribution, sde, device):
         # fig.savefig(f'./score_generated_samples/{tt : .3f}.png')      
         # plt.close()
         
-
         return score_estimate
     
+    
+    def get_recursive_langevin(x,tt,k=config.num_recursive_steps):
+        num_samples = config.num_samples
+        scaling = sde.scaling(tt)
+        inv_scaling = 1/scaling
+        big_x = x.repeat_interleave(num_samples, dim=0)
+    
+        if k == 0:
+            return grad_logdensity(x)
+
+        x0 = inv_scaling * big_x + torch.randn_like(big_x) * (inv_scaling**2 -1)  
+        h = config.ula_step_size      
+        
+        for _ in range(config.num_sampler_iterations):
+            x0 = x0 + h * get_recursive_langevin(x0, (k-1) * tt/k,k-1)
+        x0 = x0.view((-1,num_samples,dim))
+        mean_estimate = x0.mean(dim=1)
+        score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)
+        return score_estimate
+
+        
     if config.score_method == 'convolution':
         return score_gaussian_convolution
     elif config.score_method == 'quotient-estimator':

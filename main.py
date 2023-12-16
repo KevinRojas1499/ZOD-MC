@@ -4,6 +4,7 @@ import estimator_accuracy_experiments
 import generation_accuracy_experiments
 import fourier_experiments
 import experiments_based_on_p0t
+import mmd_loss_comparisons
 
 def parse_arguments():
     p = configargparse.ArgParser(description='Arguments for nonconvex sampling')
@@ -15,8 +16,8 @@ def parse_arguments():
     p.add_argument('--tags', type=str)
     
     # Mode
-    p.add_argument('--mode', choices=['sample','estimator-experiments', 'generation-experiments','fourier-experiments','p0t-experiments'])
-    p.add_argument('--score_method', choices=['convolution','quotient-estimator','fourier', 'p0t'])
+    p.add_argument('--mode', choices=['sample','eval_mmd','estimator-experiments', 'generation-experiments','fourier-experiments','p0t-experiments'])
+    p.add_argument('--score_method', choices=['convolution','quotient-estimator','fourier', 'p0t','recursive'])
     p.add_argument('--p0t_method', choices=['rejection','ula'])
     p.add_argument('--dimension', type=int)
     
@@ -28,7 +29,7 @@ def parse_arguments():
     p.add_argument('--num_estimator_samples', type=int, default=10000) # Per batch for rejection
     p.add_argument('--gradient_estimator',choices=['conv','direct']) # For quotient estimator
     p.add_argument('--eps_stable',type=float, default=1e-9) # For quotient based methods
-  
+    p.add_argument('--num_recursive_steps',type=int, default=6)
     # Integrator details for convolution method
     p.add_argument('--convolution_integrator', choices=['trap','simpson','mc'])
     p.add_argument('--integration_range', type=float)
@@ -56,6 +57,8 @@ def parse_arguments():
 def main(config):
     if config.mode == 'sample':
         run_toy.eval(config)
+    elif config.mode == 'eval_mmd':
+        mmd_loss_comparisons.eval(config)
     elif config.mode == 'estimator-experiments':
         estimator_accuracy_experiments.run_experiments(config)
     elif config.mode == 'generation-experiments':

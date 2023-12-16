@@ -10,8 +10,8 @@ import samplers.ula as ula
 
 
 def sample(config):
+    # Set up
     device = torch.device('cuda:0'if torch.cuda.is_available() else 'cpu')
-    # Get SDE:
     distribution = utils.densities.get_distribution(config,device)
     sde = sde_lib.get_sde(config)
     model = utils.score_estimators.get_score_function(config,distribution,  sde, device)
@@ -23,7 +23,7 @@ def sample(config):
     n_samples = config.sampling_batch_size
     dim = config.dimension
     samples = torch.zeros((n_batch,n_samples, dim),dtype=torch.double, device=device)
-    pbar = tqdm(range(n_batch))
+    pbar = tqdm(range(n_batch),leave=False)
     for i in pbar:
         pbar.set_description(f"Batch {i}/{n_batch}")
         samples[i] = sampler(model)

@@ -84,6 +84,7 @@ class MultivariateGaussian(Distribution):
         super().__init__()
         self.mean = mean
         self.cov = cov
+        self.Q = torch.linalg.cholesky(self.cov)
         self.inv_cov = torch.linalg.inv(cov)
         self.L = torch.linalg.cholesky(self.inv_cov)
         self.log_det = torch.log(torch.linalg.det(self.cov))
@@ -91,8 +92,7 @@ class MultivariateGaussian(Distribution):
     
     def sample(self):
         # TODO: Make this in batches
-        z = torch.randn_like(self.mean)
-        return self.L @ z + self.mean
+        return self.Q @ torch.randn_like(self.mean) + self.mean
     
     def log_prob(self,x):
         new_shape = list(x.shape)

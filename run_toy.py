@@ -4,6 +4,7 @@ import utils.plots
 import utils.densities
 import utils.mmd
 import sample
+import utils.gmm_utils
 
 def get_run_name(config):
     if config.score_method == 'quotient-estimator':
@@ -34,7 +35,6 @@ def eval(config):
     
     init_wandb(config)
     device = torch.device('cuda:0'if torch.cuda.is_available() else 'cpu')
-    # Get SDE:
     distribution = utils.densities.get_distribution(config,device)
     samples = sample.sample(config)
     real_samples=None

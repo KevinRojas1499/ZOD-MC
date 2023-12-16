@@ -1,15 +1,15 @@
 # Wandb info
 wandb_project_name: NonconvexSampling
-tags: testing
+tags: experiments
 
 # Method
 mode: sample
 score_method: p0t
-p0t_method: ula
+p0t_method: rejection
 
 # Estimator Information
 num_estimator_batches: 10
-num_estimator_samples: 10000
+num_estimator_samples: 1000
 num_sampler_iterations: 100
 max_iters_optimization: 50
 # Fourier Parameters
@@ -24,7 +24,7 @@ bias: 2
 
 # Sampling parameters
 sampling_method: ei
-num_batches: 1
+num_batches: 10
 sampling_batch_size: 1000
 sampling_eps: 5e-2
 disc_steps: 25
