@@ -5,14 +5,10 @@ import torch
 
 class RBF_Kernel():
 
-    def __init__(self, n_kernels=5, mul_factor=2.0):
+    def __init__(self, n_kernels=10, mul_factor=2.0):
         self.n_kernels = n_kernels
-        self.bandwidth_multipliers = mul_factor ** (torch.arange(n_kernels) - n_kernels // 2)
-
-    def get_bandwidth(self, L2_distances):
-        n_samples = L2_distances.shape[0]
-        return L2_distances.data.sum() / (n_samples ** 2 - n_samples)
-
+        self.bandwidth_multipliers = mul_factor ** (torch.arange(-n_kernels//2, n_kernels//2 + n_kernels))
+        
     def get_kernel_value(self, x, y):
         distances = torch.cdist(x, y) ** 2
         loss = 0

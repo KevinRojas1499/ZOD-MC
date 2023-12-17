@@ -30,6 +30,7 @@ def parse_arguments():
     p.add_argument('--gradient_estimator',choices=['conv','direct']) # For quotient estimator
     p.add_argument('--eps_stable',type=float, default=1e-9) # For quotient based methods
     p.add_argument('--num_recursive_steps',type=int, default=6)
+    
     # Integrator details for convolution method
     p.add_argument('--convolution_integrator', choices=['trap','simpson','mc'])
     p.add_argument('--integration_range', type=float)

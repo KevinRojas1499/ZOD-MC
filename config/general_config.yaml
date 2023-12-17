@@ -4,14 +4,16 @@ tags: experiments
 
 # Method
 mode: sample
-score_method: p0t
+score_method: recursive
 p0t_method: rejection
 
 # Estimator Information
-num_estimator_batches: 10
-num_estimator_samples: 1000
-num_sampler_iterations: 100
+num_estimator_batches: 1
+num_estimator_samples: 1
+num_sampler_iterations: 1
 max_iters_optimization: 50
+num_recursive_steps: 3 # Increasing this makes you use way too much memory
+
 # Fourier Parameters
 integration_range: 20
 sub_intervals_per_dim: 10
@@ -24,9 +26,9 @@ bias: 2
 
 # Sampling parameters
 sampling_method: ei
-num_batches: 10
+num_batches: 1
 sampling_batch_size: 1000
 sampling_eps: 5e-2
 disc_steps: 25
 ula_steps: 0
-ula_step_size: 0.1
+ula_step_size: 0.6
