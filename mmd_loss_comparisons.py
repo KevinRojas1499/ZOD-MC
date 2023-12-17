@@ -62,6 +62,8 @@ def eval(config):
         
         mmd_lang[i] = mmd.get_mmd_squared(samples_langevin,real_samples).detach().item()
         mmd_rej[i] = mmd.get_mmd_squared(samples_rejection,real_samples).detach().item()
+        
+    np.savetext('mmd_results',(gradient_complexity, mmd_lang,mmd_rej))
     print(mmd_lang)
     print(mmd_rej)
     plt.plot(gradient_complexity,mmd_lang,label='RDM')

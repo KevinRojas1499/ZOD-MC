@@ -189,7 +189,7 @@ def get_score_function(config, dist : Distribution, sde, device):
 
     if config.score_method == 'p0t' and config.p0t_method == 'rejection':
         minimizer = optimizers.newton_conjugate_gradient(torch.randn(dim,device=device),potential, config.max_iters_optimization)
-        # print(f'Found minimizer {minimizer.cpu().numpy()}')
+        print(f'Found minimizer {minimizer.cpu().numpy()}')
         
     def get_samplers_based_on_sampling_p0t(x,tt):
         scaling = sde.scaling(tt)
@@ -203,10 +203,7 @@ def get_score_function(config, dist : Distribution, sde, device):
             num_iters = config.num_estimator_batches
             mean_estimate = 0
             num_good_samples = torch.zeros((x.shape[0],1),device=device)
-            k = 0
-            while k < num_iters:
-                if torch.min(num_good_samples).detach().item() >= 5:
-                    break
+            for _ in range(num_iters):
                 samples_from_p0t, acc_idx = rejection_sampler.get_samples(inv_scaling * x, variance_conv,
                                                                                         potential,
                                                                                         num_samples, 
@@ -214,12 +211,11 @@ def get_score_function(config, dist : Distribution, sde, device):
                                                                                         minimizer=minimizer)
                 num_good_samples += torch.sum(acc_idx, dim=(1,2)).unsqueeze(-1).to(torch.double)/dim
                 mean_estimate += torch.sum(samples_from_p0t * acc_idx,dim=1)
-                k+=1
             num_good_samples[num_good_samples == 0] += 1 # Ask if this is fine
             mean_estimate /= num_good_samples
-            # wandb.log({'Average Acc Samples' : torch.mean(num_good_samples).detach().item(),
-            #             'Small Num Acc < 10' : len(num_good_samples[num_good_samples <= 10]),
-            #             'Min Acc Samples' : torch.min(num_good_samples).detach().item()})
+            wandb.log({'Average Acc Samples' : torch.mean(num_good_samples).detach().item(),
+                        'Small Num Acc < 10' : len(num_good_samples[num_good_samples <= 10]),
+                        'Min Acc Samples' : torch.min(num_good_samples).detach().item()})
         elif config.p0t_method == 'ula':
             # x0 = inv_scaling * big_x + torch.randn_like(big_x) * variance_conv
             x0 = big_x
