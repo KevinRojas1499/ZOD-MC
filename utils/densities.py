@@ -8,10 +8,29 @@ class Distribution(abc.ABC):
     """ Potentials abstract class """
     def __init__(self):
         super().__init__()
+        # Min
+        self.potential_minimizer = None
+        self.potential_min = None
+        self.keep_minimizer = True # Defaults to true, set to false for simple distributions
     
     @abc.abstractmethod
-    def log_prob(self, x):
+    def _log_prob(self, x):
         pass
+    
+    def log_prob(self, x):
+        # This method calls log_prob and updates the minimizer
+        log_dens = self._log_prob(x)
+        if self.keep_minimizer:
+            xp = x.view((-1,self.dim))
+            log_dens_vals = log_dens.view((-1,1))
+            argmin = torch.argmin(-log_dens_vals)
+            minimum = -log_dens_vals[argmin] 
+            
+            if self.potential_min is None or minimum < self.potential_min:
+                print(f'Updating Minimizer {xp[argmin]} {minimum}')
+                self.potential_min = minimum
+                self.potential_minimizer = xp[argmin]  
+        return log_dens
     
     def grad_log_prob(self,x):
         with torch.enable_grad():
@@ -25,6 +44,7 @@ class Distribution(abc.ABC):
 class ModifiedMueller(Distribution):
     def __init__(self, A, a, b, c, XX, YY):
         super().__init__()
+        self.keep_minimizer = False # Newton does a good enough job
         self.dim = 2
         self.n = 4
         self.A = A
@@ -37,7 +57,7 @@ class ModifiedMueller(Distribution):
         self.y_c = 0.465694      
         self.beta = .1
           
-    def log_prob(self, xx):
+    def _log_prob(self, xx):
         new_shape = list(xx.shape)
         new_shape[-1] = 1
         new_shape = tuple(new_shape)
@@ -82,6 +102,7 @@ class ModifiedMueller(Distribution):
 class MultivariateGaussian(Distribution):
     def __init__(self, mean, cov):
         super().__init__()
+        self.keep_minimizer = False
         self.mean = mean
         self.cov = cov
         self.Q = torch.linalg.cholesky(self.cov)
@@ -94,7 +115,7 @@ class MultivariateGaussian(Distribution):
         # TODO: Make this in batches
         return self.Q @ torch.randn_like(self.mean) + self.mean
     
-    def log_prob(self,x):
+    def _log_prob(self,x):
         new_shape = list(x.shape)
         new_shape[-1] = 1
         new_shape = tuple(new_shape)
@@ -116,6 +137,7 @@ class OneDimensionalGaussian(Distribution):
     # This is a wrapper for Normal
     def __init__(self, mean, cov):
         super().__init__()
+        self.keep_minimizer = False
         self.mean = mean
         self.cov = cov
         self.dist = Normal(loc=mean, scale=cov**.5)
@@ -124,7 +146,7 @@ class OneDimensionalGaussian(Distribution):
         # TODO: Make this in batches
         return self.dist.sample()
     
-    def log_prob(self,x):
+    def _log_prob(self,x):
         return self.dist.log_prob(x)
 
     def gradient(self, x):
@@ -135,7 +157,7 @@ class DoubleWell(Distribution):
     def __init__(self):
         super().__init__()
     
-    def log_prob(self,x):
+    def _log_prob(self,x):
         return -(x**2 - 1.)**2/2
     
     def grad_log_prob(self, x):
@@ -152,12 +174,13 @@ class GaussianMixture(Distribution):
         else:
             self.gaussians = [MultivariateGaussian(means[i],variances[i]) for i in range(self.n)]
 
-    def log_prob(self, x):
+    def _log_prob(self, x):
         log_probs = []
         for i in range(self.n):
             log_probs.append( log(self.c[i]) + self.gaussians[i].log_prob(x) )
         log_probs = torch.cat(log_probs,dim=-1)
-        return torch.logsumexp(log_probs,dim=-1,keepdim=True)
+        log_dens = torch.logsumexp(log_probs,dim=-1,keepdim=True)
+        return log_dens
     
     def grad_log_prob(self, x):
         log_p = self.log_prob(x)
@@ -182,7 +205,7 @@ class FunnelDistribution(Distribution):
         self.dim = dim
         self.sigma = sigma
 
-    def log_prob(self, xx):
+    def _log_prob(self, xx):
         new_shape = list(xx.shape)
         new_shape[-1] = 1
         new_shape = tuple(new_shape)

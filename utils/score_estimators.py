@@ -189,8 +189,8 @@ def get_score_function(config, dist : Distribution, sde, device):
 
     if config.score_method == 'p0t' and config.p0t_method == 'rejection':
         minimizer = optimizers.newton_conjugate_gradient(torch.randn(dim,device=device),potential, config.max_iters_optimization)
-        # dist.set_minimizer(minimizer)
-        # print(f'Found minimizer {minimizer.cpu().numpy()}')
+        dist.log_prob(minimizer) # To make sure we update with the right minimizer
+        print(f'Found minimizer {minimizer.cpu().numpy()}')
         
     def get_samplers_based_on_sampling_p0t(x,tt):
         scaling = sde.scaling(tt)
@@ -208,8 +208,7 @@ def get_score_function(config, dist : Distribution, sde, device):
                 samples_from_p0t, acc_idx = rejection_sampler.get_samples(inv_scaling * x, variance_conv,
                                                                                         dist,
                                                                                         num_samples, 
-                                                                                        device,
-                                                                                        minimizer=minimizer)
+                                                                                        device)
                 num_good_samples += torch.sum(acc_idx, dim=(1,2)).unsqueeze(-1).to(torch.double)/dim
                 mean_estimate += torch.sum(samples_from_p0t * acc_idx,dim=1)
             num_good_samples[num_good_samples == 0] += 1 # Ask if this is fine

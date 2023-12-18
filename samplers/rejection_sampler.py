@@ -13,7 +13,7 @@ def get_rgo_sampling(xk, eta, grad_log_prob, device, threshold, minimizer=None):
     w = nesterovs_minimizer(xk, potential, threshold) if \
         minimizer == None else minimizer
     f_eta = potential(w)
-
+    
     proposal = xk + eta **.5 * accepted_samples * torch.randn_like(xk)
     
     exp_h1 = potential(proposal)
@@ -23,12 +23,12 @@ def get_rgo_sampling(xk, eta, grad_log_prob, device, threshold, minimizer=None):
     xk[acc_idx] = proposal[acc_idx]
     return xk, acc_idx
 
-def get_samples(y, eta, distribution : utils.densities.Distribution, num_samples, device,threshold=1e-3,minimizer=None):
+def get_samples(y, eta, distribution : utils.densities.Distribution, num_samples, device,threshold=1e-3):
     # Sampling from potential \prop exp( - f(x) - |x-y|^2/2eta)
     # y = [n,d] outputs [n,num_samples,d]
     n, d = y.shape[0], y.shape[-1]
     yk = y.repeat_interleave(num_samples,dim=0)
-    samples, accepted_idx = get_rgo_sampling(yk,eta,distribution.log_prob,device, threshold, minimizer=minimizer)
+    samples, accepted_idx = get_rgo_sampling(yk,eta,distribution.log_prob,device, threshold, minimizer=distribution.potential_minimizer)
     samples = samples.reshape((n, -1, d))
     accepted_idx = accepted_idx.reshape((n,-1,d))
     return samples, accepted_idx
