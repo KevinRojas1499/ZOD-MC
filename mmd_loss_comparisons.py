@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import wandb
+import utils.gmm_utils
 import utils.plots
 import utils.densities
 import utils.mmd
@@ -9,12 +10,7 @@ import matplotlib.pyplot as plt
 import samplers.ula
 
 def get_run_name(config):
-    if config.score_method == 'quotient-estimator':
-        return f"SAMPLING {config.density} {config.sde_type} {config.score_method} {config.num_estimator_samples}"
-    if config.score_method == 'convolution':
-        return f"SAMPLING {config.density} {config.sde_type} {config.score_method} {config.sub_intervals_per_dim}"
-    if config.score_method == 'p0t':
-        return f'Disc_Steps {config.disc_steps} LangStepSize {config.ula_step_size}'
+    return f'Disc_Steps {config.disc_steps} LangStepSize {config.ula_step_size}'
 
 def init_wandb(config):
     wandb.init(
@@ -39,10 +35,10 @@ def eval(config):
     device = torch.device('cuda:0'if torch.cuda.is_available() else 'cpu')
     distribution = utils.densities.get_distribution(config,device)
     mmd = utils.mmd.MMDLoss()
-    
+    is_gmm = (config.density == 'gmm')
     # Baseline
     tot_samples = config.num_batches * config.sampling_batch_size
-    real_samples = distribution.sample(tot_samples)
+    real_samples = distribution.sample(tot_samples) if is_gmm else None
 
     gradient_complexity = 10 * np.arange(1,101,step=19)
     mmd_rdm = np.zeros_like(gradient_complexity,dtype='double')
@@ -68,30 +64,41 @@ def eval(config):
                                                         distribution.grad_log_prob,
                                                         .01,gc * config.disc_steps)
         
-        plot_limit = 15 if config.density == 'gmm' else 3
-        fig = utils.plots.plot_all_samples((samples_rejection,samples_rdm,samples_langevin),
-                                           ('Ours','Reverse Diffusion Monte Carlo', 'Langevin'),
-                                           plot_limit,distribution.log_prob)
+        plot_limit = 15 if is_gmm else 2
+        if is_gmm:
+            fig = utils.plots.plot_all_samples((real_samples, samples_rejection,samples_rdm,samples_langevin),
+                                            ('Ground Truth','Ours','Reverse Diffusion Monte Carlo', 'Langevin'),
+                                            plot_limit,distribution.log_prob)
+        else:
+            # Mueller
+            fig = utils.plots.plot_all_samples((samples_rejection,samples_rdm,samples_langevin),
+                                            ('Ours','Reverse Diffusion Monte Carlo', 'Langevin'),
+                                            plot_limit,distribution.log_prob)          
+        plt.close(fig)
         fig.savefig(f'plots/Gradient_complexity_{gc}.png', bbox_inches='tight')
         
-        mmd_rdm[i] = mmd.get_mmd_squared(samples_rdm,real_samples).detach().item()
-        mmd_rej[i] = mmd.get_mmd_squared(samples_rejection,real_samples).detach().item()
-        mmd_lang[i] = mmd.get_mmd_squared(samples_rejection,samples_langevin).detach().item()
+        if is_gmm:
+            mmd_rdm[i] = mmd.get_mmd_squared(samples_rdm,real_samples).detach().item()
+            mmd_rej[i] = mmd.get_mmd_squared(samples_rejection,real_samples).detach().item()
+            mmd_lang[i] = mmd.get_mmd_squared(samples_langevin, real_samples).detach().item()
+            
         
-    print(mmd_lang)
-    print(mmd_rej)
-    print(mmd_rdm)
-    # Save MMD Information    
-    np.savetxt('mmd_results',(gradient_complexity, mmd_rdm,mmd_rej,mmd_lang))
-    plt.plot(gradient_complexity,mmd_rdm,label='RDM')
-    plt.plot(gradient_complexity,mmd_rej,label='Ours')
-    plt.plot(gradient_complexity,mmd_lang,label='LMC')
-    plt.title('Gradient Complexity per Discretization Step')
-    plt.xlabel('Gradient Complexity')
-    plt.ylabel('MMD')
-    plt.legend()
-    plt.savefig('mmd_results.png')
-    wandb.log({'MMD Loss':plt})
+    if is_gmm:   
+        print(mmd_lang)
+        print(mmd_rej)
+        print(mmd_rdm)
+        # Save MMD Information    
+        np.savetxt('mmd_results',(gradient_complexity, mmd_rdm,mmd_rej,mmd_lang))
+        fig, ax = plt.subplots()
+        ax.plot(gradient_complexity,mmd_rdm,label='RDM')
+        ax.plot(gradient_complexity,mmd_rej,label='Ours')
+        ax.plot(gradient_complexity,mmd_lang,label='LMC')
+        ax.set_title('Gradient Complexity per Discretization Step')
+        ax.set_xlabel('Gradient Complexity')
+        ax.set_ylabel('MMD')
+        ax.legend()
+        fig.savefig('plots/mmd_results.png')
+        wandb.log({'MMD Loss':fig})
     wandb.finish()
 
 

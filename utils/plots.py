@@ -53,7 +53,7 @@ def plot_2d_dist_with_contour(data,log_prob):
     wandb.log({"Samples" : fig})
 
 def plot_all_samples(samples_array,labels,limit,log_prob=None):
-    fig, ax = plt.subplots(1,len(samples_array), figsize=(18,6), gridspec_kw={'width_ratios': [1, 1, 1]})
+    fig, ax = plt.subplots(1,len(samples_array), figsize=(24,6))
     for i, axis in enumerate(ax):
         samp = to_numpy(samples_array[i])
         axis.set_xlim([-limit,limit])
@@ -66,7 +66,7 @@ def plot_all_samples(samples_array,labels,limit,log_prob=None):
             pts = to_numpy(pts)
             axis.contourf(pts,pts,dens)
         
-        axis.scatter(samp[:,0],samp[:,1])
+        axis.scatter(samp[:,0],samp[:,1],s=5)
         axis.set_title(labels[i])
     return fig
 

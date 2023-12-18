@@ -17,10 +17,15 @@ def compute_stats_gmm(data, means):
         tot +=1
     empirical_means /= num_cluster
     weights = num_cluster/tot
-    print(empirical_means.cpu().numpy())
-    print(weights.cpu().numpy())
+    # print(empirical_means.cpu().numpy())
+    # print(weights.cpu().numpy())
     
     return empirical_means, weights
+
+def compute_stats_gmm_from_config(config, data, device):
+    params = yaml.safe_load(open(config.density_parameters_path))
+    means = to_tensor(params['means'],device)
+    return compute_stats_gmm(data,means)
 
 def get_l2_norm(x):
     return torch.sum(torch.sum(x**2,dim=-1)**.5)

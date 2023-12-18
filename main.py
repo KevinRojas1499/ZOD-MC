@@ -5,6 +5,7 @@ import generation_accuracy_experiments
 import fourier_experiments
 import experiments_based_on_p0t
 import mmd_loss_comparisons
+import radius_increase_experiments
 
 def parse_arguments():
     p = configargparse.ArgParser(description='Arguments for nonconvex sampling')
@@ -16,7 +17,7 @@ def parse_arguments():
     p.add_argument('--tags', type=str)
     
     # Mode
-    p.add_argument('--mode', choices=['sample','eval_mmd','estimator-experiments', 'generation-experiments','fourier-experiments','p0t-experiments'])
+    p.add_argument('--mode', choices=['sample','eval_mmd','radius','estimator-experiments', 'generation-experiments','fourier-experiments','p0t-experiments'])
     p.add_argument('--score_method', choices=['convolution','quotient-estimator','fourier', 'p0t','recursive'])
     p.add_argument('--p0t_method', choices=['rejection','ula'])
     p.add_argument('--dimension', type=int)
@@ -60,6 +61,8 @@ def main(config):
         run_toy.eval(config)
     elif config.mode == 'eval_mmd':
         mmd_loss_comparisons.eval(config)
+    elif config.mode == 'radius':
+        radius_increase_experiments.eval(config)
     elif config.mode == 'estimator-experiments':
         estimator_accuracy_experiments.run_experiments(config)
     elif config.mode == 'generation-experiments':
