@@ -1,11 +1,11 @@
 # Wandb info
 wandb_project_name: NonconvexSampling
-tags: results
+tags: experiments
 
 # Method
-mode: eval_mmd
+mode: sample
 score_method: p0t
-p0t_method: ula
+p0t_method: rejection
 
 # Estimator Information
 num_estimator_batches: 10
