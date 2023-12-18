@@ -104,12 +104,11 @@ class MultivariateGaussian(Distribution):
         log_prob = log_prob.view(new_shape)
         return log_prob
 
-    def gradient(self, x):
+    def grad_log_prob(self, x):
         # This is the gradient of p(x)
         curr_shape = x.shape
         x = x.view((-1,self.dim))
-        dens = torch.exp(self.log_prob(x))
-        grad = - dens * (self.inv_cov @ (x - self.mean).T).T
+        grad = - (self.inv_cov @ (x - self.mean).T).T
         grad = grad.view(curr_shape)
         return grad
     
@@ -154,19 +153,19 @@ class GaussianMixture(Distribution):
             self.gaussians = [MultivariateGaussian(means[i],variances[i]) for i in range(self.n)]
 
     def log_prob(self, x):
-        p = 0
+        log_probs = []
         for i in range(self.n):
-            p+= self.c[i] * torch.exp(self.gaussians[i].log_prob(x))
-        return torch.log(p)
-    
-    def gradient(self, x):
-        grad = 0
-        for i in range(self.n):
-            grad+= self.c[i] * self.gaussians[i].gradient(x)
-        return grad
+            log_probs.append( log(self.c[i]) + self.gaussians[i].log_prob(x) )
+        log_probs = torch.cat(log_probs,dim=-1)
+        return torch.logsumexp(log_probs,dim=-1,keepdim=True)
     
     def grad_log_prob(self, x):
-        return self.gradient(x)/(torch.exp(self.log_prob(x)) + 1e-8)
+        log_p = self.log_prob(x)
+        grad = 0
+        for i in range(self.n):
+            log_pi = self.gaussians[i].log_prob(x)
+            grad+= self.c[i] * torch.exp(log_pi) * self.gaussians[i].grad_log_prob(x)
+        return grad/(torch.exp(log_p) + 1e-8)
     
     def sample(self, num_samples):
         samples = torch.zeros(num_samples,self.dim,

@@ -35,7 +35,9 @@ def plot_2d_dist(data,ground_truth=None):
     fig.add_trace(go.Scatter(x=data[:,0], y=data[:,1],mode='markers'))
 
     wandb.log({"Samples" : fig})
-    
+
+def to_numpy(x):
+    return x.cpu().detach().numpy()
 def plot_2d_dist_with_contour(data,log_prob):
     l = 3
     nn = 100
@@ -50,8 +52,24 @@ def plot_2d_dist_with_contour(data,log_prob):
 
     wandb.log({"Samples" : fig})
 
-def to_numpy(x):
-    return x.cpu().detach().numpy()
+def plot_all_samples(samples_array,labels,limit,log_prob=None):
+    fig, ax = plt.subplots(1,len(samples_array), figsize=(18,6), gridspec_kw={'width_ratios': [1, 1, 1]})
+    for i, axis in enumerate(ax):
+        samp = to_numpy(samples_array[i])
+        axis.set_xlim([-limit,limit])
+        axis.set_ylim([-limit,limit])
+        if log_prob is not None:
+            pts = torch.linspace(-limit, limit, 100)
+            xx , yy = torch.meshgrid(pts,pts,indexing='xy')
+            pts_grid = torch.cat((xx.unsqueeze(-1),yy.unsqueeze(-1)),dim=-1).to(device='cuda')
+            dens = -log_prob(pts_grid).squeeze(-1).cpu().numpy()
+            pts = to_numpy(pts)
+            axis.contourf(pts,pts,dens)
+        
+        axis.scatter(samp[:,0],samp[:,1])
+        axis.set_title(labels[i])
+    return fig
+
    
 def plot_samples(config, distribution, samples,real_samples=None):
     dim = config.dimension

@@ -3,14 +3,14 @@ wandb_project_name: NonconvexSampling
 tags: experiments
 
 # Method
-mode: sample
+mode: eval_mmd
 score_method: p0t
-p0t_method: rejection
+p0t_method: ula
 
 # Estimator Information
 num_estimator_batches: 1
-num_estimator_samples: 10000
-num_sampler_iterations: 10
+num_estimator_samples: 1
+num_sampler_iterations: 1
 max_iters_optimization: 50
 num_recursive_steps: 3 # Increasing this makes you use way too much memory
 ula_step_size: 0.01
@@ -29,6 +29,6 @@ bias: 2
 sampling_method: ei
 num_batches: 1
 sampling_batch_size: 1000
-sampling_eps: 5e-2
+sampling_eps: 5e-3
 disc_steps: 25
 ula_steps: 0

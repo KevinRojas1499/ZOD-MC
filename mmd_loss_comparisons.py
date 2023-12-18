@@ -6,6 +6,7 @@ import utils.densities
 import utils.mmd
 import sample
 import matplotlib.pyplot as plt
+import samplers.ula
 
 def get_run_name(config):
     if config.score_method == 'quotient-estimator':
@@ -43,16 +44,18 @@ def eval(config):
     tot_samples = config.num_batches * config.sampling_batch_size
     real_samples = distribution.sample(tot_samples)
 
-    gradient_complexity = 10 * np.arange(1,101,step=7)
-    mmd_lang = np.zeros_like(gradient_complexity,dtype='double')
+    gradient_complexity = 10 * np.arange(1,101,step=19)
+    mmd_rdm = np.zeros_like(gradient_complexity,dtype='double')
     mmd_rej = np.zeros_like(gradient_complexity,dtype='double')
+    mmd_lang = np.zeros_like(gradient_complexity,dtype='double')
+    
     print(gradient_complexity)
     for i, gc in enumerate(gradient_complexity):
-        # Langevin
+        # Reverse Diffusion Monte Carlo
         config.p0t_method = 'ula'
         config.num_sampler_iterations = 10
         config.num_estimator_samples = gc//config.num_sampler_iterations
-        samples_langevin = sample.sample(config)
+        samples_rdm = sample.sample(config)
         
         # Rejection
         config.p0t_method = 'rejection'
@@ -60,14 +63,29 @@ def eval(config):
         config.num_estimator_samples = gc//config.num_estimator_batches
         samples_rejection = sample.sample(config)
         
-        mmd_lang[i] = mmd.get_mmd_squared(samples_langevin,real_samples).detach().item()
-        mmd_rej[i] = mmd.get_mmd_squared(samples_rejection,real_samples).detach().item()
+        # Langevin
+        samples_langevin = samplers.ula.get_ula_samples(torch.randn_like(samples_rejection),
+                                                        distribution.grad_log_prob,
+                                                        .01,gc * config.disc_steps)
         
-    np.savetext('mmd_results',(gradient_complexity, mmd_lang,mmd_rej))
+        plot_limit = 15 if config.density == 'gmm' else 3
+        fig = utils.plots.plot_all_samples((samples_rejection,samples_rdm,samples_langevin),
+                                           ('Ours','Reverse Diffusion Monte Carlo', 'Langevin'),
+                                           plot_limit,distribution.log_prob)
+        fig.savefig(f'plots/Gradient_complexity_{gc}.png', bbox_inches='tight')
+        
+        mmd_rdm[i] = mmd.get_mmd_squared(samples_rdm,real_samples).detach().item()
+        mmd_rej[i] = mmd.get_mmd_squared(samples_rejection,real_samples).detach().item()
+        mmd_lang[i] = mmd.get_mmd_squared(samples_rejection,samples_langevin).detach().item()
+        
     print(mmd_lang)
     print(mmd_rej)
-    plt.plot(gradient_complexity,mmd_lang,label='RDM')
+    print(mmd_rdm)
+    # Save MMD Information    
+    np.savetxt('mmd_results',(gradient_complexity, mmd_rdm,mmd_rej,mmd_lang))
+    plt.plot(gradient_complexity,mmd_rdm,label='RDM')
     plt.plot(gradient_complexity,mmd_rej,label='Ours')
+    plt.plot(gradient_complexity,mmd_lang,label='LMC')
     plt.title('Gradient Complexity per Discretization Step')
     plt.xlabel('Gradient Complexity')
     plt.ylabel('MMD')
