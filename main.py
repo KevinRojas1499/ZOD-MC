@@ -18,8 +18,8 @@ def parse_arguments():
     
     # Mode
     p.add_argument('--mode', choices=['sample','eval_mmd','radius','estimator-experiments', 'generation-experiments','fourier-experiments','p0t-experiments'])
-    p.add_argument('--score_method', choices=['convolution','quotient-estimator','fourier', 'p0t','recursive'])
-    p.add_argument('--p0t_method', choices=['rejection','ula'])
+    p.add_argument('--score_method', choices=['convolution','quotient-estimator','fourier', 'p0t','recursive'],default='p0t')
+    p.add_argument('--p0t_method', choices=['rejection','ula'],default='rejection')
     p.add_argument('--dimension', type=int)
     
     # Sampler details
@@ -38,9 +38,9 @@ def parse_arguments():
     p.add_argument('--sub_intervals_per_dim',type=int)
    
     # SDE Parameters
-    p.add_argument('--sde_type', choices=['vp'])
-    p.add_argument('--multiplier', default=4, type=float)
-    p.add_argument('--bias', default=0., type=float)
+    p.add_argument('--sde_type', choices=['vp'], default='vp')
+    p.add_argument('--multiplier', default=0, type=float)
+    p.add_argument('--bias', default=2., type=float)
 
     # Sampling Parameters
     p.add_argument('--sampling_method', choices=['ei','em'])

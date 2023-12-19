@@ -69,16 +69,17 @@ def eval(config):
                                                         .01,gc * config.disc_steps)
         
         if dim == 2:
-            plot_limit = 15 if is_gmm else 2
+            xlim = [-15,15] if is_gmm else [-2,2]
+            ylim = [-15,15] if is_gmm else [-1,2]
             if is_gmm:
                 fig = utils.plots.plot_all_samples((real_samples, samples_rejection,samples_rdm,samples_langevin),
                                                 ('Ground Truth','Ours','Reverse Diffusion Monte Carlo', 'Langevin'),
-                                                plot_limit,distribution.log_prob)
+                                                xlim,ylim,distribution.log_prob)
             else:
                 # Mueller
                 fig = utils.plots.plot_all_samples((samples_rejection,samples_rdm,samples_langevin),
                                                 ('Ours','Reverse Diffusion Monte Carlo', 'Langevin'),
-                                                plot_limit,distribution.log_prob)          
+                                                xlim,ylim,distribution.log_prob)          
             plt.close(fig)
             fig.savefig(f'plots/Gradient_complexity_{gc}.png', bbox_inches='tight')
             

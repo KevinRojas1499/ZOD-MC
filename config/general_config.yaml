@@ -3,8 +3,8 @@ wandb_project_name: NonconvexSampling
 tags: experiments
 
 # Method
-mode: radius
-score_method: p0t
+mode: sample
+score_method: convolution
 p0t_method: rejection
 
 # Estimator Information
@@ -27,7 +27,7 @@ bias: 2
 
 # Sampling parameters
 sampling_method: ei
-num_batches: 1
+num_batches: 10
 sampling_batch_size: 1000
 T: 10
 sampling_eps: 5e-3

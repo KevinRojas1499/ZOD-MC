@@ -7,20 +7,18 @@ class SDE(abc.ABC):
     """Construct an SDE."""
     super().__init__()
 
-  @property
-  @abc.abstractmethod
-  def T(self):
-    """Final Time"""
+    @property
+    @abc.abstractproperty
+    def T(self):
+      """Final Time"""
     pass
 
   @abc.abstractmethod
   def drift(self, x, t):
-    """Returns the drift of the sde at x,t"""
     pass
 
   @abc.abstractmethod
   def diffusion(self, x, t):
-    """Returns the diffusion of the sde at x,t"""
     pass
 
   @abc.abstractmethod
@@ -41,7 +39,7 @@ class VP(SDE):
     self._T = config.T
     self.delta = config.sampling_eps
 
-  def get_T(self):
+  def T(self):
     return self._T
   
   def scheduling(self, t):

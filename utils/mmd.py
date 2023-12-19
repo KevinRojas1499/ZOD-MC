@@ -7,7 +7,7 @@ class RBF_Kernel():
 
     def __init__(self, n_kernels=10, mul_factor=2.0):
         self.n_kernels = n_kernels
-        self.bandwidth_multipliers = mul_factor ** (torch.arange(-n_kernels//2, n_kernels//2 + n_kernels))
+        self.bandwidth_multipliers = mul_factor ** (torch.arange(-2, -2 + n_kernels))
         
     def get_kernel_value(self, x, y):
         distances = torch.cdist(x, y) ** 2

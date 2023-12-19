@@ -52,19 +52,21 @@ def plot_2d_dist_with_contour(data,log_prob):
 
     wandb.log({"Samples" : fig})
 
-def plot_all_samples(samples_array,labels,limit,log_prob=None):
+def plot_all_samples(samples_array,labels,xlim, ylim,log_prob=None):
     fig, ax = plt.subplots(1,len(samples_array), figsize=(24,6))
     for i, axis in enumerate(ax):
         samp = to_numpy(samples_array[i])
-        # axis.set_xlim([-limit,limit])
-        # axis.set_ylim([-limit,limit])
+        axis.set_xlim(xlim)
+        axis.set_ylim(ylim)
         if log_prob is not None:
-            pts = torch.linspace(-limit, limit, 100)
-            xx , yy = torch.meshgrid(pts,pts,indexing='xy')
+            pts_x = torch.linspace(xlim[0], xlim[1], 100)
+            pts_y = torch.linspace(ylim[0], ylim[1], 100)
+            
+            xx , yy = torch.meshgrid(pts_x,pts_y,indexing='xy')
             pts_grid = torch.cat((xx.unsqueeze(-1),yy.unsqueeze(-1)),dim=-1).to(device='cuda')
             dens = -log_prob(pts_grid).squeeze(-1).cpu().numpy()
-            pts = to_numpy(pts)
-            axis.contourf(pts,pts,dens)
+            pts_x, pts_y = to_numpy(pts_x), to_numpy(pts_y)
+            axis.contourf(pts_x,pts_y,dens)
         
         axis.scatter(samp[:,0],samp[:,1],s=5)
         axis.set_title(labels[i])

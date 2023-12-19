@@ -33,9 +33,8 @@ def get_gmm_radius(K,R,device):
     c = torch.ones(K,device=device)/K
     circle = torch.tensor([[cos(2*pi*i/K),sin(2*pi*i/K)] for i in range(K)]) \
         .to(dtype=torch.double, device=device) 
-    offset = torch.tensor([2.,0.],dtype=torch.double, device=device)
+    offset = torch.tensor([2.,2.],dtype=torch.double, device=device)
     means = R * (circle + offset)
-    means = R * means
     variances = torch.cat([torch.eye(2).unsqueeze(0) * sigma for i in range(K)],dim=0) \
         .to(dtype=torch.double, device=device)
     return utils.densities.GaussianMixture(c,means,variances)
@@ -47,36 +46,48 @@ def eval(config):
     device = torch.device('cuda:0'if torch.cuda.is_available() else 'cpu')
     mmd = utils.mmd.MMDLoss()
 
-    radiuses = np.arange(1,20)
+    radiuses = np.arange(2,20,step=2)
     mmd_rdm = np.zeros_like(radiuses,dtype='double')
     mmd_rej = np.zeros_like(radiuses,dtype='double')
     mmd_lang = np.zeros_like(radiuses,dtype='double')
     
-    for i, radius in enumerate(radiuses):
-        distribution = get_gmm_radius(6,radius,device)
+    for i, r in enumerate(radiuses):
+        distribution = get_gmm_radius(6,r,device)
+
 
         # Baseline
         tot_samples = config.num_batches * config.sampling_batch_size
         real_samples = distribution.sample(tot_samples)
     
         # Reverse Diffusion Monte Carlo
+        distribution.keep_minimizer = False
         config.p0t_method = 'ula'
+        config.num_estimator_samples = 100
+        config.num_sampler_iterations = 30
+        config.ula_step_size = 0.01        
         samples_rdm = sample.sample(config,distribution)
         
         # Rejection
+        distribution.keep_minimizer = True
+        config.num_estimator_batches = 3
+        config.num_estimator_samples = 1000
         config.p0t_method = 'rejection'
         samples_rejection = sample.sample(config,distribution)
         
         # Langevin
+        distribution.keep_minimizer = False
+        ula_step_size = 0.1
+        num_steps_lang = 3000 # Gradient complexity for langevyn is much smaller
         samples_langevin = samplers.ula.get_ula_samples(torch.randn_like(samples_rejection),
                                                         distribution.grad_log_prob,
-                                                        .01,config.num_sampler_iterations * config.disc_steps)
+                                                        ula_step_size,num_steps_lang,display_pbar=True)
          
-        plot_limit = 20
+        xlim = [2*r - 3 * r, 2*r + 3 * r ]
+        ylim = [2*r - 3 * r, 2*r + 3 * r]
         fig = utils.plots.plot_all_samples((real_samples, samples_rejection,samples_rdm,samples_langevin),
                                         ('Ground Truth','Ours','Reverse Diffusion Monte Carlo', 'Langevin'),
-                                        plot_limit,None)
-        fig.savefig(f'plots/Radius_{radius}.png', bbox_inches='tight')
+                                        xlim,ylim,distribution.log_prob)
+        fig.savefig(f'plots/Radius_{r}.png', bbox_inches='tight')
         plt.close(fig)
         
         mmd_rdm[i] = mmd.get_mmd_squared(samples_rdm,real_samples).detach().item()

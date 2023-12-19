@@ -3,6 +3,8 @@ import torch
 from torch.distributions import Normal
 import yaml
 from math import pi, log
+from bisect import bisect_left
+from random import random
 
 class Distribution(abc.ABC):
     """ Potentials abstract class """
@@ -166,6 +168,10 @@ class GaussianMixture(Distribution):
         self.n = len(c)
         self.c = c
         self.dim = means[0].shape[0]
+        self.accum = [0.]
+        for i in range(self.n):
+            self.accum.append(self.accum[i] + self.c[i].detach().item())
+        self.accum = self.accum[1:]
         if self.dim == 1:
             self.gaussians = [OneDimensionalGaussian(means[i],variances[i]) for i in range(self.n)]
         else:
@@ -192,7 +198,7 @@ class GaussianMixture(Distribution):
                               dtype=self.gaussians[0].mean.dtype,
                               device=self.gaussians[0].mean.device)
         for i in range(num_samples):
-            idx = torch.randint(0,self.n, (1,))
+            idx = bisect_left(self.accum, random())
             samples[i] = self.gaussians[idx].sample()
         return samples    
     
