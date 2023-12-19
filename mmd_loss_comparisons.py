@@ -42,8 +42,8 @@ def eval(config):
     real_samples = distribution.sample(tot_samples) if is_gmm else None
 
     
-    max_grad_complexity = 101 if dim == 2 else 1000
-    step = 18 if dim == 2 else 100
+    max_grad_complexity = 103 if dim == 2 else 1003
+    step = 20 if dim == 2 else 200
     gradient_complexity = 10 * np.arange(1,max_grad_complexity,step=step)
     mmd_rdm = np.zeros_like(gradient_complexity,dtype='double')
     mmd_rej = np.zeros_like(gradient_complexity,dtype='double')
@@ -53,20 +53,23 @@ def eval(config):
     for i, gc in enumerate(gradient_complexity):
         # Reverse Diffusion Monte Carlo
         config.p0t_method = 'ula'
-        config.num_sampler_iterations = 10
-        config.num_estimator_samples = gc//config.num_sampler_iterations
+        config.num_estimator_samples = 100
+        config.num_sampler_iterations = (gc//config.num_estimator_samples) + 1
+        config.ula_step_size = 0.1
+        config.sampling_eps = 5e-2 #RDMC is more sensitive to the early stopping
         samples_rdm = sample.sample(config)
         
         # Rejection
         config.p0t_method = 'rejection'
         config.num_estimator_batches = 10
         config.num_estimator_samples = gc//config.num_estimator_batches
+        config.sampling_eps = 5e-3
         samples_rejection = sample.sample(config)
         
         # Langevin
         samples_langevin = samplers.ula.get_ula_samples(torch.randn_like(samples_rejection),
                                                         distribution.grad_log_prob,
-                                                        .01,gc * config.disc_steps)
+                                                        .01,gc * config.disc_steps, display_pbar=False)
         
         if dim == 2:
             xlim = [-15,15] if is_gmm else [-2,2]

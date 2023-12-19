@@ -64,7 +64,8 @@ def eval(config):
         config.p0t_method = 'ula'
         config.num_estimator_samples = 100
         config.num_sampler_iterations = 30
-        config.ula_step_size = 0.01        
+        config.ula_step_size = 0.1     
+        config.sampling_eps = 5e-2 #RDMC is more sensitive to the early stopping
         samples_rdm = sample.sample(config,distribution)
         
         # Rejection
@@ -72,6 +73,7 @@ def eval(config):
         config.num_estimator_batches = 3
         config.num_estimator_samples = 1000
         config.p0t_method = 'rejection'
+        config.sampling_eps = 5e-3
         samples_rejection = sample.sample(config,distribution)
         
         # Langevin
@@ -80,7 +82,7 @@ def eval(config):
         num_steps_lang = 3000 # Gradient complexity for langevyn is much smaller
         samples_langevin = samplers.ula.get_ula_samples(torch.randn_like(samples_rejection),
                                                         distribution.grad_log_prob,
-                                                        ula_step_size,num_steps_lang,display_pbar=True)
+                                                        ula_step_size,num_steps_lang,display_pbar=False)
          
         xlim = [2*r - 3 * r, 2*r + 3 * r ]
         ylim = [2*r - 3 * r, 2*r + 3 * r]
