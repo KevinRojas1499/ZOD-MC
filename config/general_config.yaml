@@ -3,7 +3,7 @@ wandb_project_name: NonconvexSampling
 tags: experiments
 
 # Method
-mode: sample
+mode: eval_mmd
 score_method: p0t
 p0t_method: ula
 

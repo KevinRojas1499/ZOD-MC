@@ -55,7 +55,6 @@ def eval(config):
         config.p0t_method = 'ula'
         config.num_estimator_samples = 100
         config.num_sampler_iterations = (gc//config.num_estimator_samples) + 1
-        config.ula_step_size = 0.1
         config.sampling_eps = 5e-2 #RDMC is more sensitive to the early stopping
         samples_rdm = sample.sample(config)
         
@@ -84,7 +83,7 @@ def eval(config):
                                                 ('Ours','Reverse Diffusion Monte Carlo', 'Langevin'),
                                                 xlim,ylim,distribution.log_prob)          
             plt.close(fig)
-            fig.savefig(f'plots/Gradient_complexity_{gc}.png', bbox_inches='tight')
+            fig.savefig(f'plots/Gradient_complexity_{gc}_{config.density}.png', bbox_inches='tight')
             
         if is_gmm:
             mmd_rdm[i] = mmd.get_mmd_squared(samples_rdm,real_samples).detach().item()
@@ -106,7 +105,7 @@ def eval(config):
         ax.set_xlabel('Gradient Complexity')
         ax.set_ylabel('MMD')
         ax.legend()
-        fig.savefig(f'plots/mmd_results_{dim}.png')
+        fig.savefig(f'plots/mmd_results_{dim}_{config.density}.png')
         wandb.log({'MMD Loss':fig})
     wandb.finish()
 

@@ -63,14 +63,14 @@ def eval(config):
         distribution.keep_minimizer = False
         config.p0t_method = 'ula'
         config.num_estimator_samples = 100
-        config.num_sampler_iterations = 30
+        config.num_sampler_iterations = 50
         config.ula_step_size = 0.1     
         config.sampling_eps = 5e-2 #RDMC is more sensitive to the early stopping
         samples_rdm = sample.sample(config,distribution)
         
         # Rejection
         distribution.keep_minimizer = True
-        config.num_estimator_batches = 3
+        config.num_estimator_batches = 5
         config.num_estimator_samples = 1000
         config.p0t_method = 'rejection'
         config.sampling_eps = 5e-3
