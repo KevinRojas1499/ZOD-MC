@@ -11,7 +11,7 @@ class Distribution(abc.ABC):
         # Min
         self.potential_minimizer = None
         self.potential_min = None
-        self.keep_minimizer = True # Defaults to true, set to false for simple distributions
+        self.keep_minimizer = False # Defaults to true, set to false for simple distributions
     
     @abc.abstractmethod
     def _log_prob(self, x):
@@ -27,7 +27,7 @@ class Distribution(abc.ABC):
             minimum = -log_dens_vals[argmin] 
             
             if self.potential_min is None or minimum < self.potential_min:
-                print(f'Updating Minimizer {xp[argmin]} {minimum}')
+                # print(f'Updating Minimizer {xp[argmin]} {minimum}')
                 self.potential_min = minimum
                 self.potential_minimizer = xp[argmin]  
         return log_dens
@@ -44,7 +44,6 @@ class Distribution(abc.ABC):
 class ModifiedMueller(Distribution):
     def __init__(self, A, a, b, c, XX, YY):
         super().__init__()
-        self.keep_minimizer = False # Newton does a good enough job
         self.dim = 2
         self.n = 4
         self.A = A
@@ -102,7 +101,6 @@ class ModifiedMueller(Distribution):
 class MultivariateGaussian(Distribution):
     def __init__(self, mean, cov):
         super().__init__()
-        self.keep_minimizer = False
         self.mean = mean
         self.cov = cov
         self.Q = torch.linalg.cholesky(self.cov)
@@ -137,7 +135,6 @@ class OneDimensionalGaussian(Distribution):
     # This is a wrapper for Normal
     def __init__(self, mean, cov):
         super().__init__()
-        self.keep_minimizer = False
         self.mean = mean
         self.cov = cov
         self.dist = Normal(loc=mean, scale=cov**.5)

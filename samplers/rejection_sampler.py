@@ -5,11 +5,11 @@ from utils.optimizers import nesterovs_minimizer, gradient_descent
 def sum_last_dim(x):
     return torch.sum(x,dim=-1, keepdim=True)
 
-def get_rgo_sampling(xk, eta, grad_log_prob, device, threshold, minimizer=None):
+def get_rgo_sampling(xk, eta, log_prob, device, threshold, minimizer=None):
     # Sampling from exp(-f(x) - (x-y)^2/2eta)
     num_samples, d = xk.shape #xk is assumed to be [n,d]
     accepted_samples = torch.ones_like(xk) # 1 if rejected 0 if accepted
-    potential = lambda x : - grad_log_prob(x)
+    potential = lambda x : - log_prob(x)
     w = nesterovs_minimizer(xk, potential, threshold) if \
         minimizer == None else minimizer
     f_eta = potential(w)
