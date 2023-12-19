@@ -38,16 +38,17 @@ class VP(SDE):
     super().__init__()
     self.betad = config.multiplier
     self.betamin = config.bias
+    self._T = config.T
     self.delta = config.sampling_eps
 
+  def get_T(self):
+    return self._T
+  
   def scheduling(self, t):
         return (torch.exp(self.betad * t**2/2 + self.betamin *t) -1)**.5
   def scaling(self, t):
     return torch.exp(-(self.betad * t**2/2 + self.betamin * t)/2)
   
-  def T(self):
-    return 2.
-
   def drift(self, x,t):
     return - (self.betad * t + self.betamin) * x /2
   

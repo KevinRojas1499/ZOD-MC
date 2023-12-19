@@ -9,10 +9,11 @@ import sde_lib
 import samplers.ula as ula
 
 
-def sample(config):
+def sample(config, distribution=None):
     # Set up
     device = torch.device('cuda:0'if torch.cuda.is_available() else 'cpu')
-    distribution = utils.densities.get_distribution(config,device)
+    distribution = utils.densities.get_distribution(config,device) \
+        if distribution is None else distribution
     sde = sde_lib.get_sde(config)
     model = utils.score_estimators.get_score_function(config,distribution,  sde, device)
     

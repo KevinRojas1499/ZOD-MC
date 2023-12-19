@@ -30,12 +30,14 @@ def setup_seed(seed):
 
 def get_gmm_radius(K,R,device):
     sigma = 1
-    c = torch.ones(K,device) * sigma
-    means = torch.tensor([[cos(2*pi*i/K),sin(2*pi*i/K)] for i in range(K)]
-                         ,dtype=torch.double, device=device)
+    c = torch.ones(K,device=device)/K
+    circle = torch.tensor([[cos(2*pi*i/K),sin(2*pi*i/K)] for i in range(K)]) \
+        .to(dtype=torch.double, device=device) 
+    offset = torch.tensor([2.,0.],dtype=torch.double, device=device)
+    means = R * (circle + offset)
     means = R * means
-    variances = torch.tensor([torch.eye(2) * sigma for i in range(K)],
-                             dtype=torch.double, device=device)
+    variances = torch.cat([torch.eye(2).unsqueeze(0) * sigma for i in range(K)],dim=0) \
+        .to(dtype=torch.double, device=device)
     return utils.densities.GaussianMixture(c,means,variances)
 
 def eval(config):
@@ -59,11 +61,11 @@ def eval(config):
     
         # Reverse Diffusion Monte Carlo
         config.p0t_method = 'ula'
-        samples_rdm = sample.sample(config)
+        samples_rdm = sample.sample(config,distribution)
         
         # Rejection
         config.p0t_method = 'rejection'
-        samples_rejection = sample.sample(config)
+        samples_rejection = sample.sample(config,distribution)
         
         # Langevin
         samples_langevin = samplers.ula.get_ula_samples(torch.randn_like(samples_rejection),
@@ -71,11 +73,11 @@ def eval(config):
                                                         .01,config.num_sampler_iterations * config.disc_steps)
          
         plot_limit = 20
-        fig = utils.plots.plot_all_samples((samples_rejection,samples_rdm,samples_langevin),
-                                           ('Ours','Reverse Diffusion Monte Carlo', 'Langevin'),
-                                           plot_limit,distribution.log_prob)
-        plt.close(fig)
+        fig = utils.plots.plot_all_samples((real_samples, samples_rejection,samples_rdm,samples_langevin),
+                                        ('Ground Truth','Ours','Reverse Diffusion Monte Carlo', 'Langevin'),
+                                        plot_limit,None)
         fig.savefig(f'plots/Radius_{radius}.png', bbox_inches='tight')
+        plt.close(fig)
         
         mmd_rdm[i] = mmd.get_mmd_squared(samples_rdm,real_samples).detach().item()
         mmd_rej[i] = mmd.get_mmd_squared(samples_rejection,real_samples).detach().item()
@@ -95,7 +97,7 @@ def eval(config):
     ax.set_xlabel('radius')
     ax.set_ylabel('MMD')
     ax.legend()
-    fig.savefig('plots/mmd_results.png')
+    fig.savefig('plots/radius_mmd_results.png')
     wandb.log({'MMD Loss':fig})
     wandb.finish()
 

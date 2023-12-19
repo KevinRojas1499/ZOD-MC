@@ -46,6 +46,7 @@ def parse_arguments():
     p.add_argument('--sampling_method', choices=['ei','em'])
     p.add_argument('--num_batches', type=int)
     p.add_argument('--sampling_batch_size',type=int)
+    p.add_argument('--T', type=float) # early stopping    
     p.add_argument('--sampling_eps', type=float) # early stopping
     p.add_argument('--disc_steps',type=int)
     p.add_argument('--ula_steps',type=int,default=0) # Finish off with some ula steps

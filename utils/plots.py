@@ -56,8 +56,8 @@ def plot_all_samples(samples_array,labels,limit,log_prob=None):
     fig, ax = plt.subplots(1,len(samples_array), figsize=(24,6))
     for i, axis in enumerate(ax):
         samp = to_numpy(samples_array[i])
-        axis.set_xlim([-limit,limit])
-        axis.set_ylim([-limit,limit])
+        # axis.set_xlim([-limit,limit])
+        # axis.set_ylim([-limit,limit])
         if log_prob is not None:
             pts = torch.linspace(-limit, limit, 100)
             xx , yy = torch.meshgrid(pts,pts,indexing='xy')

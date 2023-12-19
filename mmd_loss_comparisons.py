@@ -36,11 +36,15 @@ def eval(config):
     distribution = utils.densities.get_distribution(config,device)
     mmd = utils.mmd.MMDLoss()
     is_gmm = (config.density == 'gmm')
+    dim = config.dimension
     # Baseline
     tot_samples = config.num_batches * config.sampling_batch_size
     real_samples = distribution.sample(tot_samples) if is_gmm else None
 
-    gradient_complexity = 10 * np.arange(1,101,step=19)
+    
+    max_grad_complexity = 101 if dim == 2 else 1000
+    step = 18 if dim == 2 else 100
+    gradient_complexity = 10 * np.arange(1,max_grad_complexity,step=step)
     mmd_rdm = np.zeros_like(gradient_complexity,dtype='double')
     mmd_rej = np.zeros_like(gradient_complexity,dtype='double')
     mmd_lang = np.zeros_like(gradient_complexity,dtype='double')
@@ -64,19 +68,20 @@ def eval(config):
                                                         distribution.grad_log_prob,
                                                         .01,gc * config.disc_steps)
         
-        plot_limit = 15 if is_gmm else 2
-        if is_gmm:
-            fig = utils.plots.plot_all_samples((real_samples, samples_rejection,samples_rdm,samples_langevin),
-                                            ('Ground Truth','Ours','Reverse Diffusion Monte Carlo', 'Langevin'),
-                                            plot_limit,distribution.log_prob)
-        else:
-            # Mueller
-            fig = utils.plots.plot_all_samples((samples_rejection,samples_rdm,samples_langevin),
-                                            ('Ours','Reverse Diffusion Monte Carlo', 'Langevin'),
-                                            plot_limit,distribution.log_prob)          
-        plt.close(fig)
-        fig.savefig(f'plots/Gradient_complexity_{gc}.png', bbox_inches='tight')
-        
+        if dim == 2:
+            plot_limit = 15 if is_gmm else 2
+            if is_gmm:
+                fig = utils.plots.plot_all_samples((real_samples, samples_rejection,samples_rdm,samples_langevin),
+                                                ('Ground Truth','Ours','Reverse Diffusion Monte Carlo', 'Langevin'),
+                                                plot_limit,distribution.log_prob)
+            else:
+                # Mueller
+                fig = utils.plots.plot_all_samples((samples_rejection,samples_rdm,samples_langevin),
+                                                ('Ours','Reverse Diffusion Monte Carlo', 'Langevin'),
+                                                plot_limit,distribution.log_prob)          
+            plt.close(fig)
+            fig.savefig(f'plots/Gradient_complexity_{gc}.png', bbox_inches='tight')
+            
         if is_gmm:
             mmd_rdm[i] = mmd.get_mmd_squared(samples_rdm,real_samples).detach().item()
             mmd_rej[i] = mmd.get_mmd_squared(samples_rejection,real_samples).detach().item()
@@ -97,7 +102,7 @@ def eval(config):
         ax.set_xlabel('Gradient Complexity')
         ax.set_ylabel('MMD')
         ax.legend()
-        fig.savefig('plots/mmd_results.png')
+        fig.savefig(f'plots/mmd_results_{dim}.png')
         wandb.log({'MMD Loss':fig})
     wandb.finish()
 
