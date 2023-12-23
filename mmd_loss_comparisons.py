@@ -14,7 +14,12 @@ def setup_seed(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
-     
+
+
+def get_num_methods(config):
+    num = len(config.methods_to_run) + len(config.baselines)
+    num += 1 if config.eval_mmd else num
+    return num     
 
 def eval(config):
     setup_seed(123)    
@@ -28,10 +33,7 @@ def eval(config):
 
     # Baseline
     tot_samples = config.num_batches * config.sampling_batch_size
-    num_methods = len(config.methods_to_run) + len(config.baselines)
-    if eval_mmd:
-        real_samples = distribution.sample(tot_samples)
-        num_methods+=1
+    num_methods = get_num_methods(config)
         
     method_names = [''] * num_methods
     gradient_complexity = config.num_samples_for_rdmc * np.arange(config.min_num_iters_rdmc,
@@ -42,6 +44,7 @@ def eval(config):
     mmd_stats = np.zeros((num_methods, *gradient_complexity.shape),dtype='double')
     k = 0
     if eval_mmd:
+        real_samples = distribution.sample(tot_samples)
         method_names[0] = 'Ground Truth'
         for i in range(len(gradient_complexity)):
             samples_all_methods[0][i] = real_samples
@@ -78,30 +81,35 @@ def eval(config):
     for baseline in config.baselines:
         if baseline == 'langevin': 
             method_names[k] = 'langevin'
+            prev = 0
+            samples_langevin = torch.randn((tot_samples,dim), device=device)
             for i, gc in enumerate(gradient_complexity):
-                samples_langevin = samplers.ula.get_ula_samples(torch.randn_like(samples_rejection),
+                samples_langevin = samplers.ula.get_ula_samples(samples_langevin,
                                                                 distribution.grad_log_prob,
                                                                 config.langevin_step_size,
-                                                                gc * config.disc_steps,
+                                                                (gc - prev) ,
                                                                 display_pbar=False)
+                prev = gc
                 samples_all_methods[k][i] = samples_langevin
                 if eval_mmd:
                     mmd_stats[k][i] = mmd.get_mmd_squared(samples_langevin,real_samples).detach().item()
         elif baseline == 'proximal':
             method_names[k] = 'proximal'
+            prev = 0
+            samples_proximal = torch.randn((tot_samples,dim), device=device)
             for i, gc in enumerate(gradient_complexity):
-                samples_proximal = samplers.proximal_sampler.get_samples(torch.randn_like(samples_rejection),
+                samples_proximal = samplers.proximal_sampler.get_samples(samples_proximal,
                                                             distribution,
                                                             config.proximal_M,
-                                                            gc * config.disc_steps,
+                                                            (gc - prev),
                                                             1,
                                                             device).squeeze(1)
-                
+                prev = gc
                 samples_all_methods[k][i] = samples_proximal
                 if eval_mmd:
                     mmd_stats[k][i] = mmd.get_mmd_squared(samples_proximal,real_samples).detach().item()
         else:
-            print('The baseline method has not been implemented yet')
+            print(f'The baseline method {baseline} has not been implemented yet')
         k+=1    
     
     
@@ -127,3 +135,4 @@ def eval(config):
         ax.set_ylabel('MMD')
         ax.legend()
         fig.savefig(f'plots/mmd_results_{dim}_{config.density}.png')
+

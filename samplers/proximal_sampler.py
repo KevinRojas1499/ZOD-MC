@@ -2,7 +2,7 @@ import torch
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from utils.densities import Distribution
-
+from utils.plots import plot_2d_dist_with_contour
 from utils.optimizers import nesterovs_minimizer
 
 def sum_last_dim(x):
@@ -23,7 +23,7 @@ def get_rgo_sampling(xk, yk, eta, dist : Distribution, M, device, initial_cond_f
     u = (yk/eta - gradw - M * w) * var
     
     num_rejection_iters = 0
-    while num_acc_samples < num_samples * d and num_rejection_iters < 50:
+    while num_acc_samples < num_samples * d and num_rejection_iters < 20:
         num_rejection_iters+=1
         xk = u + var **.5 * accepted_samples * torch.randn_like(xk)
         
@@ -45,14 +45,25 @@ def get_samples(x0,dist : Distribution, M, num_iters, num_samples, device):
     # i.e. the total number of samples is n * num_samples
     # returns [n,m,d] 
     n, d = x0.shape[0], x0.shape[-1]
-    xk = x0.repeat((num_samples,1))
+    xk = x0.repeat_interleave(num_samples,dim=0)
     average_rejection_iters = 0
     w = None
     eta = 1/(M*d)
     for _ in tqdm(range(num_iters),leave=False):
         z = torch.randn_like(xk,device=device)
         yk = xk + z * eta **.5
-        xk, num_iters, w = get_rgo_sampling(xk, yk, eta, dist , M, device, w)
-        average_rejection_iters += num_iters    
+        xk, num_iters, w = get_rgo_sampling(xk, yk, eta, dist, M, device, w)
+        average_rejection_iters += num_iters  
+        plt.clf()
+        pts_x = torch.linspace(-15,15, 100)
+        pts_y = torch.linspace(-15,15, 100)
+        
+        xx , yy = torch.meshgrid(pts_x,pts_y,indexing='xy')
+        pts_grid = torch.cat((xx.unsqueeze(-1),yy.unsqueeze(-1)),dim=-1).to(device='cuda')
+        dens = -dist.log_prob(pts_grid).squeeze(-1).cpu().numpy()
+        plt.scatter(xk[:,0].cpu().numpy(),xk[:,1].cpu().numpy())
+        plt.contourf(pts_x.cpu().numpy(),pts_y.cpu().numpy(),dens)
+        plt.savefig(f'plot/{_}.png')
+        
     return xk.reshape((n,num_samples,-1))
     

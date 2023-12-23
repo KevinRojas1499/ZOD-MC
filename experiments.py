@@ -20,7 +20,7 @@ def parse_arguments():
     
     # Experiments to run
     p.add_argument('--eval_mmd', action='store_true',default=False)
-    p.add_argument('--methods_to_run',action='append')
+    p.add_argument('--methods_to_run',action='append', default=[])
     p.add_argument('--num_samples_for_rdmc',type=int)
     p.add_argument('--sampling_eps_rdmc', type=float) # early stopping
     p.add_argument('--sampling_eps_rejec', type=float) # early stopping
@@ -30,7 +30,7 @@ def parse_arguments():
     p.add_argument('--iters_rdmc_step',type=int)
     
     # Baselines
-    p.add_argument('--baselines',action='append')
+    p.add_argument('--baselines',action='append', default=[])
     p.add_argument('--langevin_step_size',type=float)
     
     p.add_argument('--proximal_M',type=float)
