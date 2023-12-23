@@ -22,6 +22,21 @@ def parse_arguments():
     p.add_argument('--p0t_method', choices=['rejection','ula'],default='rejection')
     p.add_argument('--dimension', type=int)
     
+    # Experiments to run
+    p.add_argument('--eval_mmd', action='store_true',default=False)
+    p.add_argument('--methods_to_run',action='append')
+    p.add_argument('--num_samples_for_rdmc',type=int)
+    p.add_argument('--sampling_eps_rdmc', type=float) # early stopping
+    p.add_argument('--sampling_eps_rejec', type=float) # early stopping
+    
+    p.add_argument('--min_num_iters_rdmc')
+    p.add_argument('--max_num_iter_rdmc')
+    p.add_argument('--iters_rdmc_step')
+    
+    # Baselines
+    p.add_argument('--baselines',action='append')
+    p.add_argument('--langevin_step_size',type=float)
+    
     # Sampler details
     p.add_argument('--max_iters_optimization',type=int, default=50)
     p.add_argument('--num_sampler_iterations', type=int) # For langevin
