@@ -33,7 +33,6 @@ def parse_arguments():
     p.add_argument('--baselines',action='append')
     p.add_argument('--langevin_step_size',type=float)
     
-    p.add_argument('--proximal_eta',type=float)
     p.add_argument('--proximal_M',type=float)
     p.add_argument('--proximal_num_iters',type=int)
     

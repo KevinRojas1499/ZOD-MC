@@ -11,7 +11,7 @@ baselines: [ langevin, proximal]
 num_samples_for_rdmc: 100
 sampling_eps_rdmc: 5e-2 # RDMC is more sensible to the stopping time
 min_num_iters_rdmc: 1
-max_num_iters_rdmc: 21
+max_num_iters_rdmc: 101
 iters_rdmc_step: 10
 ula_step_size: 0.01
 
@@ -20,9 +20,8 @@ sampling_eps_rejec: 5e-3
 
 # Baselines
 langevin_step_size: 0.001
-proximal_eta: 0.01
-proximal_M: 3
-proximal_num_iters: 4
+proximal_M: 20
+proximal_num_iters: 100
 
 # Estimator Information
 max_iters_optimization: 50

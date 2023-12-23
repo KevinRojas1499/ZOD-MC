@@ -39,7 +39,7 @@ def get_rgo_sampling(xk, yk, eta, dist : Distribution, M, device, initial_cond_f
         u[acc_idx] = xk[acc_idx]
     return xk, num_rejection_iters, w
 
-def get_samples(x0, eta, dist : Distribution, M, num_iters, num_samples, device):
+def get_samples(x0,dist : Distribution, M, num_iters, num_samples, device):
     # x0 is [n,d] is the initialization given by the user
     # num_samples = m is the number of samples per initial condition
     # i.e. the total number of samples is n * num_samples
@@ -48,6 +48,7 @@ def get_samples(x0, eta, dist : Distribution, M, num_iters, num_samples, device)
     xk = x0.repeat((num_samples,1))
     average_rejection_iters = 0
     w = None
+    eta = 1/(M*d)
     for _ in tqdm(range(num_iters),leave=False):
         z = torch.randn_like(xk,device=device)
         yk = xk + z * eta **.5

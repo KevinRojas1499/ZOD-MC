@@ -91,10 +91,9 @@ def eval(config):
             method_names[k] = 'proximal'
             for i, gc in enumerate(gradient_complexity):
                 samples_proximal = samplers.proximal_sampler.get_samples(torch.randn_like(samples_rejection),
-                                                            config.proximal_eta,
                                                             distribution,
                                                             config.proximal_M,
-                                                            config.proximal_num_iters,
+                                                            gc * config.disc_steps,
                                                             1,
                                                             device).squeeze(1)
                 
