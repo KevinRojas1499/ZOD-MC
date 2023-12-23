@@ -12,13 +12,9 @@ def parse_arguments():
 
     p.add('-c','--config', is_config_file=True)
 
-    # Wandb
-    p.add_argument('--wandb_project_name', type=str)
-    p.add_argument('--tags', type=str)
-    
     # Mode
-    p.add_argument('--mode', choices=['sample','eval_mmd','radius','estimator-experiments', 'generation-experiments','fourier-experiments','p0t-experiments'])
-    p.add_argument('--score_method', choices=['convolution','quotient-estimator','fourier', 'p0t','recursive'],default='p0t')
+    p.add_argument('--mode', choices=['eval_mmd','radius'])
+    p.add_argument('--score_method', choices=['p0t','recursive'],default='p0t')
     p.add_argument('--p0t_method', choices=['rejection','ula'],default='rejection')
     p.add_argument('--dimension', type=int)
     
@@ -29,13 +25,17 @@ def parse_arguments():
     p.add_argument('--sampling_eps_rdmc', type=float) # early stopping
     p.add_argument('--sampling_eps_rejec', type=float) # early stopping
     
-    p.add_argument('--min_num_iters_rdmc')
-    p.add_argument('--max_num_iter_rdmc')
-    p.add_argument('--iters_rdmc_step')
+    p.add_argument('--min_num_iters_rdmc',type=int)
+    p.add_argument('--max_num_iters_rdmc',type=int)
+    p.add_argument('--iters_rdmc_step',type=int)
     
     # Baselines
     p.add_argument('--baselines',action='append')
     p.add_argument('--langevin_step_size',type=float)
+    
+    p.add_argument('--proximal_eta',type=float)
+    p.add_argument('--proximal_M',type=float)
+    p.add_argument('--proximal_num_iters',type=int)
     
     # Sampler details
     p.add_argument('--max_iters_optimization',type=int, default=50)
@@ -47,11 +47,6 @@ def parse_arguments():
     p.add_argument('--eps_stable',type=float, default=1e-9) # For quotient based methods
     p.add_argument('--num_recursive_steps',type=int, default=6)
     
-    # Integrator details for convolution method
-    p.add_argument('--convolution_integrator', choices=['trap','simpson','mc'])
-    p.add_argument('--integration_range', type=float)
-    p.add_argument('--sub_intervals_per_dim',type=int)
-   
     # SDE Parameters
     p.add_argument('--sde_type', choices=['vp'], default='vp')
     p.add_argument('--multiplier', default=0, type=float)
@@ -77,16 +72,8 @@ def main(config):
         mmd_loss_comparisons.eval(config)
     elif config.mode == 'radius':
         radius_increase_experiments.eval(config)
-    elif config.mode == 'estimator-experiments':
-        estimator_accuracy_experiments.run_experiments(config)
-    elif config.mode == 'generation-experiments':
-        generation_accuracy_experiments.run_experiments(config)
-    elif config.mode == 'fourier-experiments':
-        fourier_experiments.run_fourier_experiments(config)
-    elif config.mode == 'p0t-experiments':
-        experiments_based_on_p0t.run_experiments(config)
     else:
-        print("Mode doesn't exist")
+        print("Mode hasn't been implemented")
 
 
 

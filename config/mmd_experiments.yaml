@@ -4,20 +4,19 @@ score_method: p0t
 p0t_method: rejection
 
 eval_mmd: True
-methods_to_run:
-  - 'rejection'
-  - 'ula'
-baselines:
-  - 'langevin'
-  - 'proximal'
+methods_to_run: [ rejection, ula]
+baselines: [ langevin, proximal]
 
 # RDMC - This actually defines the gradient complexity for everyone else
 num_samples_for_rdmc: 100
-sampling_eps_rejec: 5e-3
+sampling_eps_rdmc: 5e-2 # RDMC is more sensible to the stopping time
 min_num_iters_rdmc: 1
-max_num_iters_rdmc: 101
+max_num_iters_rdmc: 21
 iters_rdmc_step: 10
 ula_step_size: 0.01
+
+# Rejection
+sampling_eps_rejec: 5e-3
 
 # Baselines
 langevin_step_size: 0.001

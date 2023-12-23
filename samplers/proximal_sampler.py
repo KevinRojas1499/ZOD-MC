@@ -53,5 +53,5 @@ def get_samples(x0, eta, dist : Distribution, M, num_iters, num_samples, device)
         yk = xk + z * eta **.5
         xk, num_iters, w = get_rgo_sampling(xk, yk, eta, dist , M, device, w)
         average_rejection_iters += num_iters    
-    return xk.reshape((n,num_samples,-1)), average_rejection_iters/num_iters
+    return xk.reshape((n,num_samples,-1))
     

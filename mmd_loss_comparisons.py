@@ -35,7 +35,7 @@ def eval(config):
         
     method_names = [''] * num_methods
     gradient_complexity = config.num_samples_for_rdmc * np.arange(config.min_num_iters_rdmc,
-                                                                config.max_num_iter_rdmc,
+                                                                config.max_num_iters_rdmc,
                                                                 step=config.iters_rdmc_step)
     print(gradient_complexity)
     samples_all_methods = torch.zeros((num_methods,len(gradient_complexity), tot_samples,dim))
@@ -90,13 +90,14 @@ def eval(config):
         elif baseline == 'proximal':
             method_names[k] = 'proximal'
             for i, gc in enumerate(gradient_complexity):
-                samples_proximal = samplers.proximal_sampler(torch.randn_like(samples_rejection),
+                samples_proximal = samplers.proximal_sampler.get_samples(torch.randn_like(samples_rejection),
                                                             config.proximal_eta,
                                                             distribution,
                                                             config.proximal_M,
                                                             config.proximal_num_iters,
                                                             1,
-                                                            device).unsqueeze(1)
+                                                            device).squeeze(1)
+                
                 samples_all_methods[k][i] = samples_proximal
                 if eval_mmd:
                     mmd_stats[k][i] = mmd.get_mmd_squared(samples_proximal,real_samples).detach().item()
@@ -109,15 +110,14 @@ def eval(config):
     if dim == 2:
         xlim = [-15,15] if is_gmm else [-2,2]
         ylim = [-15,15] if is_gmm else [-1,2]
-        for i in range(num_methods):
-            fig = utils.plots.plot_all_samples(samples_all_methods[:,i],
+        for i, gc in enumerate(gradient_complexity):
+            fig = utils.plots.plot_all_samples(samples_all_methods[:,i,:,:],
                                             method_names,
                                             xlim,ylim,distribution.log_prob)
             plt.close(fig)
-            fig.savefig(f'plots/Gradient_complexity_{gradient_complexity[i]}_{config.density}.png', bbox_inches='tight')
+            fig.savefig(f'plots/Gradient_complexity_{gc}_{config.density}.png', bbox_inches='tight')
         
     if eval_mmd:   
-        np.savetxt('mmd_results',(gradient_complexity, mmd_stats))
         fig, ax = plt.subplots()
         for i, method in enumerate(method_names):
             if method == 'Ground Truth':
