@@ -2,18 +2,28 @@ import torch
 from torchmin import minimize
 import time
 
-def nesterovs_minimizer(x0,gradient, threshold=1e-5, al=1e-6):
-    with torch.no_grad():
-        xold = xnew = x0
-        k = 0
-        while torch.max(torch.sum(gradient(xnew)**2,dim=-1)) > threshold**2 and k < 1500:
-            # print(xnew[0])
-            bek = (k-1)/(k+2)
-            y = xnew + bek * (xnew-xold)
-            xold = xnew
-            xnew = y - al * gradient(y)
-            k+=1
-        return xnew
+def nesterovs_minimizer(x,gradient, eta, M):
+    d = x.shape[-1]
+    A = 0
+    y = x
+    tau = 1
+    k = 0
+    mu = 1/eta - M
+    L = 1/eta + M
+    while torch.max(torch.sum(gradient(x)**2,dim=-1)) > (M*d)**2 and k < 1500:
+        a = (tau + (tau**2 + 4 * tau * L * A)**.5)/(2*L)
+        Anext = A + a
+        tx = A/Anext * y + a/Anext * x
+        tauNext = tau + a * mu
+        grad_tx = gradient(tx)
+        yNext = tx - grad_tx/(mu + L)
+        xNext = (tau * x + a * mu * tx - a * grad_tx)/tauNext
+        k+=1
+        A = Anext
+        x = xNext
+        y = yNext
+        tau = tauNext
+    return y
 
 def gradient_descent(x0,gradient, threshold, al=1e-4):
     with torch.no_grad():

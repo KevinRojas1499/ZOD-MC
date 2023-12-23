@@ -17,7 +17,7 @@ def get_rgo_sampling(xk, yk, eta, dist : Distribution, M, device, initial_cond_f
     f_eta_pot = lambda x : -dist.log_prob(x) + sum_last_dim((x - yk)**2)/(2 * eta)
     grad_f_eta = lambda x : -dist.grad_log_prob(x) + (x - yk)/eta
     in_cond = xk if initial_cond_for_minimization == None else initial_cond_for_minimization
-    w = nesterovs_minimizer(in_cond, grad_f_eta, (M*d)**.5)
+    w = nesterovs_minimizer(in_cond, grad_f_eta, eta, M)
     var = 1/(1/eta - M)
     gradw = -dist.grad_log_prob(w)
     u = (yk/eta - gradw - M * w) * var
@@ -54,16 +54,6 @@ def get_samples(x0,dist : Distribution, M, num_iters, num_samples, device):
         yk = xk + z * eta **.5
         xk, num_iters, w = get_rgo_sampling(xk, yk, eta, dist, M, device, w)
         average_rejection_iters += num_iters  
-        plt.clf()
-        pts_x = torch.linspace(-15,15, 100)
-        pts_y = torch.linspace(-15,15, 100)
-        
-        xx , yy = torch.meshgrid(pts_x,pts_y,indexing='xy')
-        pts_grid = torch.cat((xx.unsqueeze(-1),yy.unsqueeze(-1)),dim=-1).to(device='cuda')
-        dens = -dist.log_prob(pts_grid).squeeze(-1).cpu().numpy()
-        plt.scatter(xk[:,0].cpu().numpy(),xk[:,1].cpu().numpy())
-        plt.contourf(pts_x.cpu().numpy(),pts_y.cpu().numpy(),dens)
-        plt.savefig(f'plot/{_}.png')
         
     return xk.reshape((n,num_samples,-1))
     
