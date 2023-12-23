@@ -58,8 +58,10 @@ def parse_arguments():
     return p.parse_args()
 
 def main(config):
-    if config.mode == 'sample':
-        run_toy.eval(config)
+    if config.mode == 'eval_mmd':
+        mmd_loss_comparisons.eval(config)
+    elif config.mode == 'radius':
+        radius_increase_experiments.eval(config)
     elif config.mode == 'estimator-experiments':
         estimator_accuracy_experiments.run_experiments(config)
     elif config.mode == 'generation-experiments':

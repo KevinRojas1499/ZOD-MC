@@ -68,7 +68,7 @@ def plot_all_samples(samples_array,labels,xlim, ylim,log_prob=None):
             pts_x, pts_y = to_numpy(pts_x), to_numpy(pts_y)
             axis.contourf(pts_x,pts_y,dens)
         
-        axis.scatter(samp[:,0],samp[:,1],s=5)
+        axis.scatter(samp[:,0],samp[:,1],s=5,color='red')
         axis.set_title(labels[i])
     return fig
 

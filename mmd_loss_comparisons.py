@@ -29,7 +29,7 @@ def setup_seed(seed):
      
 
 def eval(config):
-    setup_seed(1)    
+    setup_seed(123)    
     init_wandb(config)
     # Set up 
     device = torch.device('cuda:0'if torch.cuda.is_available() else 'cpu')
@@ -54,10 +54,11 @@ def eval(config):
         # Reverse Diffusion Monte Carlo
         config.p0t_method = 'ula'
         config.num_estimator_samples = 100
-        config.num_sampler_iterations = (gc//config.num_estimator_samples) + 1
-        config.sampling_eps = 5e-2 #RDMC is more sensitive to the early stopping
+        config.num_sampler_iterations = ((gc//config.num_estimator_samples) + 1)
+        config.sampling_eps = 5e-2 if is_gmm else 5e-3 #RDMC is more sensitive to the early stopping
         samples_rdm = sample.sample(config)
-        
+        if not is_gmm :
+            config.num_sampler_iterations *= 100 # We need more iterations for mueller
         # Rejection
         config.p0t_method = 'rejection'
         config.num_estimator_batches = 10
@@ -68,7 +69,7 @@ def eval(config):
         # Langevin
         samples_langevin = samplers.ula.get_ula_samples(torch.randn_like(samples_rejection),
                                                         distribution.grad_log_prob,
-                                                        .01,gc * config.disc_steps, display_pbar=False)
+                                                        .001,gc * config.disc_steps, display_pbar=False)
         
         if dim == 2:
             xlim = [-15,15] if is_gmm else [-2,2]

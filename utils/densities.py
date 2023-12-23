@@ -78,7 +78,7 @@ class ModifiedMueller(Distribution):
         return -self.beta * (V_q + V_m).view(new_shape)
     
     def grad_log_prob(self, xx):
-            new_shape = list(xx.shape)
+            curr_shape = list(xx.shape)
             xx = xx.view(-1,self.dim)
             x = xx[:,0]
             y = xx[:,1]
@@ -99,7 +99,7 @@ class ModifiedMueller(Distribution):
             grad_y += 2 * 59.8399 * (y-self.y_c)
             grad_x = grad_x.unsqueeze(-1)
             grad_y = grad_y.unsqueeze(-1)
-            return -self.beta * torch.cat((grad_x,grad_y),dim=-1).view(new_shape)
+            return -self.beta * torch.cat((grad_x,grad_y),dim=-1).view(curr_shape)
 class MultivariateGaussian(Distribution):
     def __init__(self, mean, cov):
         super().__init__()
