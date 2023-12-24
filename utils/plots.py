@@ -39,12 +39,12 @@ def plot_2d_dist(data,ground_truth=None):
 def to_numpy(x):
     return x.cpu().detach().numpy()
 def plot_2d_dist_with_contour(data,log_prob, ground_truth=None):
-    l = 15
+    l = 6
     nn = 100
     pts = torch.linspace(-l, l, nn)
     xx , yy = torch.meshgrid(pts,pts,indexing='xy')
     pts_grid = torch.cat((xx.unsqueeze(-1),yy.unsqueeze(-1)),dim=-1).to(device='cuda')
-    dens = -torch.log(log_prob(pts_grid)).squeeze(-1).cpu()
+    dens = log_prob(pts_grid).squeeze(-1).cpu()
     pts = pts.cpu().numpy()
     fig = go.Figure()
     fig.add_trace(go.Contour(z=dens, x=pts, y=pts, connectgaps=True, colorscale='darkmint'))
@@ -81,7 +81,6 @@ def plot_samples(config, distribution, samples,real_samples=None):
         histogram(to_numpy(samples.squeeze(-1)), log_density=distribution.log_prob)
     elif dim == 2:
         real_samples = to_numpy(real_samples) if real_samples is not None else real_samples
-        print(real_samples)
         plot_2d_dist_with_contour(to_numpy(samples),distribution.log_prob, real_samples)
     else:
         if real_samples is not None:

@@ -216,9 +216,9 @@ def get_score_function(config, dist : Distribution, sde, device):
                 mean_estimate += torch.sum(samples_from_p0t * acc_idx,dim=1)
             num_good_samples[num_good_samples == 0] += 1 # Ask if this is fine
             mean_estimate /= num_good_samples
-            wandb.log({'Average Acc Samples' : torch.mean(num_good_samples).detach().item(),
-                        'Small Num Acc < 10' : len(num_good_samples[num_good_samples <= 10]),
-                        'Min Acc Samples' : torch.min(num_good_samples).detach().item()})
+            # wandb.log({'Average Acc Samples' : torch.mean(num_good_samples).detach().item(),
+            #             'Small Num Acc < 10' : len(num_good_samples[num_good_samples <= 10]),
+            #             'Min Acc Samples' : torch.min(num_good_samples).detach().item()})
         elif config.p0t_method == 'ula':
             # x0 = inv_scaling * big_x + torch.randn_like(big_x) * variance_conv
             x0 = big_x

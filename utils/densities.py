@@ -198,7 +198,7 @@ class LaplacianDistribution(Distribution):
         return self.dist.sample()
     
     def _log_prob(self,x):
-        return self.dist.log_prob(x)
+        return self.dist.log_prob(x).sum(dim=-1,keepdim=True)
 
 class MixtureDistribution(Distribution):
     def __init__(self,c,distributions):
