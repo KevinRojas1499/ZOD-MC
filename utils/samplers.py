@@ -5,10 +5,10 @@ def get_sampler(config, device, sde):
     torch.manual_seed(123)
     
     def plot_trajectory(x_t, i, t):
-        l = 3 if config.density == 'mueller' else 8 
+        l = 3 if config.density == 'mueller' else 15
         plt.xlim([-l,l])
         plt.ylim([-l,l])
-        plt.plot(x_t[:,0].cpu(), x_t[:,1].cpu(),'.')
+        plt.scatter(x_t[:,0].cpu(), x_t[:,1].cpu(),s=2)
         plt.savefig(f'./trajectory/{i}_{t : .3f}.png')
         plt.close()
     
@@ -50,7 +50,7 @@ def get_sampler(config, device, sde):
             e_h = torch.exp(dt)
             # exponential integrator step
             x_t = e_h * x_t + 2 * (e_h - 1) * score + ((e_h**2 - 1))**.5 * torch.randn_like(x_t)
-            # plot_trajectory(x_t, i, t)
+            plot_trajectory(x_t, i, t)
         pbar.close()
         return x_t
     if config.sampling_method == 'em':

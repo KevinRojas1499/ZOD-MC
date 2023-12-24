@@ -216,9 +216,9 @@ def get_score_function(config, dist : Distribution, sde, device):
                 mean_estimate += torch.sum(samples_from_p0t * acc_idx,dim=1)
             num_good_samples[num_good_samples == 0] += 1 # Ask if this is fine
             mean_estimate /= num_good_samples
-            # wandb.log({'Average Acc Samples' : torch.mean(num_good_samples).detach().item(),
-            #             'Small Num Acc < 10' : len(num_good_samples[num_good_samples <= 10]),
-            #             'Min Acc Samples' : torch.min(num_good_samples).detach().item()})
+            wandb.log({'Average Acc Samples' : torch.mean(num_good_samples).detach().item(),
+                        'Small Num Acc < 10' : len(num_good_samples[num_good_samples <= 10]),
+                        'Min Acc Samples' : torch.min(num_good_samples).detach().item()})
         elif config.p0t_method == 'ula':
             # x0 = inv_scaling * big_x + torch.randn_like(big_x) * variance_conv
             x0 = big_x
@@ -229,12 +229,12 @@ def get_score_function(config, dist : Distribution, sde, device):
             
         score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)
         # import matplotlib.pyplot as plt
-        # from . import gmm_score
-        # real_log_dens, real_grad = gmm_score.get_gmm_density_at_t(config,sde,tt,device)
-        # real_score = real_grad(x)/torch.exp(real_log_dens(x))
+        # # from . import gmm_score
+        # # real_log_dens, real_grad = gmm_score.get_gmm_density_at_t(config,sde,tt,device)
+        # # real_score = real_grad(x)/torch.exp(real_log_dens(x))
         
 
-        # l = 15 if config.density == 'gmm' else 3
+        # l = 15 if config.density in ['gmm','lmm'] else 3
         
         # fig, (ax1,ax2) = plt.subplots(1,2)
         # nn = 1500
@@ -257,7 +257,7 @@ def get_score_function(config, dist : Distribution, sde, device):
         # ax2.grid()
         # fig.set_figheight(6)
         # fig.set_figwidth(12)
-        # fig.suptitle(f'Score Error {torch.sum((real_score - score_estimate)**2)**.5 : .4f}', fontsize=16)
+        # # fig.suptitle(f'Score Error {torch.sum((real_score - score_estimate)**2)**.5 : .4f}', fontsize=16)
         # fig.savefig(f'./score_generated_samples/{tt : .3f}.png')      
         # plt.close()
         

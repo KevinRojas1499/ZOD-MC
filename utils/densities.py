@@ -1,6 +1,6 @@
 import abc
 import torch
-from torch.distributions import Normal
+from torch.distributions import Normal, Laplace
 import yaml
 from math import pi, log
 from bisect import bisect_left
@@ -152,35 +152,70 @@ class OneDimensionalGaussian(Distribution):
         dens = torch.exp(self.log_prob(x))
         return - dens * (x - self.mean)/self.cov
 
-class DoubleWell(Distribution):
-    def __init__(self):
+class MultivariateGaussian(Distribution):
+    def __init__(self, mean, cov):
         super().__init__()
+        self.mean = mean
+        self.cov = cov
+        self.Q = torch.linalg.cholesky(self.cov)
+        self.inv_cov = torch.linalg.inv(cov)
+        self.L = torch.linalg.cholesky(self.inv_cov)
+        self.log_det = torch.log(torch.linalg.det(self.cov))
+        self.dim = mean.shape[0]
+    
+    def sample(self):
+        # TODO: Make this in batches
+        return self.Q @ torch.randn_like(self.mean) + self.mean
     
     def _log_prob(self,x):
-        return -(x**2 - 1.)**2/2
-    
-    def grad_log_prob(self, x):
-        return - (x**2 -1 ) * 2 * x
+        new_shape = list(x.shape)
+        new_shape[-1] = 1
+        new_shape = tuple(new_shape)
+        x = x.view((-1,self.dim))
+        shift_cov = (self.L @ (x-self.mean).T).T
+        log_prob = -.5 * ( self.dim * log(2 * pi) +  self.log_det + torch.sum(shift_cov**2,dim=1)) 
+        log_prob = log_prob.view(new_shape)
+        return log_prob
 
-class GaussianMixture(Distribution):
-    def __init__(self,c,means,variances):
+    def grad_log_prob(self, x):
+        # This is the gradient of p(x)
+        curr_shape = x.shape
+        x = x.view((-1,self.dim))
+        grad = - (self.inv_cov @ (x - self.mean).T).T
+        grad = grad.view(curr_shape)
+        return grad
+  
+class LaplacianDistribution(Distribution):
+    # Wrrapper for Pytorch's Laplace
+    def __init__(self, mean, scale):
+        super().__init__()
+        self.mean = mean
+        self.scale = scale
+        self.dim = mean.shape[-1]
+        self.dist = Laplace(mean,scale)
+    
+    def sample(self):
+        return self.dist.sample()
+    
+    def _log_prob(self,x):
+        return self.dist.log_prob(x)
+
+class MixtureDistribution(Distribution):
+    def __init__(self,c,distributions):
         super().__init__()
         self.n = len(c)
         self.c = c
-        self.dim = means[0].shape[0]
+        self.distributions = distributions
         self.accum = [0.]
+        self.dim = self.distributions[0].dim
         for i in range(self.n):
             self.accum.append(self.accum[i] + self.c[i].detach().item())
         self.accum = self.accum[1:]
-        if self.dim == 1:
-            self.gaussians = [OneDimensionalGaussian(means[i],variances[i]) for i in range(self.n)]
-        else:
-            self.gaussians = [MultivariateGaussian(means[i],variances[i]) for i in range(self.n)]
 
     def _log_prob(self, x):
         log_probs = []
         for i in range(self.n):
-            log_probs.append( log(self.c[i]) + self.gaussians[i].log_prob(x) )
+            log_probs.append( log(self.c[i]) + self.distributions[i].log_prob(x) )
         log_probs = torch.cat(log_probs,dim=-1)
         log_dens = torch.logsumexp(log_probs,dim=-1,keepdim=True)
         return log_dens
@@ -189,38 +224,20 @@ class GaussianMixture(Distribution):
         log_p = self.log_prob(x)
         grad = 0
         for i in range(self.n):
-            log_pi = self.gaussians[i].log_prob(x)
-            grad+= self.c[i] * torch.exp(log_pi) * self.gaussians[i].grad_log_prob(x)
+            log_pi = self.distributions[i].log_prob(x)
+            grad+= self.c[i] * torch.exp(log_pi) * self.distributions[i].grad_log_prob(x)
         return grad/(torch.exp(log_p) + 1e-8)
     
     def sample(self, num_samples):
+        one_sample = self.distributions[0].sample()
         samples = torch.zeros(num_samples,self.dim,
-                              dtype=self.gaussians[0].mean.dtype,
-                              device=self.gaussians[0].mean.device)
+                              dtype=one_sample.dtype,
+                              device=one_sample.device)
         for i in range(num_samples):
             idx = bisect_left(self.accum, random())
-            samples[i] = self.gaussians[idx].sample()
-        return samples    
+            samples[i] = self.distributions[idx].sample()
+        return samples
     
-class FunnelDistribution(Distribution):
-    def __init__(self, sigma, dim):
-        super().__init__()
-        self.dim = dim
-        self.sigma = sigma
-
-    def _log_prob(self, xx):
-        new_shape = list(xx.shape)
-        new_shape[-1] = 1
-        new_shape = tuple(new_shape)
-        xx = xx.view(-1,self.dim)
-        x1 = xx[:,0]
-        y = xx[:,1:]
-
-        log_prob = -.5 * (self.dim * log(2 * pi) + log(self.sigma**2) \
-            + x1**2/self.sigma**2 + (self.dim -1) * x1 \
-            + torch.sum(y**2,dim=-1) * torch.exp(-x1)
-            ).view(new_shape)
-        return log_prob
     
 def get_distribution(config, device):
     def to_tensor_type(x):
@@ -230,11 +247,24 @@ def get_distribution(config, device):
 
     density = config.density 
     if  density == 'gmm':
-        return GaussianMixture(to_tensor_type(params['coeffs']), 
-                               to_tensor_type(params['means']), 
-                               to_tensor_type(params['variances']))
-    elif density == 'double-well':
-        return DoubleWell()
+        c = to_tensor_type(params['coeffs'])
+        means = to_tensor_type(params['means'])
+        variances = to_tensor_type(params['variances'])
+        n = len(c)
+        if config.dimension == 1:
+            gaussians = [OneDimensionalGaussian(means[i],variances[i]) for i in range(n)]
+        else:
+            gaussians = [MultivariateGaussian(means[i],variances[i]) for i in range(n)]
+
+        return MixtureDistribution(c, gaussians)
+    elif density == 'lmm':
+        c = to_tensor_type(params['coeffs'])
+        means = to_tensor_type(params['means'])
+        scales = to_tensor_type(params['variances'])
+        n = len(c)
+        laplacians = [LaplacianDistribution(means[i],scales[i]) for i in range(n)]
+        
+        return MixtureDistribution(c,laplacians)
     elif density == 'mueller':
         return ModifiedMueller(to_tensor_type(params['A']),
                                to_tensor_type(params['a']), 
@@ -242,8 +272,6 @@ def get_distribution(config, device):
                                to_tensor_type(params['c']),
                                to_tensor_type(params['XX']), 
                                to_tensor_type(params['YY']))
-    elif density == 'funnel':
-        return FunnelDistribution(3.,10)
     else:
         print("Density not implemented yet")
         return

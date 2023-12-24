@@ -38,7 +38,7 @@ def eval(config):
     distribution = utils.densities.get_distribution(config,device)
     samples = sample.sample(config)
     real_samples=None
-    if config.density == 'gmm':
+    if config.density in ['gmm','lmm']:
         real_samples = distribution.sample(samples.shape[0])
         mmd = utils.mmd.MMDLoss()
         print(mmd.get_mmd_squared(samples,real_samples))

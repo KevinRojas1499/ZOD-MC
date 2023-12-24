@@ -38,8 +38,8 @@ def plot_2d_dist(data,ground_truth=None):
 
 def to_numpy(x):
     return x.cpu().detach().numpy()
-def plot_2d_dist_with_contour(data,log_prob):
-    l = 3
+def plot_2d_dist_with_contour(data,log_prob, ground_truth=None):
+    l = 15
     nn = 100
     pts = torch.linspace(-l, l, nn)
     xx , yy = torch.meshgrid(pts,pts,indexing='xy')
@@ -49,7 +49,9 @@ def plot_2d_dist_with_contour(data,log_prob):
     fig = go.Figure()
     fig.add_trace(go.Contour(z=dens, x=pts, y=pts, connectgaps=True, colorscale='darkmint'))
     fig.add_trace(go.Scatter(x=data[:,0], y=data[:,1],mode='markers'))
-
+    if ground_truth is not None:
+        fig.add_trace(go.Scatter(x=ground_truth[:,0],y = ground_truth[:,1],mode='markers',name='Real'))
+        
     wandb.log({"Samples" : fig})
 
 def plot_all_samples(samples_array,labels,xlim, ylim,log_prob=None):
@@ -78,18 +80,10 @@ def plot_samples(config, distribution, samples,real_samples=None):
     if dim == 1:
         histogram(to_numpy(samples.squeeze(-1)), log_density=distribution.log_prob)
     elif dim == 2:
-        if real_samples is not None:
-            plot_2d_dist(to_numpy(samples),to_numpy(real_samples))
-        else:
-            plot_2d_dist_with_contour(to_numpy(samples),distribution.log_prob)
+        real_samples = to_numpy(real_samples) if real_samples is not None else real_samples
+        print(real_samples)
+        plot_2d_dist_with_contour(to_numpy(samples),distribution.log_prob, real_samples)
     else:
         if real_samples is not None:
             for i in range(dim):
                 histogram_2(to_numpy(samples[:,i]),ground_truth=to_numpy(real_samples[:,i]))
-                
-        if config.density == 'funnel':
-            for i in range(1,dim):
-                data = to_numpy(torch.cat((samples[:,0].unsqueeze(-1),
-                                           samples[:,i].unsqueeze(-1)),
-                                          dim=-1))
-                plot_2d_dist(data)
