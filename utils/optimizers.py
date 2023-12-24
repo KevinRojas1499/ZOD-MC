@@ -23,7 +23,7 @@ def nesterovs_minimizer(x,gradient, eta, M):
         x = xNext
         y = yNext
         tau = tauNext
-    return y
+    return y, k
 
 def gradient_descent(x0,gradient, threshold, al=1e-4):
     with torch.no_grad():

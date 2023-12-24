@@ -87,7 +87,7 @@ def eval(config):
                 samples_langevin = samplers.ula.get_ula_samples(samples_langevin,
                                                                 distribution.grad_log_prob,
                                                                 config.langevin_step_size,
-                                                                (gc - prev) ,
+                                                                config.disc_steps * (gc - prev) ,
                                                                 display_pbar=False)
                 prev = gc
                 samples_all_methods[k][i] = samples_langevin
@@ -101,9 +101,11 @@ def eval(config):
                 samples_proximal = samplers.proximal_sampler.get_samples(samples_proximal,
                                                             distribution,
                                                             config.proximal_M,
-                                                            (gc - prev),
+                                                            config.disc_steps * (gc - prev),
                                                             1,
-                                                            device).squeeze(1)
+                                                            device,
+                                                            max_grad_complexity = config.disc_steps * (gc - prev)
+                                                            ).squeeze(1)
                 prev = gc
                 samples_all_methods[k][i] = samples_proximal
                 if eval_mmd:

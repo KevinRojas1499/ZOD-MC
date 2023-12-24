@@ -17,7 +17,7 @@ def get_rgo_sampling(xk, yk, eta, dist : Distribution, M, device, initial_cond_f
     f_eta_pot = lambda x : -dist.log_prob(x) + sum_last_dim((x - yk)**2)/(2 * eta)
     grad_f_eta = lambda x : -dist.grad_log_prob(x) + (x - yk)/eta
     in_cond = xk if initial_cond_for_minimization == None else initial_cond_for_minimization
-    w = nesterovs_minimizer(in_cond, grad_f_eta, eta, M)
+    w , k = nesterovs_minimizer(in_cond, grad_f_eta, eta, M)
     var = 1/(1/eta - M)
     gradw = -dist.grad_log_prob(w)
     u = (yk/eta - gradw - M * w) * var
@@ -37,9 +37,9 @@ def get_rgo_sampling(xk, yk, eta, dist : Distribution, M, device, initial_cond_f
         num_acc_samples = torch.sum(acc_idx)
         accepted_samples = (~acc_idx).long()
         u[acc_idx] = xk[acc_idx]
-    return xk, num_rejection_iters, w
+    return xk, 2 * num_rejection_iters + k, w
 
-def get_samples(x0,dist : Distribution, M, num_iters, num_samples, device):
+def get_samples(x0,dist : Distribution, M, num_iters, num_samples, device, max_grad_complexity=None):
     # x0 is [n,d] is the initialization given by the user
     # num_samples = m is the number of samples per initial condition
     # i.e. the total number of samples is n * num_samples
@@ -49,11 +49,15 @@ def get_samples(x0,dist : Distribution, M, num_iters, num_samples, device):
     average_rejection_iters = 0
     w = None
     eta = 1/(M*d)
+    tot_grad_complexity = 0
     for _ in tqdm(range(num_iters),leave=False):
         z = torch.randn_like(xk,device=device)
         yk = xk + z * eta **.5
-        xk, num_iters, w = get_rgo_sampling(xk, yk, eta, dist, M, device, w)
+        xk, grad_complexity, w = get_rgo_sampling(xk, yk, eta, dist, M, device, w)
         average_rejection_iters += num_iters  
+        tot_grad_complexity += grad_complexity
+        if max_grad_complexity is not None and tot_grad_complexity > max_grad_complexity:
+            break
         
     return xk.reshape((n,num_samples,-1))
     
