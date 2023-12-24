@@ -39,7 +39,7 @@ def eval(config):
                                                                 config.max_num_iters_rdmc,
                                                                 step=config.iters_rdmc_step)
     print(gradient_complexity)
-    samples_all_methods = torch.zeros((num_methods,len(gradient_complexity), tot_samples,dim))
+    samples_all_methods = torch.zeros((num_methods,len(gradient_complexity), tot_samples,dim),dtype=torch.double, device=device)
     # Use this in case any accident happened, make sure you comment out the other code so that it doesn't run
     # samples_all_methods = torch.load(f'samples_{config.density}.pt').to(device=device).to(dtype=torch.double)
     
@@ -87,7 +87,7 @@ def eval(config):
                 samples_all_methods[k][i] = samplers.ula.get_ula_samples(samples_langevin,
                                                                 distribution.grad_log_prob,
                                                                 config.langevin_step_size,
-                                                                config.disc_steps * (gc - prev) ,
+                                                                config.disc_steps//5 * (gc - prev) ,
                                                                 display_pbar=False)
                 prev = gc
                 if eval_mmd:
