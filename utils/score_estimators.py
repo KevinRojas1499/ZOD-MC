@@ -101,7 +101,6 @@ def get_score_function(config, dist : Distribution, sde, device):
         scaling = sde.scaling(tt)
         inv_scaling = 1/scaling
         variance_conv = inv_scaling**2 - 1
-        mean_estimate = 0
         num_samples = config.num_estimator_samples
         big_x = x.repeat_interleave(num_samples,dim=0)
         top, down = 0, 0

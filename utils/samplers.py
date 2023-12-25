@@ -50,7 +50,7 @@ def get_sampler(config, device, sde):
             e_h = torch.exp(dt)
             # exponential integrator step
             x_t = e_h * x_t + 2 * (e_h - 1) * score + ((e_h**2 - 1))**.5 * torch.randn_like(x_t)
-            plot_trajectory(x_t, i, t)
+            # plot_trajectory(x_t, i, t)
         pbar.close()
         return x_t
     if config.sampling_method == 'em':

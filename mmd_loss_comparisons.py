@@ -21,7 +21,7 @@ def get_num_methods(config):
     return num     
 
 def eval(config):
-    setup_seed(123)    
+    setup_seed(12)    
     # Set up 
     device = torch.device('cuda:0'if torch.cuda.is_available() else 'cpu')
     distribution = utils.densities.get_distribution(config,device)
@@ -58,6 +58,7 @@ def eval(config):
                 config.score_method = 'quotient-estimator'
                 config.num_estimator_batches = 10
                 config.num_estimator_samples = gc//config.num_estimator_batches
+                config.sampling_eps = config.sampling_eps_rejec
             elif method == 'rejection':
                 config.score_method = 'p0t'
                 config.p0t_method = 'rejection'
@@ -86,7 +87,7 @@ def eval(config):
                 samples_all_methods[k][i] = samplers.ula.get_ula_samples(in_cond,
                                                                 distribution.grad_log_prob,
                                                                 config.langevin_step_size,
-                                                                config.disc_steps//5 * (gc - prev) ,
+                                                                config.disc_steps * (gc - prev) ,
                                                                 display_pbar=False)
             elif baseline == 'proximal':
                 samples_all_methods[k][i] = samplers.proximal_sampler.get_samples(in_cond,
