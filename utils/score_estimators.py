@@ -7,6 +7,7 @@ from utils.densities import Distribution
 import utils.optimizers as optimizers
 import samplers.rejection_sampler as rejection_sampler
 import samplers.ula as ula
+import samplers.metropolis_random_walk as mrw
 
 def get_score_function(config, dist : Distribution, sde, device):
     """
@@ -156,6 +157,8 @@ def get_score_function(config, dist : Distribution, sde, device):
         dist.keep_minimizer = True
         minimizer = optimizers.newton_conjugate_gradient(torch.randn(dim,device=device),potential, config.max_iters_optimization)
         dist.log_prob(minimizer) # To make sure we update with the right minimizer
+        previous_samples = None
+        prev_acc = None
         
         # print(f'Found minimizer {minimizer.cpu().numpy()}')
         
@@ -166,6 +169,7 @@ def get_score_function(config, dist : Distribution, sde, device):
         num_samples = config.num_estimator_samples
         score_estimate = torch.zeros_like(x)
         big_x = x.repeat_interleave(num_samples,dim=0)
+        log_prob_0t = lambda x0 : logdensity(x0) + torch.sum((big_x - scaling * x0)**2)/(2 * (1 - scaling**2))
         grad_log_prob_0t = lambda x0 : grad_logdensity(x0) + scaling * (big_x - scaling * x0)/(1 - scaling**2)
         if config.p0t_method == 'rejection':
             num_iters = config.num_estimator_batches
@@ -178,11 +182,22 @@ def get_score_function(config, dist : Distribution, sde, device):
                                                                                         device)
                 num_good_samples += torch.sum(acc_idx, dim=(1,2)).unsqueeze(-1).to(torch.double)/dim
                 mean_estimate += torch.sum(samples_from_p0t * acc_idx,dim=1)
-            num_good_samples[num_good_samples == 0] += 1 # Ask if this is fine
+            
+            previous_samples, prev_acc_idx  = mrw.metropolis_random_walk_iteration(previous_samples, 
+                                                                     0.01, log_prob_0t, device)
+            mean_estimate+= torch.sum(previous_samples * prev_acc_idx * prev_acc)
+            num_good_samples_prev =  torch.sum(prev_acc_idx * prev_acc, dim=-1,keepdim=True).to(torch.double)/dim
+            num_good_samples += num_good_samples_prev
+            num_good_samples[num_good_samples == 0] += 1 
             mean_estimate /= num_good_samples
-            # wandb.log({'Average Acc Samples' : torch.mean(num_good_samples).detach().item(),
-            #             'Small Num Acc < 10' : len(num_good_samples[num_good_samples <= 10]),
-            #             'Min Acc Samples' : torch.min(num_good_samples).detach().item()})
+            
+            previous_samples = samples_from_p0t.view((-1,dim))
+            prev_acc = acc_idx.view((-1,dim))
+            
+            wandb.log({'Average Acc Samples' : torch.mean(num_good_samples).detach().item(),
+                       'Avg New Samples Prev' : torch.mean(num_good_samples_prev).detach().item(),
+                        'Small Num Acc < 10' : len(num_good_samples[num_good_samples <= 10]),
+                        'Min Acc Samples' : torch.min(num_good_samples).detach().item()})
         elif config.p0t_method == 'ula':
             x0 = inv_scaling * big_x + torch.randn_like(big_x) * variance_conv**.5
             # dens = p0(x0)
