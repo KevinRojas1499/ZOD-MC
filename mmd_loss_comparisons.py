@@ -26,7 +26,6 @@ def eval(config):
     device = torch.device('cuda:0'if torch.cuda.is_available() else 'cpu')
     distribution = utils.densities.get_distribution(config,device)
     mmd = utils.mmd.MMDLoss()
-    is_gmm = (config.density == 'gmm')
     eval_mmd = config.eval_mmd
     dim = config.dimension
 
@@ -52,26 +51,26 @@ def eval(config):
             samples_all_methods[0][i] = real_samples
         k+=1
     
-    
-    if 'rejection' in config.methods_to_run:
-        config.p0t_method = 'rejection'
-        config.sampling_eps = config.sampling_eps_rejec
-        method_names[k] = 'rejection'
+    for method in config.methods_to_run:
+        method_names[k] = method
         for i, gc in enumerate(gradient_complexity):
-            config.num_estimator_batches = 10
-            config.num_estimator_samples = gc//config.num_estimator_batches
-            samples_all_methods[k][i] = sample.sample(config)
-            if eval_mmd:
-                mmd_stats[k][i] = mmd.get_mmd_squared(samples_all_methods[k][i],real_samples).detach().item()
-        k+=1
-    if 'ula' in config.methods_to_run:
-        method_names[k] = 'rdmc'
-        config.p0t_method = 'ula' 
-        config.sampling_eps = config.sampling_eps_rdmc
-        config.num_estimator_samples = config.num_samples_for_rdmc
-        for i, gc in enumerate(gradient_complexity):
-            config.num_sampler_iterations = gc//config.num_estimator_samples
-            config.sampling_eps = config.sampling_eps_rdmc
+            if method == 'quotient-estimator':
+                config.score_method = 'quotient-estimator'
+                config.num_estimator_batches = 10
+                config.num_estimator_samples = gc//config.num_estimator_batches
+            elif method == 'rejection':
+                config.score_method = 'p0t'
+                config.p0t_method = 'rejection'
+                config.sampling_eps = config.sampling_eps_rejec
+                config.num_estimator_batches = 10
+                config.num_estimator_samples = gc//config.num_estimator_batches
+            elif method == 'ula':
+                config.score_method = 'p0t'
+                config.p0t_method = 'ula' 
+                config.sampling_eps = config.sampling_eps_rdmc
+                config.num_estimator_samples = config.num_samples_for_rdmc
+                config.num_sampler_iterations = gc//config.num_estimator_samples
+            
             samples_all_methods[k][i] = sample.sample(config)
             if eval_mmd:
                 mmd_stats[k][i] = mmd.get_mmd_squared(samples_all_methods[k][i],real_samples).detach().item()
@@ -79,25 +78,18 @@ def eval(config):
     
     # Baselines
     for baseline in config.baselines:
-        if baseline == 'langevin': 
-            method_names[k] = 'langevin'
-            prev = 0
-            samples_langevin = torch.randn((tot_samples,dim), device=device)
-            for i, gc in enumerate(gradient_complexity):
-                samples_all_methods[k][i] = samplers.ula.get_ula_samples(samples_langevin,
+        prev = 0
+        method_names[k] = baseline
+        in_cond = torch.randn((tot_samples,dim), device=device)
+        for i, gc in enumerate(gradient_complexity):
+            if baseline == 'langevin': 
+                samples_all_methods[k][i] = samplers.ula.get_ula_samples(in_cond,
                                                                 distribution.grad_log_prob,
                                                                 config.langevin_step_size,
                                                                 config.disc_steps//5 * (gc - prev) ,
                                                                 display_pbar=False)
-                prev = gc
-                if eval_mmd:
-                    mmd_stats[k][i] = mmd.get_mmd_squared(samples_all_methods[k][i],real_samples).detach().item()
-        elif baseline == 'proximal':
-            method_names[k] = 'proximal'
-            prev = 0
-            samples_proximal = torch.randn((tot_samples,dim), device=device)
-            for i, gc in enumerate(gradient_complexity):
-                samples_all_methods[k][i] = samplers.proximal_sampler.get_samples(samples_proximal,
+            elif baseline == 'proximal':
+                samples_all_methods[k][i] = samplers.proximal_sampler.get_samples(in_cond,
                                                             distribution,
                                                             config.proximal_M,
                                                             config.disc_steps * (gc - prev),
@@ -105,18 +97,17 @@ def eval(config):
                                                             device,
                                                             max_grad_complexity = config.disc_steps * (gc - prev)
                                                             ).squeeze(1)
-                prev = gc
-                if eval_mmd:
-                    mmd_stats[k][i] = mmd.get_mmd_squared(samples_all_methods[k][i],real_samples).detach().item()
-        else:
-            print(f'The baseline method {baseline} has not been implemented yet')
+            else:
+                print(f'The baseline method {baseline} has not been implemented yet')
+            prev = gc
+            if eval_mmd:
+                mmd_stats[k][i] = mmd.get_mmd_squared(samples_all_methods[k][i],real_samples).detach().item()
         k+=1    
     
-    
+    torch.save(samples_all_methods, f'samples_{config.density}.pt')
     if dim == 2:
         xlim = [-15,15] if config.density in ['lmm','gmm'] else [-2,2]
         ylim = [-15,15] if config.density in ['lmm','gmm']else [-1,2]
-        torch.save(samples_all_methods, f'samples_{config.density}.pt')
         for i, gc in enumerate(gradient_complexity):
             fig = utils.plots.plot_all_samples(samples_all_methods[:,i,:,:],
                                             method_names,

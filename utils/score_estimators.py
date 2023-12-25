@@ -97,60 +97,25 @@ def get_score_function(config, dist : Distribution, sde, device):
     
 
     def score_quotient_estimator(x, tt):
-        """
-            The following method computes the score by making use that:
-
-            p_t = E_z [ p_#t (x- s \sigma z)] z \sim N(0,1)
-            p_#t = (s^-1)_# p0
-        """
+        num_iters = config.num_estimator_batches
         scaling = sde.scaling(tt)
-        std = scaling * sde.scheduling(tt)
+        inv_scaling = 1/scaling
+        variance_conv = inv_scaling**2 - 1
+        mean_estimate = 0
+        num_samples = config.num_estimator_samples
+        big_x = x.repeat_interleave(num_samples,dim=0)
+        top, down = 0, 0
+        for _ in range(num_iters):
+            imp_samp = inv_scaling * big_x + torch.randn_like(big_x) * variance_conv**.5
+            dens = p0(imp_samp).view(-1,num_samples,1)
+            imp_samp = imp_samp.view(-1,num_samples,dim)
+            top += torch.mean(imp_samp * dens,dim=1)
+            down += torch.mean(dens,dim=1)
+        mean_estimate = top/down
 
-        def get_density_estimator(func):
+        score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)
 
-            def estimator(x):
-                # x has shape (n,d), noise has shape (k,d)
-                # we need to make it (n,k,d) and then average on k
-                noise = torch.randn((config.num_estimator_samples, dim),device=device)
-                z = x.unsqueeze(1)
-                return torch.mean(func(z - std * noise), dim=1)
-            
-            return estimator
-        
-        def get_conv_gradient_estimator(func):
-
-            def estimator(x):
-                # x has shape (n,d), noise has shape (k,d)
-                # we need to make it (n,k,d) and then average on k
-                noise = torch.randn((config.num_estimator_samples, dim),device=device)
-                z = x.unsqueeze(1)
-                return -torch.mean(noise * func(z - std * noise), dim=1) / std 
-            
-            return estimator
-        
-        def get_direct_gradient_estimator(func):
-            standard_estim = get_density_estimator(func)
-            def estimator(x):
-                return standard_estim(x) / std
-            
-            return estimator
-        
-
-
-        sp0 = get_push_forward(scaling, p0)
-        sgrad = get_push_forward(scaling, gradient)
-
-        p_t = get_density_estimator(sp0)
-        if config.gradient_estimator == 'conv':
-            grad_p_t = get_conv_gradient_estimator(sp0) 
-        elif config.gradient_estimator == 'direct':
-            grad_p_t = get_direct_gradient_estimator(sgrad) 
-
-        if config.mode == 'sample':
-            return grad_p_t(x)/(p_t(x) + config.eps_stable)
-        else :
-            return p_t(x), grad_p_t(x)
-
+        return score_estimate
     
     if config.score_method == 'fourier':
         lu = config.integration_range
@@ -220,8 +185,13 @@ def get_score_function(config, dist : Distribution, sde, device):
             #             'Small Num Acc < 10' : len(num_good_samples[num_good_samples <= 10]),
             #             'Min Acc Samples' : torch.min(num_good_samples).detach().item()})
         elif config.p0t_method == 'ula':
-            # x0 = inv_scaling * big_x + torch.randn_like(big_x) * variance_conv
-            x0 = big_x
+            x0 = inv_scaling * big_x + torch.randn_like(big_x) * variance_conv**.5
+            # dens = p0(x0)
+            # dens = dens.view(-1,num_samples,1)
+            # x0 = x0.view(-1,num_samples,dim)
+            # mean_estimate = torch.mean(imp_samp * dens,dim=1)/torch.mean(dens,dim=1)
+            
+            # x0 = x0.repeat_interleave(num_samples,dim=0)
             samples_from_p0t = ula.get_ula_samples(x0,grad_log_prob_0t,config.ula_step_size,config.num_sampler_iterations)
             samples_from_p0t = samples_from_p0t.view((-1,num_samples,dim))
             

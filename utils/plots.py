@@ -39,7 +39,7 @@ def plot_2d_dist(data,ground_truth=None):
 def to_numpy(x):
     return x.cpu().detach().numpy()
 def plot_2d_dist_with_contour(data,log_prob, ground_truth=None):
-    l = 6
+    l = 15
     nn = 100
     pts = torch.linspace(-l, l, nn)
     xx , yy = torch.meshgrid(pts,pts,indexing='xy')
