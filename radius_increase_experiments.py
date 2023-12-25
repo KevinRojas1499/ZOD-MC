@@ -39,7 +39,9 @@ def get_method_names(config):
         method_names[k] = method
         k+=1
     for method in config.baselines:
-        method_names[k] = method     
+        method_names[k] = method    
+        k+=1
+         
     return num_methods, method_names     
 
 def eval(config):
@@ -54,6 +56,7 @@ def eval(config):
     num_rad = len(radiuses)
     mmd_stats = np.zeros([num_methods, num_rad],dtype='double')
     samples_all = torch.zeros([num_methods, num_rad,tot_samples, config.dimension],device=device,dtype=torch.double)
+    samples_all = torch.load(f'radius.pt').to(device=device).to(dtype=torch.double)
     
     print(method_names)
     for i, r in enumerate(radiuses):
@@ -76,9 +79,9 @@ def eval(config):
                 distribution.keep_minimizer = False
                 config.score_method = 'p0t'
                 config.p0t_method = 'ula'
-                config.T = 3
+                config.T = 2 if r < 6 else 3
                 config.num_estimator_samples = 1000
-                config.num_sampler_iterations = 40
+                config.num_sampler_iterations = 100
                 config.ula_step_size = 0.1     
                 config.sampling_eps = 5e-2 #RDMC is more sensitive to the early stopping
             elif method == 'quotient-estimator':
@@ -125,7 +128,9 @@ def eval(config):
     torch.save(samples_all, f'radius.pt')
     fig, ax = plt.subplots()
     for i,method in enumerate(method_names):
-        ax.plot(radiuses,mmd[i],label='RDM')
+        if method == 'Ground Truth':
+            continue
+        ax.plot(radiuses,mmd_stats[i],label=method)
     ax.set_title('MMD as a function of mode separation')
     ax.set_xlabel('Radius')
     ax.set_ylabel('MMD')
