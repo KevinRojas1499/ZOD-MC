@@ -169,8 +169,10 @@ def get_score_function(config, dist : Distribution, sde, device):
         num_samples = config.num_estimator_samples
         score_estimate = torch.zeros_like(x)
         big_x = x.repeat_interleave(num_samples,dim=0)
-        log_prob_0t = lambda x0 : logdensity(x0) + torch.sum((big_x - scaling * x0)**2)/(2 * (1 - scaling**2))
+        potential_0t = lambda x0 : -logdensity(x0) + torch.sum((big_x - scaling * x0)**2,dim=-1,keepdim=True)/(2 * (1 - scaling**2))
         grad_log_prob_0t = lambda x0 : grad_logdensity(x0) + scaling * (big_x - scaling * x0)/(1 - scaling**2)
+        
+        old_prev = None
         if config.p0t_method == 'rejection':
             num_iters = config.num_estimator_batches
             mean_estimate = 0
@@ -182,30 +184,31 @@ def get_score_function(config, dist : Distribution, sde, device):
                                                                                         device)
                 num_good_samples += torch.sum(acc_idx, dim=(1,2)).unsqueeze(-1).to(torch.double)/dim
                 mean_estimate += torch.sum(samples_from_p0t * acc_idx,dim=1)
-            
-            previous_samples, prev_acc_idx  = mrw.metropolis_random_walk_iteration(previous_samples, 
-                                                                     0.01, log_prob_0t, device)
-            mean_estimate+= torch.sum(previous_samples * prev_acc_idx * prev_acc)
-            num_good_samples_prev =  torch.sum(prev_acc_idx * prev_acc, dim=-1,keepdim=True).to(torch.double)/dim
-            num_good_samples += num_good_samples_prev
+                
+            nonlocal previous_samples , prev_acc 
+            reuse = False
+            if previous_samples is not None and reuse:
+                previous_samples, prev_acc_idx  = mrw.metropolis_random_walk_iteration(previous_samples, 
+                                                                        0.01, potential_0t, device)
+                previous_samples = previous_samples.view((-1,num_samples,dim))
+                prev_acc_idx = prev_acc_idx.view((-1,num_samples,dim))
+                mean_estimate+= torch.sum(previous_samples * prev_acc_idx * prev_acc,dim=1)
+                num_good_samples_prev =  torch.sum(prev_acc_idx * prev_acc, dim=(1,2)).unsqueeze(-1).to(torch.double)/dim
+                num_good_samples += num_good_samples_prev
+                wandb.log({'Avg New Samples Prev' : torch.mean(num_good_samples_prev).detach().item() })
+                old_prev = previous_samples.view((-1,dim))
+            previous_samples = samples_from_p0t.view((-1,dim))
+            prev_acc = acc_idx
+
             num_good_samples[num_good_samples == 0] += 1 
             mean_estimate /= num_good_samples
-            
-            previous_samples = samples_from_p0t.view((-1,dim))
-            prev_acc = acc_idx.view((-1,dim))
+
             
             wandb.log({'Average Acc Samples' : torch.mean(num_good_samples).detach().item(),
-                       'Avg New Samples Prev' : torch.mean(num_good_samples_prev).detach().item(),
                         'Small Num Acc < 10' : len(num_good_samples[num_good_samples <= 10]),
                         'Min Acc Samples' : torch.min(num_good_samples).detach().item()})
         elif config.p0t_method == 'ula':
             x0 = inv_scaling * big_x + torch.randn_like(big_x) * variance_conv**.5
-            # dens = p0(x0)
-            # dens = dens.view(-1,num_samples,1)
-            # x0 = x0.view(-1,num_samples,dim)
-            # mean_estimate = torch.mean(imp_samp * dens,dim=1)/torch.mean(dens,dim=1)
-            
-            # x0 = x0.repeat_interleave(num_samples,dim=0)
             samples_from_p0t = ula.get_ula_samples(x0,grad_log_prob_0t,config.ula_step_size,config.num_sampler_iterations)
             samples_from_p0t = samples_from_p0t.view((-1,num_samples,dim))
             
@@ -238,6 +241,8 @@ def get_score_function(config, dist : Distribution, sde, device):
         # sampsx, sampsy = samples_from_p0t[:,0] , samples_from_p0t[:,1]
         # ax2.hist2d(sampsx.cpu().numpy(),sampsy.cpu().numpy(),bins=100,range= [[-l, l], [-l, l]], density=True)
         # ax2.scatter(x[:,0].cpu(),x[:,1].cpu(),color='green')
+        # if old_prev is not None:
+        #     ax2.scatter(old_prev[:,0].cpu(),old_prev[:,1].cpu(),color='blue')
         # ax2.grid()
         # fig.set_figheight(6)
         # fig.set_figwidth(12)
