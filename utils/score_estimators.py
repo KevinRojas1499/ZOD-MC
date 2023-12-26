@@ -171,6 +171,7 @@ def get_score_function(config, dist : Distribution, sde, device):
         big_x = x.repeat_interleave(num_samples,dim=0)
         potential_0t = lambda x0 : -logdensity(x0) + torch.sum((big_x - scaling * x0)**2,dim=-1,keepdim=True)/(2 * (1 - scaling**2))
         grad_log_prob_0t = lambda x0 : grad_logdensity(x0) + scaling * (big_x - scaling * x0)/(1 - scaling**2)
+        grad_pot_0t = lambda x0 : -grad_logdensity(x0) - scaling * (big_x - scaling * x0)/(1 - scaling**2)
         
         old_prev = None
         if config.p0t_method == 'rejection':
@@ -186,17 +187,16 @@ def get_score_function(config, dist : Distribution, sde, device):
                 mean_estimate += torch.sum(samples_from_p0t * acc_idx,dim=1)
                 
             nonlocal previous_samples , prev_acc 
-            reuse = False
+            reuse = True
             if previous_samples is not None and reuse:
-                previous_samples, prev_acc_idx  = mrw.metropolis_random_walk_iteration(previous_samples, 
-                                                                        0.01, potential_0t, device)
+                previous_samples, prev_acc_idx  = mrw.mala_iteration(previous_samples, 
+                                                                        0.1, potential_0t,grad_pot_0t, device)
                 previous_samples = previous_samples.view((-1,num_samples,dim))
                 prev_acc_idx = prev_acc_idx.view((-1,num_samples,dim))
                 mean_estimate+= torch.sum(previous_samples * prev_acc_idx * prev_acc,dim=1)
                 num_good_samples_prev =  torch.sum(prev_acc_idx * prev_acc, dim=(1,2)).unsqueeze(-1).to(torch.double)/dim
                 num_good_samples += num_good_samples_prev
                 wandb.log({'Avg New Samples Prev' : torch.mean(num_good_samples_prev).detach().item() })
-                old_prev = previous_samples.view((-1,dim))
             previous_samples = samples_from_p0t.view((-1,dim))
             prev_acc = acc_idx
 

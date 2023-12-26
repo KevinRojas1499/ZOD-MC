@@ -11,11 +11,11 @@ p0t_method: rejection
 # Rejection
 max_iters_optimization: 50
 num_estimator_batches: 1
-num_estimator_samples: 1000
+num_estimator_samples: 10000
 # ULA
-num_sampler_iterations: 100
+num_sampler_iterations: 1
 ula_step_size: 0.01
-num_recursive_steps: 3 # Increasing this makes you use way too much memory and time
+num_recursive_steps: 10 # Increasing this makes you use way too much memory and time
 
 # Fourier Parameters
 integration_range: 20
@@ -30,7 +30,7 @@ bias: 2
 # Sampling parameters
 sampling_method: ei
 num_batches: 1
-sampling_batch_size: 1
+sampling_batch_size: 1000
 T: 2
 sampling_eps: 5e-3
 disc_steps: 25
