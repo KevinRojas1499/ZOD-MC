@@ -13,89 +13,10 @@ def get_score_function(config, dist : Distribution, sde, device):
     """
         The following method returns a method that approximates the score
     """
-
-    def get_push_forward(scaling, func):
-        """
-            This returns S_# func
-            where S = scaling
-        """
-
-        def push_forward(x):
-            return func(x/scaling) * (1/scaling)**dim
-        
-        return push_forward
-
-    logdensity, grad_logdensity, gradient = dist.log_prob, dist.grad_log_prob, dist.gradient
+    logdensity, grad_logdensity = dist.log_prob, dist.grad_log_prob
     p0 = lambda x : torch.exp(logdensity(x))
     potential = lambda x :  - logdensity(x)
     dim = config.dimension
-    
-    def score_gaussian_convolution(x, tt):
-        """
-            The following method computes the score by making use that:
-
-            p_t = \int S_# p0(x - s\sigma y) * N(y; 0,1) dy
-            Where S(x) is the scaling of the sde at time t
-        """
-        def get_convolution(f, g):
-            """
-                This returns the function f*g
-            """
-            integrator = get_integrator(config)
-            
-            def convolution(x):
-                l = config.integration_range
-                def integrand(y):
-                    # The shape of y is (k,d) where k is the number of eval points
-                    # We reshape it to (k,n,d) where n is the number of points in x
-                    nonlocal x
-                    y = y.unsqueeze(1).to(device)
-                    x_shape = x.unsqueeze(0)
-                    f_vals = f(x_shape-y)
-                    shape_g = g(y)
-                    if len(f_vals.shape) != len(shape_g.shape):
-                        # This can happen because we have different shapes for the gradient vs the density
-                        shape_g = shape_g.unsqueeze(-1)
-                    return f_vals * shape_g
-                return integrator(integrand,- l, l)
-            
-            return convolution
-
-        scaling = sde.scaling(tt)
-        var = scaling**2 * sde.scheduling(tt)**2
-
-        if dim == 1:
-            gaussian = torch.distributions.normal.Normal(0,var ** .5)
-        else:
-            gaussian = torch.distributions.MultivariateNormal(torch.zeros(dim,device=device),var * torch.eye(dim,device=device))
-        
-        def get_grad_gaussian():
-
-            def grad_gaussian(x):
-                dens = gaussian_density(x)
-                if dim != 1:
-                    dens = dens.unsqueeze(-1)
-                return -x *  dens / var
-            
-            return grad_gaussian
-
-        gaussian_density = lambda x : torch.exp(gaussian.log_prob(x))
-        grad_gaussian = get_grad_gaussian()
-
-        sp0 = get_push_forward(scaling, p0)
-        p_t = get_convolution(sp0, gaussian_density)
-        if config.gradient_estimator == 'conv':
-            grad_p_t = get_convolution(sp0,grad_gaussian)
-        elif config.gradient_estimator == 'direct':
-            grad_p_t = get_convolution(gradient,gaussian_density)
-
-        if config.mode == 'sample':
-            return grad_p_t(x)/(p_t(x) + config.eps_stable)
-        else :
-            return p_t(x), grad_p_t(x)
-
-
-    
 
     def score_quotient_estimator(x, tt):
         num_iters = config.num_estimator_batches
@@ -116,41 +37,6 @@ def get_score_function(config, dist : Distribution, sde, device):
         score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)
 
         return score_estimate
-    
-    if config.score_method == 'fourier':
-        lu = config.integration_range
-        m = config.sub_intervals_per_dim
-        dx = lu/m
-        idx = torch.arange(-m/2,m/2,device=device)
-        pts = idx * dx
-        pts = torch.fft.ifftshift(pts)
-        fft = torch.fft.fft(p0(pts)) * dx     
-        dw = 1/lu
-        
-    def get_fourier_estimator(x,tt):
-        x = x.unsqueeze(-1)
-        scaling = sde.scaling(tt) #e**-t
-        inv_sc = 1/scaling #e**t
-
-        density = 0
-        gradient = 0
-        grad_exp = torch.view_as_complex(torch.tensor([0,2 * pi * dw],device=device))
-        exp = torch.view_as_complex(torch.cat((torch.zeros_like(x),
-                                        2 * pi * dw * x),dim=-1))
-        for k in idx:
-            k = k.long().item()
-            next_term = fft[k] \
-                * torch.exp(-2 * (inv_sc**2 - 1) * pi **2 * dw **2 * k**2) \
-                * torch.exp(inv_sc * k * exp)
-            density = density + next_term
-            gradient = gradient + next_term * grad_exp * k
-        density = inv_sc * dw * density
-        gradient = inv_sc**2 * dw * gradient
-        
-        if config.mode == 'sample':
-            return gradient.real/density.real
-        else:
-            return torch.abs(density.real), gradient.real
 
     dist.keep_minimizer = False # We don't need minimizers unless we are in the rejection setting
     if config.score_method == 'p0t' and config.p0t_method == 'rejection':
@@ -187,10 +73,15 @@ def get_score_function(config, dist : Distribution, sde, device):
                 mean_estimate += torch.sum(samples_from_p0t * acc_idx,dim=1)
                 
             nonlocal previous_samples , prev_acc 
-            reuse = True
-            if previous_samples is not None and reuse:
-                previous_samples, prev_acc_idx  = mrw.mala_iteration(previous_samples, 
-                                                                        0.1, potential_0t,grad_pot_0t, device)
+            reuse = config.reuse_samples
+            if previous_samples is not None and reuse != 'no':
+                if config.reuse_samples == 'mala':
+                    previous_samples, prev_acc_idx  = mrw.mala_iteration(previous_samples, 
+                                                                            0.1, potential_0t,grad_pot_0t, device)
+                elif config.reuse_samples == 'mrw':
+                    previous_samples, prev_acc_idx  = mrw.metropolis_random_walk_iteration(previous_samples, 
+                                                                            0.1, potential_0t, device)
+                    
                 previous_samples = previous_samples.view((-1,num_samples,dim))
                 prev_acc_idx = prev_acc_idx.view((-1,num_samples,dim))
                 mean_estimate+= torch.sum(previous_samples * prev_acc_idx * prev_acc,dim=1)
@@ -275,12 +166,8 @@ def get_score_function(config, dist : Distribution, sde, device):
         return score_estimate
 
         
-    if config.score_method == 'convolution':
-        return score_gaussian_convolution
-    elif config.score_method == 'quotient-estimator':
+    if config.score_method == 'quotient-estimator':
         return score_quotient_estimator
-    elif config.score_method == 'fourier':
-        return get_fourier_estimator
     elif config.score_method == 'p0t':
         return get_samplers_based_on_sampling_p0t
     elif config.score_method == 'recursive':

@@ -238,6 +238,16 @@ class MixtureDistribution(Distribution):
             samples[i] = self.distributions[idx].sample()
         return samples
     
+
+class DistributionFromPotential(Distribution):
+    # This is a wrapper for Normal
+    def __init__(self, potential):
+        super().__init__()
+        self.potential = potential
+    
+    def _log_prob(self,x):
+        return self.potential(x)
+
     
 def get_distribution(config, device):
     def to_tensor_type(x):

@@ -7,12 +7,11 @@ import sample
 import utils.gmm_utils
 
 def get_run_name(config):
+    tot_samples = config.num_estimator_batches * config.num_estimator_samples
     if config.score_method == 'quotient-estimator':
-        return f"SAMPLING {config.density} {config.sde_type} {config.score_method} {config.num_estimator_samples}"
-    if config.score_method == 'convolution':
-        return f"SAMPLING {config.density} {config.sde_type} {config.score_method} {config.sub_intervals_per_dim}"
+        return f"Sampling {config.density} {config.score_method} {tot_samples}"
     if config.score_method == 'p0t':
-        return f'Sampling {config.density} {config.p0t_method} {config.num_estimator_batches * config.num_estimator_samples} {config.sampling_method}'
+        return f'Sampling {config.density} {config.p0t_method} {tot_samples} {config.sampling_method} {config.reuse_samples}'
 
 def init_wandb(config):
     wandb.init(
@@ -38,6 +37,7 @@ def eval(config):
     distribution = utils.densities.get_distribution(config,device)
     samples = sample.sample(config)
     real_samples=None
+    print(torch.sum(torch.isnan(samples)))
     if config.density in ['gmm','lmm']:
         real_samples = distribution.sample(samples.shape[0])
         mmd = utils.mmd.MMDLoss()
