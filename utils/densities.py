@@ -241,12 +241,13 @@ class MixtureDistribution(Distribution):
 
 class DistributionFromPotential(Distribution):
     # This is a wrapper for Normal
-    def __init__(self, potential):
+    def __init__(self, potential, dim):
         super().__init__()
         self.potential = potential
+        self.dim = dim
     
     def _log_prob(self,x):
-        return self.potential(x)
+        return -self.potential(x)
 
     
 def get_distribution(config, device):

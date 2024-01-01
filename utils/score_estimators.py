@@ -59,7 +59,6 @@ def get_score_function(config, dist : Distribution, sde, device):
         grad_log_prob_0t = lambda x0 : grad_logdensity(x0) + scaling * (big_x - scaling * x0)/(1 - scaling**2)
         grad_pot_0t = lambda x0 : -grad_logdensity(x0) - scaling * (big_x - scaling * x0)/(1 - scaling**2)
         
-        old_prev = None
         if config.p0t_method == 'rejection':
             num_iters = config.num_estimator_batches
             mean_estimate = 0
