@@ -38,7 +38,7 @@ def eval(config):
     samples = sample.sample(config)
     real_samples=None
     print(torch.sum(torch.isnan(samples)))
-    if config.density in ['gmm','lmm']:
+    if config.density in ['gmm','lmm','rmm']:
         real_samples = distribution.sample(samples.shape[0])
         mmd = utils.mmd.MMDLoss()
         print(mmd.get_mmd_squared(samples,real_samples))

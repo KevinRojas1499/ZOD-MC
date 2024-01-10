@@ -1,0 +1,3 @@
+coeffs: [.3,.4,.3]
+radius: [2,4,6]
+variances: [.2,.2,.2]

@@ -17,6 +17,7 @@ class Distribution(abc.ABC):
     
     @abc.abstractmethod
     def _log_prob(self, x):
+        # Log prob up to a constant
         pass
     
     def log_prob(self, x):
@@ -186,7 +187,6 @@ class MultivariateGaussian(Distribution):
         return grad
   
 class LaplacianDistribution(Distribution):
-    # Wrrapper for Pytorch's Laplace
     def __init__(self, mean, scale):
         super().__init__()
         self.mean = mean
@@ -200,6 +200,24 @@ class LaplacianDistribution(Distribution):
     def _log_prob(self,x):
         return self.dist.log_prob(x).sum(dim=-1,keepdim=True)
 
+class RingDistribution(Distribution):
+    # Ring Distribution
+    def __init__(self, radius, scale, dim=2):
+        super().__init__()
+        self.radius = radius
+        self.scale = scale
+        self.dim = dim
+    
+    def sample(self,device='cuda',dtype=torch.double):
+        direction = torch.randn((1,self.dim),device=device,dtype=dtype)
+        direction = direction/torch.sum(direction**2,-1,keepdim=True)**.5
+        radius = self.radius + self.scale * torch.randn(1,device=device,dtype=dtype)
+        return direction * radius
+    
+    def _log_prob(self,x):
+        norm = torch.sum(x**2,dim=-1,keepdim=True)**.5
+        return - (norm - self.radius)**2/(2 * self.scale**2)
+    
 class MixtureDistribution(Distribution):
     def __init__(self,c,distributions):
         super().__init__()
@@ -276,6 +294,13 @@ def get_distribution(config, device):
         laplacians = [LaplacianDistribution(means[i],scales[i]) for i in range(n)]
         
         return MixtureDistribution(c,laplacians)
+    elif density == 'rmm':
+        c = to_tensor_type(params['coeffs'])
+        radius = to_tensor_type(params['radius'])
+        scales = to_tensor_type(params['variances'])
+        n = len(c)
+        rings = [RingDistribution(radius[i],scales[i],config.dimension) for i in range(n)]
+        return MixtureDistribution(c,rings)
     elif density == 'mueller':
         return ModifiedMueller(to_tensor_type(params['A']),
                                to_tensor_type(params['a']), 
