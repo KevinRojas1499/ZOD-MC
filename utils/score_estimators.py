@@ -27,15 +27,47 @@ def get_score_function(config, dist : Distribution, sde, device):
         big_x = x.repeat_interleave(num_samples,dim=0)
         top, down = 0, 0
         for _ in range(num_iters):
-            imp_samp = inv_scaling * big_x + torch.randn_like(big_x) * variance_conv**.5
-            dens = p0(imp_samp).view(-1,num_samples,1)
-            imp_samp = imp_samp.view(-1,num_samples,dim)
-            top += torch.mean(imp_samp * dens,dim=1)
+            noise = inv_scaling * big_x + torch.randn_like(big_x) * variance_conv**.5
+            dens = p0(noise).view(-1,num_samples,1)
+            noise = noise.view(-1,num_samples,dim)
+            top += torch.mean(noise * dens,dim=1)
             down += torch.mean(dens,dim=1)
         mean_estimate = top/down
 
         score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)
 
+        from . import gmm_score
+        real_log_dens, real_grad = gmm_score.get_gmm_density_at_t(config,sde,tt,device)
+        real_score = real_grad(x)/torch.exp(real_log_dens(x))
+        
+        score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)
+        print(torch.mean((real_score - score_estimate)**2).cpu().numpy())
+        
+        return score_estimate
+    
+    def score_quotient_estimator_2(x, tt):
+        num_iters = config.num_estimator_batches
+        inv_scaling = 1/sde.scaling(tt)
+        variance_conv = inv_scaling**2 - 1
+        N = config.num_estimator_samples
+        big_x = x.repeat_interleave(N,dim=0)
+        for _ in range(num_iters):
+            rd_noise = torch.randn_like(big_x)
+            z = inv_scaling * big_x + rd_noise * variance_conv**.5
+            dens = p0(z).view(-1,N,1)
+            z = z.view(-1,N,dim)
+            dens_mean = torch.mean(dens,dim=1,keepdim=True)
+            w = dens/dens_mean
+            f = rd_noise.view(-1,N,dim)/(1 - torch.exp(-2 * tt))**.5
+            beta =  torch.mean((w - 1) * f,dim=1,keepdim=True)/torch.mean((w - 1)**2,dim=1,keepdim=True)
+        score_estimate = torch.mean((f - beta) * w, dim=1) +  beta.squeeze(1)
+        score_estimate_2 = torch.mean(f * dens/dens_mean,dim=1)
+        
+        from . import gmm_score
+        real_log_dens, real_grad = gmm_score.get_gmm_density_at_t(config,sde,tt,device)
+        real_score = real_grad(x)/torch.exp(real_log_dens(x))
+        
+        print(torch.mean((real_score - score_estimate)**2).cpu().numpy(), torch.mean((real_score - score_estimate_2)**2).cpu().numpy())
         return score_estimate
 
     dist.keep_minimizer = False # We don't need minimizers unless we are in the rejection setting
