@@ -12,7 +12,7 @@ reuse_samples: no
 # Rejection
 max_iters_optimization: 50
 num_estimator_batches: 1
-num_estimator_samples: 10000
+num_estimator_samples: 100
 # ULA
 num_sampler_iterations: 100
 ula_step_size: 0.01

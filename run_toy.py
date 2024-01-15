@@ -35,7 +35,9 @@ def eval(config):
     init_wandb(config)
     device = torch.device('cuda:0'if torch.cuda.is_available() else 'cpu')
     distribution = utils.densities.get_distribution(config,device)
-    samples = sample.sample(config)
+    # samples = sample.adaptive_sampling(config)
+    samples = sample.sample(config, distribution)
+    
     real_samples=None
     print(torch.sum(torch.isnan(samples)))
     if config.density in ['gmm','lmm','rmm']:

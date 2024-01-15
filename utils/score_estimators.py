@@ -27,10 +27,10 @@ def get_score_function(config, dist : Distribution, sde, device):
         big_x = x.repeat_interleave(num_samples,dim=0)
         top, down = 0, 0
         for _ in range(num_iters):
-            noise = inv_scaling * big_x + torch.randn_like(big_x) * variance_conv**.5
-            dens = p0(noise).view(-1,num_samples,1)
-            noise = noise.view(-1,num_samples,dim)
-            top += torch.mean(noise * dens,dim=1)
+            samples_q = inv_scaling * big_x + torch.randn_like(big_x) * variance_conv**.5
+            dens = p0(samples_q).view(-1,num_samples,1)
+            samples_q = samples_q.view(-1,num_samples,dim)
+            top += torch.mean(samples_q * dens,dim=1)
             down += torch.mean(dens,dim=1)
         mean_estimate = top/down
 
@@ -42,6 +42,43 @@ def get_score_function(config, dist : Distribution, sde, device):
         
         score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)
         print(torch.mean((real_score - score_estimate)**2).cpu().numpy())
+        
+        return score_estimate
+    
+    def importance_estimator(x, tt, q : Distribution = None):
+        # q must implement sample()
+        num_iters = config.num_estimator_batches
+        scaling = sde.scaling(tt)
+        inv_scaling = 1/scaling
+        variance_conv = inv_scaling**2 - 1
+        num_samples = config.num_estimator_samples
+        big_x = x.repeat_interleave(num_samples,dim=0)
+        mean_estimate = 0
+        for _ in range(num_iters):
+            if q is not None and tt > 2:
+                samples_q = q.sample(big_x.shape[0])
+            else:
+                samples_q = inv_scaling * big_x + torch.randn_like(big_x) * variance_conv**.5
+                
+            dens = p0(samples_q).view(-1,num_samples,1)
+            samples_q = samples_q.view(-1,num_samples,dim)
+            f = samples_q
+            w = dens/torch.mean(dens,dim=1,keepdim=True)
+            if q is not None and tt > 2:
+                norm = torch.sum((samples_q - inv_scaling * big_x.view(-1,num_samples,dim))**2,dim=-1,keepdim=True)
+                qq = (2 * pi * variance_conv) ** (-dim/2) * torch.exp( - norm/(2 * variance_conv))
+                w *= qq/torch.exp(q.log_prob(samples_q))
+                
+            mean_estimate += torch.mean(f * w,dim=1)
+
+        score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)
+
+        # from . import gmm_score
+        # real_log_dens, real_grad = gmm_score.get_gmm_density_at_t(config,sde,tt,device)
+        # real_score = real_grad(x)/torch.exp(real_log_dens(x))
+        
+        # score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)
+        # print(torch.mean((real_score - score_estimate)**2).cpu().numpy())
         
         return score_estimate
     
@@ -198,7 +235,7 @@ def get_score_function(config, dist : Distribution, sde, device):
 
         
     if config.score_method == 'quotient-estimator':
-        return score_quotient_estimator
+        return importance_estimator
     elif config.score_method == 'p0t':
         return get_samplers_based_on_sampling_p0t
     elif config.score_method == 'recursive':

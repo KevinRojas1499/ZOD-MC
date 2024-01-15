@@ -13,7 +13,8 @@ class Distribution(abc.ABC):
         # Min
         self.potential_minimizer = None
         self.potential_min = None
-        self.keep_minimizer = False # Defaults to true, set to false for simple distributions
+        self.keep_minimizer = False # Defaults to False, set to True for rejection sampler/optimization based algs
+        self.r = 1
     
     @abc.abstractmethod
     def _log_prob(self, x):
@@ -22,7 +23,7 @@ class Distribution(abc.ABC):
     
     def log_prob(self, x):
         # This method calls log_prob and updates the minimizer
-        log_dens = self._log_prob(x)
+        log_dens = self._log_prob(x/self.r)
         if self.keep_minimizer:
             xp = x.view((-1,self.dim))
             log_dens_vals = log_dens.view((-1,1))
@@ -35,12 +36,15 @@ class Distribution(abc.ABC):
                 self.potential_minimizer = xp[argmin]  
         return log_dens
     
-    def grad_log_prob(self,x):
+    def _grad_log_prob(self,x):
         with torch.enable_grad():
             x = x.detach().requires_grad_()
             torch.autograd.set_detect_anomaly(True)
             pot = self.log_prob(x)
             return torch.autograd.grad(pot.sum(),x)[0].detach()
+    
+    def grad_log_prob(self,x):
+        return self._grad_log_prob(x/self.r)/self.r
     
     def gradient(self, x):
         return torch.exp(self.log_prob(x)) * self.grad_log_prob(x)    
@@ -78,7 +82,7 @@ class ModifiedMueller(Distribution):
         
         return -self.beta * (V_q + V_m).view(new_shape)
     
-    def grad_log_prob(self, xx):
+    def _grad_log_prob(self, xx):
             curr_shape = list(xx.shape)
             xx = xx.view(-1,self.dim)
             x = xx[:,0]
@@ -126,7 +130,7 @@ class MultivariateGaussian(Distribution):
         log_prob = log_prob.view(new_shape)
         return log_prob
 
-    def grad_log_prob(self, x):
+    def _grad_log_prob(self, x):
         # This is the gradient of p(x)
         curr_shape = x.shape
         x = x.view((-1,self.dim))
@@ -178,7 +182,7 @@ class MultivariateGaussian(Distribution):
         log_prob = log_prob.view(new_shape)
         return log_prob
 
-    def grad_log_prob(self, x):
+    def _grad_log_prob(self, x):
         # This is the gradient of p(x)
         curr_shape = x.shape
         x = x.view((-1,self.dim))
@@ -238,7 +242,7 @@ class MixtureDistribution(Distribution):
         log_dens = torch.logsumexp(log_probs,dim=-1,keepdim=True)
         return log_dens
     
-    def grad_log_prob(self, x):
+    def _grad_log_prob(self, x):
         log_p = self.log_prob(x)
         grad = 0
         for i in range(self.n):
