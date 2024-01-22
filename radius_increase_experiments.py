@@ -1,6 +1,6 @@
+import os
 import torch
 import numpy as np
-import wandb
 import utils.gmm_utils
 import utils.plots
 import utils.densities
@@ -58,74 +58,104 @@ def eval(config):
     samples_all = torch.zeros([num_methods, num_rad,tot_samples, config.dimension],device=device,dtype=torch.double)
     samples_all = torch.load(f'radius.pt').to(device=device).to(dtype=torch.double)
     
-    print(method_names)
-    for i, r in enumerate(radiuses):
-        distribution = get_gmm_radius(6,r,device)
-        # Baseline
-        samples_all[0][i] = distribution.sample(tot_samples)
-        k = 1
-        for method in config.methods_to_run:
-            if method == 'rejection':
-                # Rejection
-                distribution.keep_minimizer = True
-                config.score_method = 'p0t'
-                config.p0t_method = 'rejection'
-                config.T = 10
-                config.num_estimator_batches = 5
-                config.num_estimator_samples = 1000
-                config.sampling_eps = 5e-3
-            elif method == 'ula': 
-                # Reverse Diffusion Monte Carlo
-                distribution.keep_minimizer = False
-                config.score_method = 'p0t'
-                config.p0t_method = 'ula'
-                config.T = 2 if r < 6 else 3
-                config.num_estimator_samples = 1000
-                config.num_sampler_iterations = 100
-                config.ula_step_size = 0.1     
-                config.sampling_eps = 5e-2 #RDMC is more sensitive to the early stopping
-            elif method == 'quotient-estimator':
-                # Quotient-Estimator
-                distribution.keep_minimizer = False
-                config.score_method = 'quotient-estimator'
-                config.T = 3
-                config.num_estimator_batches = 5
-                config.num_estimator_samples = 1000
-                config.sampling_eps = 5e-3
-            samples_all[k][i] = sample.sample(config,distribution)
-            mmd_stats[k][i] = mmd.get_mmd_squared(samples_all[k][i],samples_all[0][i]).detach().item()
-            k+=1
-            
-        for method in config.baselines:
-            in_cond = torch.randn_like(samples_all[0][i])
-            if method == 'langevin':
-                # Langevin
-                distribution.keep_minimizer = False
-                ula_step_size = 0.1
-                num_steps_lang = 5000 
-                samples_all[k][i] = samplers.ula.get_ula_samples(in_cond,
-                                                                distribution.grad_log_prob,
-                                                                ula_step_size,num_steps_lang,display_pbar=False)
-            elif method == 'proximal': 
-                # Proximal
-                samples_all[k][i] = samplers.proximal_sampler.get_samples(in_cond,
-                                                                        distribution,
-                                                                        config.proximal_M,
-                                                                        config.proximal_num_iters,
-                                                                        1,device
-                                                                        ).squeeze(1)
-            mmd_stats[k][i] = mmd.get_mmd_squared(samples_all[k][i],samples_all[0][i]).detach().item()
-            k+=1
-        xlim = [2*r - 3 * r, 2*r + 3 * r]
-        ylim = [2*r - 3 * r, 2*r + 3 * r]
-        fig = utils.plots.plot_all_samples(samples_all[:,i,:,:],
-                                        method_names,
-                                        xlim,ylim,distribution.log_prob)
-        fig.savefig(f'plots/Radius_{r}.png', bbox_inches='tight')
-        plt.close(fig)
-
+    
+    folder = os.path.dirname(config.save_folder)
+    if not os.path.isdir(folder):
+        os.mkdir(folder)
+    if not config.load_from_ckpt:
+        
+        for i, r in enumerate(radiuses):
+            distribution = get_gmm_radius(6,r,device)
+            # Baseline
+            samples_all[0][i] = distribution.sample(tot_samples)
+            k = 1
+            for method in config.methods_to_run:
+                if method == 'rejection':
+                    # Rejection
+                    distribution.keep_minimizer = True
+                    config.score_method = 'p0t'
+                    config.p0t_method = 'rejection'
+                    config.T = 10
+                    config.num_estimator_batches = 5
+                    config.num_estimator_samples = 1000
+                    config.sampling_eps = 5e-3
+                elif method == 'ula': 
+                    # Reverse Diffusion Monte Carlo
+                    distribution.keep_minimizer = False
+                    config.score_method = 'p0t'
+                    config.p0t_method = 'ula'
+                    config.T = 2 if r < 6 else 3
+                    config.num_estimator_samples = 1000
+                    config.num_sampler_iterations = 100
+                    config.ula_step_size = 0.1     
+                    config.sampling_eps = 5e-2 #RDMC is more sensitive to the early stopping
+                elif method == 'quotient-estimator':
+                    # Quotient-Estimator
+                    distribution.keep_minimizer = False
+                    config.score_method = 'quotient-estimator'
+                    config.T = 3
+                    config.num_estimator_batches = 5
+                    config.num_estimator_samples = 1000
+                    config.sampling_eps = 5e-3
+                samples_all[k][i] = sample.sample(config,distribution)
+                mmd_stats[k][i] = mmd.get_mmd_squared(samples_all[k][i],samples_all[0][i]).detach().item()
+                k+=1
+                
+            for method in config.baselines:
+                in_cond = torch.randn_like(samples_all[0][i])
+                if method == 'langevin':
+                    # Langevin
+                    distribution.keep_minimizer = False
+                    ula_step_size = 0.1
+                    num_steps_lang = 5000 
+                    samples_all[k][i] = samplers.ula.get_ula_samples(in_cond,
+                                                                    distribution.grad_log_prob,
+                                                                    ula_step_size,num_steps_lang,display_pbar=False)
+                elif method == 'proximal': 
+                    # Proximal
+                    samples_all[k][i] = samplers.proximal_sampler.get_samples(in_cond,
+                                                                            distribution,
+                                                                            config.proximal_M,
+                                                                            config.proximal_num_iters,
+                                                                            1,device
+                                                                            ).squeeze(1)
+                mmd_stats[k][i] = mmd.get_mmd_squared(samples_all[k][i],samples_all[0][i]).detach().item()
+                k+=1
+            xlim = [2*r - 3 * r, 2*r + 3 * r]
+            ylim = [2*r - 3 * r, 2*r + 3 * r]
+            fig = utils.plots.plot_all_samples(samples_all[:,i,:,:],
+                                            method_names,
+                                            xlim,ylim,distribution.log_prob)
+            fig.savefig(f'plots/Radius_{r}.png', bbox_inches='tight')
+            plt.close(fig)
+    else:
+        samples_all = torch.load(config.samples_ckpt).to(device=device).to(dtype=torch.double)
+        method_names = np.load(os.path.join(folder,f'method_names.npy'))
+        for k, method in enumerate(method_names):
+            if method == 'Ground Truth':
+                k-=1
+                continue
+            for i, r in enumerate(radiuses):
+                distribution = get_gmm_radius(6,r,device)
+                
+                mmd_stats[k][i] = mmd.get_mmd_squared(samples_all[k][i],samples_all[0][i]).detach().item()
+                
+                xlim = [2*r - 3 * r, 2*r + 3 * r]
+                ylim = [2*r - 3 * r, 2*r + 3 * r]
+                fig = utils.plots.plot_all_samples(samples_all[:,i,:,:],
+                                                method_names,
+                                                xlim,ylim,distribution.log_prob)
+                fig.savefig(os.path.join(folder,f'radius_{r}.pdf'), bbox_inches='tight')
+                plt.close(fig)
+    
     # Save MMD Information
     torch.save(samples_all, f'radius.pt')
+    
+    # Save method names and samples
+    save_file = os.path.join(folder,f'samples_{config.density}.pt')
+    np.save(os.path.join(folder,f'method_names.npy'), np.array(method_names))
+    torch.save(samples_all, save_file)
+    
     fig, ax = plt.subplots()
     for i,method in enumerate(method_names):
         if method == 'Ground Truth':
@@ -135,7 +165,7 @@ def eval(config):
     ax.set_xlabel('Radius')
     ax.set_ylabel('MMD')
     ax.legend()
-    fig.savefig('plots/radius_mmd_results.png')
+    fig.savefig(os.path.join(folder,f'radius_mmd_results.pdf'))
 
 
         
