@@ -2,7 +2,7 @@ import torch
 from torchmin import minimize
 import time
 
-def nesterovs_minimizer(x,gradient, eta, M):
+def nesterovs_minimizer(x,gradient, eta, M,max_iters = 1500):
     d = x.shape[-1]
     A = 0
     y = x
@@ -10,7 +10,7 @@ def nesterovs_minimizer(x,gradient, eta, M):
     k = 0
     mu = 1/eta - M
     L = 1/eta + M
-    while torch.max(torch.sum(gradient(x)**2,dim=-1)) > (M*d)**2 and k < 1500:
+    while torch.max(torch.sum(gradient(x)**2,dim=-1)) > (M*d)**2 and k < max_iters:
         a = (tau + (tau**2 + 4 * tau * L * A)**.5)/(2*L)
         Anext = A + a
         tx = A/Anext * y + a/Anext * x

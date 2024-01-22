@@ -13,6 +13,10 @@ def parse_arguments():
     p.add_argument('--p0t_method', choices=['rejection','ula'],default='rejection')
     p.add_argument('--dimension', type=int)
     
+    # Sample Checkpoints
+    p.add_argument('--load_from_ckpt',action='store_true')
+    p.add_argument('--samples_ckpt',type=str)
+    p.add_argument('--save_folder',type=str)
     # Experiments to run
     p.add_argument('--eval_mmd', action='store_true',default=False)
     p.add_argument('--methods_to_run',action='append', default=[])

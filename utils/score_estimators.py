@@ -25,15 +25,17 @@ def get_score_function(config, dist : Distribution, sde, device):
         variance_conv = inv_scaling**2 - 1
         num_samples = config.num_estimator_samples
         big_x = x.repeat_interleave(num_samples,dim=0)
-        top, down = 0, 0
+        top, dens_mean = 0, 0
         for _ in range(num_iters):
             samples_q = inv_scaling * big_x + torch.randn_like(big_x) * variance_conv**.5
             dens = p0(samples_q).view(-1,num_samples,1)
             samples_q = samples_q.view(-1,num_samples,dim)
             top += torch.mean(samples_q * dens,dim=1)
-            down += torch.mean(dens,dim=1)
-        mean_estimate = top/down
-
+            dens_mean += torch.mean(dens,dim=1)
+            w = dens/dens_mean
+            
+        mean_estimate = top/dens_mean
+        print(w[:5])
         score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)
 
         from . import gmm_score
@@ -41,6 +43,42 @@ def get_score_function(config, dist : Distribution, sde, device):
         real_score = real_grad(x)/torch.exp(real_log_dens(x))
         
         score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)
+        print(torch.mean((real_score - score_estimate)**2).cpu().numpy())
+        
+        return score_estimate
+    
+    def score_quotient_estimator_2(x, tt):
+        num_iters = config.num_estimator_batches
+        scaling = sde.scaling(tt)
+        inv_scaling = 1/scaling
+        var = inv_scaling**2 - 1
+        normalizer = (1-scaling**2)**.5
+        num_samples = config.num_estimator_samples
+        big_x = x.repeat_interleave(num_samples,dim=0)
+        lang = - inv_scaling * dist.grad_log_prob(inv_scaling * x)
+        big_lang = lang.repeat_interleave(num_samples,dim=0)
+        top, w_sum = 0,0
+        for _ in range(num_iters):
+            center = inv_scaling * big_x + inv_scaling * normalizer**2 * big_lang
+            Z = torch.randn_like(big_x)
+            samples_q = center + Z * var**.5
+            A = normalizer * big_lang + Z
+            logp0t = logdensity(samples_q) \
+                - .5 * torch.sum(A**2,dim=-1,keepdim=True)
+            logq = - .5 * torch.sum((A + normalizer * big_lang)**2,dim=-1,keepdim=True)
+            
+            w = torch.exp(logp0t - logq).view(-1,num_samples,1)
+            w_sum += torch.sum(w,dim=1)
+            Z = Z.view(-1,num_samples,dim)
+            top += torch.sum(Z * w, dim=1)
+        correction = torch.nan_to_num(top/w_sum) #nans are changed to 0
+        print(w[:5])
+        score_estimate = lang + correction/normalizer
+
+        from . import gmm_score
+        real_log_dens, real_grad = gmm_score.get_gmm_density_at_t(config,sde,tt,device)
+        real_score = real_grad(x)/torch.exp(real_log_dens(x))
+        
         print(torch.mean((real_score - score_estimate)**2).cpu().numpy())
         
         return score_estimate
@@ -82,7 +120,7 @@ def get_score_function(config, dist : Distribution, sde, device):
         
         return score_estimate
     
-    def score_quotient_estimator_2(x, tt):
+    def regression_estimator(x, tt):
         num_iters = config.num_estimator_batches
         inv_scaling = 1/sde.scaling(tt)
         variance_conv = inv_scaling**2 - 1
@@ -107,6 +145,8 @@ def get_score_function(config, dist : Distribution, sde, device):
         print(torch.mean((real_score - score_estimate)**2).cpu().numpy(), torch.mean((real_score - score_estimate_2)**2).cpu().numpy())
         return score_estimate
 
+        
+
     dist.keep_minimizer = False # We don't need minimizers unless we are in the rejection setting
     if config.score_method == 'p0t' and config.p0t_method == 'rejection':
         dist.keep_minimizer = True
@@ -116,7 +156,38 @@ def get_score_function(config, dist : Distribution, sde, device):
         prev_acc = None
         
         # print(f'Found minimizer {minimizer.cpu().numpy()}')
+    
+    def optimization_based_sampling(x,tt):
+        scaling = sde.scaling(tt)
+        inv_scaling = 1/scaling
+        L = config.L
+        var = 1/(L * dim + 1/(inv_scaling**2-1))
+
+        grad_p0t = lambda x0 : -dist.grad_log_prob(x0) + (x0-inv_scaling * x)/var
         
+        w, num_opt_iters = optimizers.nesterovs_minimizer(x,grad_p0t,var,L,1500)
+        print((inv_scaling * x)[:2].cpu().numpy(),w[:2].cpu().numpy())
+        sigma = 1/var - L 
+        mean = (-grad_p0t(w) - L * w +  inv_scaling * x/ var)/sigma
+        normal_var = 1/sigma
+        num_samples = config.num_estimator_samples
+        big_mean = mean.repeat_interleave(num_samples,dim=0)
+        big_x = x.repeat_interleave(num_samples,dim=0)
+        potential_p0t = lambda x0 : -dist.log_prob(x0) + .5 * torch.sum((x0-inv_scaling * big_x)**2)/var    
+        
+        z = torch.randn_like(big_mean)
+        samples = big_mean + z * normal_var**.5
+        w = torch.exp(-potential_p0t(samples))/torch.exp(- .5 * torch.sum(z**2,dim=-1,keepdim=True))
+        samples = samples.view(-1,num_samples,dim)
+        w = w.view(-1,num_samples,1)
+        w_mean = torch.sum(w,dim=1)
+        print(w_mean[:5])
+        
+        mean_estimate = torch.sum(samples * w,dim=1)/w_mean
+        mean_estimate = torch.nan_to_num(mean_estimate)
+        score_estimate = (scaling * mean_estimate - x)/(1 - scaling **2)
+        return score_estimate
+    
     def get_samplers_based_on_sampling_p0t(x,tt):
         scaling = sde.scaling(tt)
         inv_scaling = 1/scaling
@@ -235,7 +306,7 @@ def get_score_function(config, dist : Distribution, sde, device):
 
         
     if config.score_method == 'quotient-estimator':
-        return importance_estimator
+        return optimization_based_sampling
     elif config.score_method == 'p0t':
         return get_samplers_based_on_sampling_p0t
     elif config.score_method == 'recursive':
