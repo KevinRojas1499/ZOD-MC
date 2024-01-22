@@ -114,14 +114,15 @@ def eval(config):
         method_names = np.load(os.path.join(folder,f'method_names.npy'))
         mmd_stats = np.zeros((len(method_names), *gradient_complexity.shape),dtype='double')
         
-        for k, method in enumerate(method_names):
-            if method == 'Ground Truth':
-                k-=1
-                continue
-            for i, gc in enumerate(gradient_complexity):
-                if eval_mmd:
-                    mmd_stats[k][i] = mmd.get_mmd_squared(samples_all_methods[k][i],real_samples).detach().item()
-    
+        if eval_mmd:
+            for k, method in enumerate(method_names):
+                if method == 'Ground Truth':
+                    k-=1
+                    continue
+                for i, gc in enumerate(gradient_complexity):
+                    if eval_mmd:
+                        mmd_stats[k][i] = mmd.get_mmd_squared(samples_all_methods[k][i],real_samples).detach().item()
+        
     # Save method names and samples
     save_file = os.path.join(folder,f'samples_{config.density}.pt')
     np.save(os.path.join(folder,f'method_names.npy'), np.array(method_names))
