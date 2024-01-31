@@ -147,7 +147,7 @@ def eval(config):
             fig.savefig(os.path.join(folder,f'complexity_{gc}_{config.density}.pdf'), bbox_inches='tight')
         
     if eval_stats:
-        plt.rcParams.update({'font.size': 20})
+        plt.rcParams.update({'font.size': 14})
         
         fig, (ax1, ax2) = plt.subplots(1,2, figsize=(12,6))
         for i, method in enumerate(method_names):
@@ -158,9 +158,9 @@ def eval(config):
         # ax1.set_title('MMD as a function of Oracle Complexity per Score Evaluation')
         ax1.set_xlabel('Oracle Complexity')
         ax1.set_ylabel('MMD')
-        ax1.legend()
+        ax1.legend(loc='upper left')
         # ax2.set_title('W2 as a function of Oracle Complexity per Score Evaluation')
         ax2.set_xlabel('Oracle Complexity')
         ax2.set_ylabel('W2')
-        ax2.legend()
+        ax2.legend(loc='upper left')
         fig.savefig(os.path.join(folder,f'mmd_results_{dim}_{config.density}.pdf'),bbox_inches='tight')

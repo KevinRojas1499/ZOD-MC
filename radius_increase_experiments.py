@@ -134,7 +134,7 @@ def eval(config):
             fig = utils.plots.plot_all_samples(samples_all[:,i,:,:],
                                             method_names,
                                             xlim,ylim,distribution.log_prob)
-            fig.savefig(f'plots/Radius_{r}.pdf', bbox_inches='tight')
+            fig.savefig(os.path.join(folder,f'radius_{r}.pdf'), bbox_inches='tight')
             plt.close(fig)
     else:
         samples_all = torch.load(config.samples_ckpt).to(device=device).to(dtype=torch.double)
@@ -171,14 +171,14 @@ def eval(config):
         print(method)
         ax1.plot(radiuses,mmd_stats[i],label=method)
         ax2.plot(radiuses,w2_stats[i],label=method,linestyle=ls[i%3])
-    ax1.set_title('MMD as a function of mode separation')
+    # ax1.set_title('MMD as a function of mode separation')
     ax1.set_xlabel('Radius')
     ax1.set_ylabel('MMD')
-    ax1.legend()
-    ax2.set_title('W2 as a function of mode separation')
+    ax1.legend(loc='upper left')
+    # ax2.set_title('W2 as a function of mode separation')
     ax2.set_xlabel('Radius')
     ax2.set_ylabel('W2')
-    ax2.legend()
+    ax2.legend(loc='upper left')
     fig.savefig(os.path.join(folder,f'radius_mmd_results.pdf'),bbox_inches='tight')
 
 

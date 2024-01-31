@@ -61,7 +61,7 @@ class ModifiedMueller(Distribution):
         self.YY = YY
         self.x_c = -0.033923
         self.y_c = 0.465694      
-        self.beta = .5
+        self.beta = .3
           
     def _log_prob(self, xx):
         new_shape = list(xx.shape)
@@ -166,6 +166,7 @@ class MultivariateGaussian(Distribution):
         self.inv_cov = torch.linalg.inv(cov)
         self.L = torch.linalg.cholesky(self.inv_cov)
         self.log_det = torch.log(torch.linalg.det(self.cov))
+        self.dist = torch.distributions.MultivariateNormal(self.mean,self.cov)
         self.dim = mean.shape[0]
     
     def sample(self):
@@ -177,7 +178,7 @@ class MultivariateGaussian(Distribution):
         new_shape[-1] = 1
         new_shape = tuple(new_shape)
         x = x.view((-1,self.dim))
-        shift_cov = (self.L @ (x-self.mean).T).T
+        shift_cov = (self.L.T @ (x-self.mean).T).T
         log_prob = -.5 * ( self.dim * log(2 * pi) +  self.log_det + torch.sum(shift_cov**2,dim=1)) 
         log_prob = log_prob.view(new_shape)
         return log_prob
@@ -259,18 +260,33 @@ class MixtureDistribution(Distribution):
             idx = bisect_left(self.accum, random())
             samples[i] = self.distributions[idx].sample()
         return samples
-    
 
-class NonContinuousPotential(Distribution):
-    # For now just has discontinuities per radius
-    def __init__(self, dist, radiuses):
-        # Radiuses at which we should experience a jump
-        self.distribution = dist
-        self.radiuses = radiuses
+class DoubleWell(Distribution):
+    def __init__(self,dim, delta):
+        super().__init__()
+        self.dim = dim
+        self.delta = delta
         
     def _log_prob(self, x):
+        return - torch.sum((x**2 - self.delta)**2,dim=-1,keepdim=True)
+
+    def _grad_log_prob(self, x):
+        return -4 * (x**2 - self.delta) * x
+    
+class NonContinuousPotential(Distribution):
+    # For now just has discontinuities per radius
+    def __init__(self, dist : Distribution):
+        super().__init__()
+        # Radiuses at which we should experience a jump
+        self.distribution = dist
+        self.dim = dist.dim
         
-        return super()._log_prob(x)
+    def _log_prob(self, x):
+        norm = torch.sum(x**2,dim=-1,keepdim=True)**.5
+        return self.distribution._log_prob(x) + norm.floor()
+    
+    def _grad_log_prob(self, x):
+        return self.distribution._grad_log_prob(x)
 
 class DistributionFromPotential(Distribution):
     # This is a wrapper for Normal
@@ -315,6 +331,7 @@ def get_distribution(config, device):
         scales = to_tensor_type(params['variances'])
         n = len(c)
         rings = [RingDistribution(radius[i],scales[i],config.dimension) for i in range(n)]
+        # return NonContinuousPotential(MixtureDistribution(c,rings))
         return MixtureDistribution(c,rings)
     elif density == 'mueller':
         return ModifiedMueller(to_tensor_type(params['A']),
@@ -323,6 +340,8 @@ def get_distribution(config, device):
                                to_tensor_type(params['c']),
                                to_tensor_type(params['XX']), 
                                to_tensor_type(params['YY']))
+    elif density == 'double-well':
+        return DoubleWell(config.dimension,3.)
     else:
         print("Density not implemented yet")
         return

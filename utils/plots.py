@@ -7,9 +7,9 @@ import plotly.graph_objects as go
 
 def histogram(x, log_density=None):
     # Creating histogram
-    L = 15
+    L = 5
     points =  np.linspace(-L,L,num=150)
-    points_torch = torch.tensor(points,device='cuda')
+    points_torch = torch.tensor(points,device='cuda').unsqueeze(-1)
     plt.hist(x, bins = points, density=True)
     if log_density is not None:
         plt.plot(points, np.exp(log_density(points_torch).to('cpu').numpy()))
