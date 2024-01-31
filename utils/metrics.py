@@ -1,7 +1,5 @@
-
-
-
 import torch
+import ot
 
 class RBF_Kernel():
 
@@ -27,3 +25,9 @@ class MMDLoss():
         xy = self.kernel.get_kernel_value(x,y)
         yy = self.kernel.get_kernel_value(y,y)
         return xx - 2 * xy + yy
+    
+def get_w2(samples1,samples2):
+    n , m = samples1.shape[0], samples2.shape[0]
+    M = ot.dist(samples1,samples2)
+    a, b = torch.ones((n,),device=samples1.device) / n, torch.ones((m,),device=samples2.device) / m
+    return ot.emd2(a,b,M)**.5

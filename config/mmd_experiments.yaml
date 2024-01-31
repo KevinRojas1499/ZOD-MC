@@ -4,13 +4,13 @@ score_method: p0t
 p0t_method: rejection
 
 eval_mmd: True
-methods_to_run: [rejection,ula]
+methods_to_run: [ZOD-MC,RDMC, RSDMC]
 baselines: [langevin,proximal]
 
 # Checkpoints
-load_from_ckpt: False
-samples_ckpt: radius.pt
-save_folder: plots/radius/
+load_from_ckpt: True
+samples_ckpt: plots/gmm/samples_gmm.pt
+save_folder: plots/gmm/
 # RDMC - This actually defines the gradient complexity for everyone else
 num_samples_for_rdmc: 100
 sampling_eps_rdmc: 5e-2 # RDMC is more sensible to the stopping time
@@ -18,6 +18,9 @@ min_num_iters_rdmc: 1
 max_num_iters_rdmc: 101
 iters_rdmc_step: 10
 ula_step_size: 0.01
+
+# Recursive
+num_recursive_steps: 10
 
 # Rejection
 sampling_eps_rejec: 5e-3

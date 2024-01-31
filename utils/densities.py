@@ -61,7 +61,7 @@ class ModifiedMueller(Distribution):
         self.YY = YY
         self.x_c = -0.033923
         self.y_c = 0.465694      
-        self.beta = .1
+        self.beta = .5
           
     def _log_prob(self, xx):
         new_shape = list(xx.shape)
@@ -260,6 +260,17 @@ class MixtureDistribution(Distribution):
             samples[i] = self.distributions[idx].sample()
         return samples
     
+
+class NonContinuousPotential(Distribution):
+    # For now just has discontinuities per radius
+    def __init__(self, dist, radiuses):
+        # Radiuses at which we should experience a jump
+        self.distribution = dist
+        self.radiuses = radiuses
+        
+    def _log_prob(self, x):
+        
+        return super()._log_prob(x)
 
 class DistributionFromPotential(Distribution):
     # This is a wrapper for Normal

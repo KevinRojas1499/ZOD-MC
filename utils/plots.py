@@ -4,6 +4,7 @@ import wandb
 import torch
 import plotly.graph_objects as go
 
+
 def histogram(x, log_density=None):
     # Creating histogram
     L = 15
@@ -55,14 +56,15 @@ def plot_2d_dist_with_contour(data,log_prob, ground_truth=None):
     wandb.log({"Samples" : fig})
 
 def plot_all_samples(samples_array,labels,xlim, ylim,log_prob=None):
+    plt.rcParams.update({'font.size': 18})
     fig, ax = plt.subplots(1,len(samples_array), figsize=(24,6))
     for i, axis in enumerate(ax):
         samp = to_numpy(samples_array[i])
         axis.set_xlim(xlim)
         axis.set_ylim(ylim)
         if log_prob is not None:
-            pts_x = torch.linspace(xlim[0], xlim[1], 100)
-            pts_y = torch.linspace(ylim[0], ylim[1], 100)
+            pts_x = torch.linspace(xlim[0], xlim[1], 500)
+            pts_y = torch.linspace(ylim[0], ylim[1], 500)
             
             xx , yy = torch.meshgrid(pts_x,pts_y,indexing='xy')
             pts_grid = torch.cat((xx.unsqueeze(-1),yy.unsqueeze(-1)),dim=-1).to(device='cuda')

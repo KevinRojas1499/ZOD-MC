@@ -32,18 +32,17 @@ def get_score_function(config, dist : Distribution, sde, device):
             samples_q = samples_q.view(-1,num_samples,dim)
             top += torch.mean(samples_q * dens,dim=1)
             dens_mean += torch.mean(dens,dim=1)
-            w = dens/dens_mean
             
         mean_estimate = top/dens_mean
-        print(w[:5])
+        mean_estimate = torch.nan_to_num(mean_estimate)
         score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)
 
-        from . import gmm_score
-        real_log_dens, real_grad = gmm_score.get_gmm_density_at_t(config,sde,tt,device)
-        real_score = real_grad(x)/torch.exp(real_log_dens(x))
+        # from . import gmm_score
+        # real_log_dens, real_grad = gmm_score.get_gmm_density_at_t(config,sde,tt,device)
+        # real_score = real_grad(x)/torch.exp(real_log_dens(x))
         
-        score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)
-        print(torch.mean((real_score - score_estimate)**2).cpu().numpy())
+        # score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)
+        # print(torch.mean((real_score - score_estimate)**2).cpu().numpy())
         
         return score_estimate
     
@@ -211,32 +210,32 @@ def get_score_function(config, dist : Distribution, sde, device):
                 num_good_samples += torch.sum(acc_idx, dim=(1,2)).unsqueeze(-1).to(torch.double)/dim
                 mean_estimate += torch.sum(samples_from_p0t * acc_idx,dim=1)
                 
-            nonlocal previous_samples , prev_acc 
-            reuse = config.reuse_samples
-            if previous_samples is not None and reuse != 'no':
-                if config.reuse_samples == 'mala':
-                    previous_samples, prev_acc_idx  = mrw.mala_iteration(previous_samples, 
-                                                                            0.1, potential_0t,grad_pot_0t, device)
-                elif config.reuse_samples == 'mrw':
-                    previous_samples, prev_acc_idx  = mrw.metropolis_random_walk_iteration(previous_samples, 
-                                                                            0.1, potential_0t, device)
+            # nonlocal previous_samples , prev_acc 
+            # reuse = config.reuse_samples
+            # if previous_samples is not None and reuse != 'no':
+            #     if config.reuse_samples == 'mala':
+            #         previous_samples, prev_acc_idx  = mrw.mala_iteration(previous_samples, 
+            #                                                                 0.1, potential_0t,grad_pot_0t, device)
+            #     elif config.reuse_samples == 'mrw':
+            #         previous_samples, prev_acc_idx  = mrw.metropolis_random_walk_iteration(previous_samples, 
+            #                                                                 0.1, potential_0t, device)
                     
-                previous_samples = previous_samples.view((-1,num_samples,dim))
-                prev_acc_idx = prev_acc_idx.view((-1,num_samples,dim))
-                mean_estimate+= torch.sum(previous_samples * prev_acc_idx * prev_acc,dim=1)
-                num_good_samples_prev =  torch.sum(prev_acc_idx * prev_acc, dim=(1,2)).unsqueeze(-1).to(torch.double)/dim
-                num_good_samples += num_good_samples_prev
-                wandb.log({'Avg New Samples Prev' : torch.mean(num_good_samples_prev).detach().item() })
-            previous_samples = samples_from_p0t.view((-1,dim))
-            prev_acc = acc_idx
+            #     previous_samples = previous_samples.view((-1,num_samples,dim))
+            #     prev_acc_idx = prev_acc_idx.view((-1,num_samples,dim))
+            #     mean_estimate+= torch.sum(previous_samples * prev_acc_idx * prev_acc,dim=1)
+            #     num_good_samples_prev =  torch.sum(prev_acc_idx * prev_acc, dim=(1,2)).unsqueeze(-1).to(torch.double)/dim
+            #     num_good_samples += num_good_samples_prev
+            #     wandb.log({'Avg New Samples Prev' : torch.mean(num_good_samples_prev).detach().item() })
+            # previous_samples = samples_from_p0t.view((-1,dim))
+            # prev_acc = acc_idx
 
             num_good_samples[num_good_samples == 0] += 1 
             mean_estimate /= num_good_samples
 
             
-            wandb.log({'Average Acc Samples' : torch.mean(num_good_samples).detach().item(),
-                        'Small Num Acc < 10' : len(num_good_samples[num_good_samples <= 10]),
-                        'Min Acc Samples' : torch.min(num_good_samples).detach().item()})
+            # wandb.log({'Average Acc Samples' : torch.mean(num_good_samples).detach().item(),
+            #             'Small Num Acc < 10' : len(num_good_samples[num_good_samples <= 10]),
+            #             'Min Acc Samples' : torch.min(num_good_samples).detach().item()})
         elif config.p0t_method == 'ula':
             x0 = inv_scaling * big_x + torch.randn_like(big_x) * variance_conv**.5
             samples_from_p0t = ula.get_ula_samples(x0,grad_log_prob_0t,config.ula_step_size,config.num_sampler_iterations)
@@ -295,7 +294,6 @@ def get_score_function(config, dist : Distribution, sde, device):
         big_x = x.repeat_interleave(num_samples,dim=0) 
         x0 = big_x.detach().clone()    
         # x0 = inv_scaling * x0 + torch.randn_like(x0) * (inv_scaling**2 -1)  # q0 initialization
-        
         for _ in range(config.num_sampler_iterations):
             score = get_recursive_langevin(x0, (k-1) * tt/k,k-1) + scaling * (big_x - scaling * x0)/(1-scaling**2)
             x0 = x0 + h * score + (2*h)**.5 * torch.randn_like(x0)
@@ -306,7 +304,7 @@ def get_score_function(config, dist : Distribution, sde, device):
 
         
     if config.score_method == 'quotient-estimator':
-        return optimization_based_sampling
+        return score_quotient_estimator
     elif config.score_method == 'p0t':
         return get_samplers_based_on_sampling_p0t
     elif config.score_method == 'recursive':

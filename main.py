@@ -1,9 +1,6 @@
 import configargparse
 import run_toy
-import estimator_accuracy_experiments
-import generation_accuracy_experiments
 import fourier_experiments
-import experiments_based_on_p0t
 
 def parse_arguments():
     p = configargparse.ArgParser(description='Arguments for nonconvex sampling')
@@ -53,14 +50,8 @@ def parse_arguments():
 def main(config):
     if config.mode == 'sample':
         run_toy.eval(config)
-    elif config.mode == 'estimator-experiments':
-        estimator_accuracy_experiments.run_experiments(config)
-    elif config.mode == 'generation-experiments':
-        generation_accuracy_experiments.run_experiments(config)
     elif config.mode == 'fourier-experiments':
         fourier_experiments.run_fourier_experiments(config)
-    elif config.mode == 'p0t-experiments':
-        experiments_based_on_p0t.run_experiments(config)
     else:
         print("Mode doesn't exist")
 

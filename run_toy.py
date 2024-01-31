@@ -2,9 +2,11 @@ import torch
 import wandb
 import utils.plots
 import utils.densities
-import utils.mmd
+import utils.metrics
 import sample
 import utils.gmm_utils
+import ot
+import numpy as np
 
 def get_run_name(config):
     tot_samples = config.num_estimator_batches * config.num_estimator_samples
@@ -42,8 +44,10 @@ def eval(config):
     print(torch.sum(torch.isnan(samples)))
     if config.density in ['gmm','lmm','rmm']:
         real_samples = distribution.sample(samples.shape[0])
-        mmd = utils.mmd.MMDLoss()
+        mmd = utils.metrics.MMDLoss()
         print(mmd.get_mmd_squared(samples,real_samples))
+        # W2
+        print(utils.metrics.get_w2(real_samples,samples))
     utils.plots.plot_samples(config,distribution,samples,real_samples)
     wandb.finish()
 
