@@ -283,10 +283,22 @@ class NonContinuousPotential(Distribution):
         
     def _log_prob(self, x):
         norm = torch.sum(x**2,dim=-1,keepdim=True)**.5
-        return self.distribution._log_prob(x) + norm.floor()
+        x + x.round().detach() - x.detach()
+        return self.distribution._log_prob(x) + norm - norm.floor().detach() - norm.detach()
     
     def _grad_log_prob(self, x):
         return self.distribution._grad_log_prob(x)
+    
+    def sample(self,num_samples):
+        N = num_samples * 100 # TODO: Don't harcode this
+        s = self.distribution.sample(N)
+        r = torch.rand((N,1),device=s.device)
+        acc_prob = torch.exp(self.log_prob(s) - self.distribution.log_prob(s))
+        acc_idx = (r < acc_prob).squeeze(-1).bool()
+        return s[acc_idx][:num_samples,:]
+            
+            
+            
 
 class DistributionFromPotential(Distribution):
     # This is a wrapper for Normal
@@ -306,6 +318,7 @@ def get_distribution(config, device):
     params = yaml.safe_load(open(config.density_parameters_path))
 
     density = config.density 
+    dist = None
     if  density == 'gmm':
         c = to_tensor_type(params['coeffs'])
         means = to_tensor_type(params['means'])
@@ -316,7 +329,7 @@ def get_distribution(config, device):
         else:
             gaussians = [MultivariateGaussian(means[i],variances[i]) for i in range(n)]
 
-        return MixtureDistribution(c, gaussians)
+        dist = MixtureDistribution(c, gaussians)
     elif density == 'lmm':
         c = to_tensor_type(params['coeffs'])
         means = to_tensor_type(params['means'])
@@ -324,24 +337,28 @@ def get_distribution(config, device):
         n = len(c)
         laplacians = [LaplacianDistribution(means[i],scales[i]) for i in range(n)]
         
-        return MixtureDistribution(c,laplacians)
+        dist = MixtureDistribution(c,laplacians)
     elif density == 'rmm':
         c = to_tensor_type(params['coeffs'])
         radius = to_tensor_type(params['radius'])
         scales = to_tensor_type(params['variances'])
         n = len(c)
         rings = [RingDistribution(radius[i],scales[i],config.dimension) for i in range(n)]
-        # return NonContinuousPotential(MixtureDistribution(c,rings))
-        return MixtureDistribution(c,rings)
+        dist = MixtureDistribution(c,rings)
     elif density == 'mueller':
-        return ModifiedMueller(to_tensor_type(params['A']),
+        dist = ModifiedMueller(to_tensor_type(params['A']),
                                to_tensor_type(params['a']), 
                                to_tensor_type(params['b']), 
                                to_tensor_type(params['c']),
                                to_tensor_type(params['XX']), 
                                to_tensor_type(params['YY']))
     elif density == 'double-well':
-        return DoubleWell(config.dimension,3.)
+        dist = DoubleWell(config.dimension,3.)
     else:
         print("Density not implemented yet")
         return
+    
+    if config.discontinuity:
+        dist = NonContinuousPotential(dist)
+    
+    return dist

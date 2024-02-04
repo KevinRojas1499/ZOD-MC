@@ -61,7 +61,8 @@ def parse_arguments():
     # Problem Specifics
     p.add_argument('--density',choices=['gmm','mueller','lmm'])
     p.add_argument('--density_parameters_path',type=str)
-
+    p.add_argument('--discontinuity',action='store_true',default=False)
+    
     return p.parse_args()
 
 def main(config):

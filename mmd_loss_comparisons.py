@@ -18,7 +18,7 @@ def set_seed(seed):
 
 def get_num_methods(config):
     num = len(config.methods_to_run) + len(config.baselines)
-    num += 1 if config.eval_mmd else num
+    num += 1 if config.eval_mmd else 0
     return num     
 
 def eval(config):
@@ -33,7 +33,6 @@ def eval(config):
     # Baseline
     tot_samples = config.num_batches * config.sampling_batch_size
     num_methods = get_num_methods(config)
-        
     method_names = [''] * num_methods
     oracle_complexity = config.num_samples_for_rdmc * np.arange(config.min_num_iters_rdmc,
                                                                 config.max_num_iters_rdmc,
@@ -134,15 +133,17 @@ def eval(config):
     save_file = os.path.join(folder,f'samples_{config.density}.pt')
     np.save(os.path.join(folder,f'method_names.npy'), np.array(method_names))
     torch.save(samples_all_methods, save_file)
-    
+    np.savetxt(os.path.join(folder,'mmd.txt'), mmd_stats)
+    np.savetxt(os.path.join(folder,'w2.txt'), w2_stats)
 
     if dim == 2:
-        xlim = [-5,13] if config.density in ['lmm','gmm'] else [-2,2]
+        take_log = config.density not in ['lmm','gmm'] # This is so that we can have nicer level curves for mueller
+        xlim = [-5,13] if config.density in ['lmm','gmm'] else [-2,1.5]
         ylim = [-5,13] if config.density in ['lmm','gmm']else [-1,2]
         for i, gc in enumerate(oracle_complexity):
             fig = utils.plots.plot_all_samples(samples_all_methods[:,i,:,:],
                                             method_names,
-                                            xlim,ylim,distribution.log_prob)
+                                            xlim,ylim,distribution.log_prob,take_log)
             plt.close(fig)
             fig.savefig(os.path.join(folder,f'complexity_{gc}_{config.density}.pdf'), bbox_inches='tight')
         

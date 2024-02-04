@@ -3,8 +3,8 @@ mode: eval_mmd
 score_method: p0t
 p0t_method: rejection
 
-methods_to_run: [ ula, rejection]
-baselines: [  langevin, proximal]
+methods_to_run: [ZOD-MC]
+baselines: []
 
 # RDMC - This actually defines the gradient complexity for everyone else
 num_samples_for_rdmc: 100
@@ -15,7 +15,7 @@ iters_rdmc_step: 10
 ula_step_size: 0.01
 
 # Rejection
-sampling_eps_rejec: 5e-3
+sampling_eps_rejec: 5e-4
 
 # Baselines
 langevin_step_size: 0.001
@@ -34,7 +34,7 @@ bias: 2
 sampling_method: ei
 num_batches: 1
 sampling_batch_size: 1000
-T: 2
+T: 10
 sampling_eps: 5e-3
-disc_steps: 25
+disc_steps: 50
 ula_steps: 0

@@ -55,9 +55,11 @@ def plot_2d_dist_with_contour(data,log_prob, ground_truth=None):
         
     wandb.log({"Samples" : fig})
 
-def plot_all_samples(samples_array,labels,xlim, ylim,log_prob=None):
+def plot_all_samples(samples_array,labels,xlim, ylim,log_prob=None, take_log=False):
     plt.rcParams.update({'font.size': 18})
-    fig, ax = plt.subplots(1,len(samples_array), figsize=(24,6))
+    fig, ax = plt.subplots(1,len(samples_array), figsize=(5 * len(samples_array),6))
+    if len(samples_array) == 1:
+        ax = [ax]
     for i, axis in enumerate(ax):
         samp = to_numpy(samples_array[i])
         axis.set_xlim(xlim)
@@ -69,6 +71,9 @@ def plot_all_samples(samples_array,labels,xlim, ylim,log_prob=None):
             xx , yy = torch.meshgrid(pts_x,pts_y,indexing='xy')
             pts_grid = torch.cat((xx.unsqueeze(-1),yy.unsqueeze(-1)),dim=-1).to(device='cuda')
             dens = -log_prob(pts_grid).squeeze(-1).cpu().numpy()
+            if take_log:
+                dens = dens - np.min(dens) + 5
+                dens = np.log(dens)
             pts_x, pts_y = to_numpy(pts_x), to_numpy(pts_y)
             axis.contourf(pts_x,pts_y,dens)
         

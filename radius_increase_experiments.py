@@ -139,11 +139,12 @@ def eval(config):
     else:
         samples_all = torch.load(config.samples_ckpt).to(device=device).to(dtype=torch.double)
         method_names = np.load(os.path.join(folder,f'method_names.npy'))
-        for k, method in enumerate(method_names):
-            if method == 'Ground Truth':
-                k-=1
-                continue
-            for i, r in enumerate(radiuses):
+        
+        for i, r in enumerate(radiuses):
+            for k, method in enumerate(method_names):
+                if method == 'Ground Truth':
+                    k-=1
+                    continue
                 distribution = get_gmm_radius(config,r,device)
                 
                 mmd_stats[k][i] = mmd.get_mmd_squared(samples_all[k][i],samples_all[0][i]).detach().item()
@@ -151,11 +152,11 @@ def eval(config):
                 print(f'{method} {r} {torch.sum((samples_all[k][i][:,0] < 30))} {torch.sum((samples_all[k][i][:,1] < 30))}')
                 xlim = [-4, 8*r + 4]
                 ylim = [-4, 8*r + 4]
-                fig = utils.plots.plot_all_samples(samples_all[:,i,:,:],
-                                                method_names,
-                                                xlim,ylim,distribution.log_prob)
-                fig.savefig(os.path.join(folder,f'radius_{r}.pdf'), bbox_inches='tight')
-                plt.close(fig)
+            fig = utils.plots.plot_all_samples(samples_all[:,i,:,:],
+                                            method_names,
+                                            xlim,ylim,distribution.log_prob)
+            fig.savefig(os.path.join(folder,f'radius_{r}.pdf'), bbox_inches='tight')
+            plt.close(fig)
     
     # Save method names and samples
     save_file = os.path.join(folder,f'samples_{config.density}.pt')
