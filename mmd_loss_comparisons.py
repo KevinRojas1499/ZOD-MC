@@ -52,8 +52,7 @@ def eval(config):
         k+=1
     
     folder = os.path.dirname(config.save_folder)
-    if not os.path.isdir(folder):
-        os.mkdir(folder)
+    os.makedirs(folder, exist_ok=True)
     
     if not config.load_from_ckpt:
         for method in config.methods_to_run:

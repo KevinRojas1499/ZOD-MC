@@ -61,8 +61,8 @@ def eval(config):
     
     
     folder = os.path.dirname(config.save_folder)
-    if not os.path.isdir(folder):
-        os.mkdir(folder)
+    os.makedirs(folder, exist_ok=True)
+
     if not config.load_from_ckpt:
         for i, r in enumerate(radiuses):
             distribution = get_gmm_radius(config,r,device)

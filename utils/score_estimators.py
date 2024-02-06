@@ -2,12 +2,10 @@ import torch
 import wandb
 from math import pi
 
-from utils.integrators import get_integrator
 from utils.densities import Distribution
 import utils.optimizers as optimizers
 import samplers.rejection_sampler as rejection_sampler
 import samplers.ula as ula
-import samplers.metropolis_random_walk as mrw
 
 def get_score_function(config, dist : Distribution, sde, device):
     """

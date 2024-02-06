@@ -8,7 +8,7 @@ methods_to_run: [ZOD-MC,RDMC, RSDMC]
 baselines: [langevin,proximal]
 
 # Checkpoints
-load_from_ckpt: True
+load_from_ckpt: False
 samples_ckpt: plots/gmm/samples_gmm.pt
 save_folder: plots/gmm/
 # RDMC - This actually defines the gradient complexity for everyone else
