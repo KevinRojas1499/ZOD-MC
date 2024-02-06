@@ -2,7 +2,6 @@ import os
 import yaml
 import torch
 import numpy as np
-import ot
 import utils.gmm_utils
 import utils.plots
 import utils.densities
@@ -11,8 +10,6 @@ import sample
 import matplotlib.pyplot as plt
 import samplers.ula
 import samplers.proximal_sampler
-from math import pi, sin , cos
-from tueplots import axes, bundles
 
 
 def setup_seed(seed):
