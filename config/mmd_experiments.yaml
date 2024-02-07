@@ -27,7 +27,7 @@ sampling_eps_rejec: 5e-3
 
 # Baselines
 langevin_step_size: 0.001
-proximal_M: 20
+proximal_M: 5
 proximal_num_iters: 100
 
 # Estimator Information

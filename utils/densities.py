@@ -14,16 +14,11 @@ class Distribution(abc.ABC):
         self.potential_minimizer = None
         self.potential_min = None
         self.keep_minimizer = False # Defaults to False, set to True for rejection sampler/optimization based algs
-        self.r = 1
-    
-    @abc.abstractmethod
-    def _log_prob(self, x):
-        # Log prob up to a constant
         pass
     
     def log_prob(self, x):
         # This method calls log_prob and updates the minimizer
-        log_dens = self._log_prob(x/self.r)
+        log_dens = self._log_prob(x)
         if self.keep_minimizer:
             xp = x.view((-1,self.dim))
             log_dens_vals = log_dens.view((-1,1))
@@ -44,7 +39,7 @@ class Distribution(abc.ABC):
             return torch.autograd.grad(pot.sum(),x)[0].detach()
     
     def grad_log_prob(self,x):
-        return self._grad_log_prob(x/self.r)/self.r
+        return self._grad_log_prob(x)
     
     def gradient(self, x):
         return torch.exp(self.log_prob(x)) * self.grad_log_prob(x)    
@@ -61,15 +56,17 @@ class ModifiedMueller(Distribution):
         self.YY = YY
         self.x_c = -0.033923
         self.y_c = 0.465694      
-        self.beta = .3
+        self.beta = .1
+        self.translation_x = -1.
+        self.translation_y = 1.
           
     def _log_prob(self, xx):
         new_shape = list(xx.shape)
         new_shape[-1] = 1
         new_shape = tuple(new_shape)
         xx = xx.view(-1,self.dim)
-        x = xx[:,0]
-        y = xx[:,1]
+        x = xx[:,0] - self.translation_x
+        y = xx[:,1] - self.translation_y
 
         V_m = 0
         for i in range(self.n):
@@ -83,28 +80,28 @@ class ModifiedMueller(Distribution):
         return -self.beta * (V_q + V_m).view(new_shape)
     
     def _grad_log_prob(self, xx):
-            curr_shape = list(xx.shape)
-            xx = xx.view(-1,self.dim)
-            x = xx[:,0]
-            y = xx[:,1]
+        curr_shape = list(xx.shape)
+        xx = xx.view(-1,self.dim)
+        x = xx[:,0] - self.translation_x
+        y = xx[:,1] - self.translation_y
 
-            grad_x = 0
-            grad_y = 0
-            for i in range(self.n):
-                xi = x- self.XX[i]
-                yi = y-self.YY[i]
-                ee = self.A[i] * torch.exp(self.a[i]* xi**2 \
-                    + self.b[i] * xi * yi \
-                    + self.c[i] * yi**2)
-                grad_x+=  ee * (2 * self.a[i] * xi + self.b[i] * yi)
-                grad_y+=  ee * (self.b[i] * xi + 2 * self.c[i] * yi)
-            
-            # V_q
-            grad_x += 2 * 35.0136 * (x-self.x_c)
-            grad_y += 2 * 59.8399 * (y-self.y_c)
-            grad_x = grad_x.unsqueeze(-1)
-            grad_y = grad_y.unsqueeze(-1)
-            return -self.beta * torch.cat((grad_x,grad_y),dim=-1).view(curr_shape)
+        grad_x = 0
+        grad_y = 0
+        for i in range(self.n):
+            xi = x- self.XX[i]
+            yi = y-self.YY[i]
+            ee = self.A[i] * torch.exp(self.a[i]* xi**2 \
+                + self.b[i] * xi * yi \
+                + self.c[i] * yi**2)
+            grad_x+=  ee * (2 * self.a[i] * xi + self.b[i] * yi)
+            grad_y+=  ee * (self.b[i] * xi + 2 * self.c[i] * yi)
+        
+        # V_q
+        grad_x += 2 * 35.0136 * (x-self.x_c)
+        grad_y += 2 * 59.8399 * (y-self.y_c)
+        grad_x = grad_x.unsqueeze(-1)
+        grad_y = grad_y.unsqueeze(-1)
+        return -self.beta * torch.cat((grad_x,grad_y),dim=-1).view(curr_shape)
 class MultivariateGaussian(Distribution):
     def __init__(self, mean, cov):
         super().__init__()
@@ -282,9 +279,12 @@ class NonContinuousPotential(Distribution):
         self.dim = dist.dim
         
     def _log_prob(self, x):
-        norm = torch.sum(x**2,dim=-1,keepdim=True)**.5
-        x + x.round().detach() - x.detach()
-        return self.distribution._log_prob(x) + norm - norm.floor().detach() - norm.detach()
+        discontinuity = torch.sum(x**2,dim=-1,keepdim=True)**.5
+        discontinuity[discontinuity < 5] = 0
+        discontinuity[discontinuity > 10] = 0
+        discontinuity*=8
+        # This helps prevent problems with the backward pass
+        return self.distribution._log_prob(x) - discontinuity.detach() 
     
     def _grad_log_prob(self, x):
         return self.distribution._grad_log_prob(x)

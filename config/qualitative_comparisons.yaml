@@ -4,22 +4,25 @@ score_method: p0t
 p0t_method: rejection
 
 methods_to_run: [ZOD-MC]
-baselines: []
+baselines: [proximal]
+
+# load_from_ckpt: True
+# samples_ckpt: plots/mueller/samples_mueller.pt
 
 # RDMC - This actually defines the gradient complexity for everyone else
 num_samples_for_rdmc: 100
 sampling_eps_rdmc: 5e-3 # RDMC is more sensible to the stopping time
-min_num_iters_rdmc: 101
-max_num_iters_rdmc: 111
+min_num_iters_rdmc: 31
+max_num_iters_rdmc: 41
 iters_rdmc_step: 10
-ula_step_size: 0.01
+ula_step_size: 0.0005
 
 # Rejection
 sampling_eps_rejec: 5e-4
 
 # Baselines
-langevin_step_size: 0.001
-proximal_M: 20
+langevin_step_size: 0.0005
+proximal_M: 5000 # M = L 
 proximal_num_iters: 100
 
 # Estimator Information
@@ -34,7 +37,7 @@ bias: 2
 sampling_method: ei
 num_batches: 1
 sampling_batch_size: 1000
-T: 10
+T: 3
 sampling_eps: 5e-3
 disc_steps: 50
 ula_steps: 0

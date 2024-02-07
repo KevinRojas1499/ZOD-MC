@@ -18,26 +18,28 @@ def get_rgo_sampling(xk, yk, eta, dist : Distribution, M, device, initial_cond_f
     grad_f_eta = lambda x : -dist.grad_log_prob(x) + (x - yk)/eta
     in_cond = xk if initial_cond_for_minimization == None else initial_cond_for_minimization
     w , k = nesterovs_minimizer(in_cond, grad_f_eta, eta, M)
+    min_val = dist.log_prob(w)
     var = 1/(1/eta - M)
     gradw = -dist.grad_log_prob(w)
     u = (yk/eta - gradw - M * w) * var
-    
     num_rejection_iters = 0
     while num_acc_samples < num_samples * d and num_rejection_iters < 20:
         num_rejection_iters+=1
-        xk = u + var **.5 * accepted_samples * torch.randn_like(xk)
+        proposal = u + var **.5 * accepted_samples * torch.randn_like(xk)
         
-        exp_h1 = -dist.log_prob(w) \
-            + sum_last_dim(gradw * (xk-w)) \
-            - M * sum_last_dim((xk-w)**2)/2 \
+        exp_h1 = - min_val \
+            + sum_last_dim(gradw * (proposal-w)) \
+            - M * sum_last_dim((proposal-w)**2)/2 \
             - (1-al)*delta/2
-        f_eta = -dist.log_prob(xk) # The other term gets cancelled so I removed them
+        f_eta = -dist.log_prob(proposal) # The other term gets cancelled so I removed them
         rand_prob = torch.rand((num_samples,1),device=device)
         acc_idx = (accepted_samples * torch.exp(-exp_h1) * rand_prob <= torch.exp(-f_eta))
         num_acc_samples = torch.sum(acc_idx)
         accepted_samples = (~acc_idx).long()
-        u[acc_idx] = xk[acc_idx]
-    return xk, 2 * num_rejection_iters + k, w
+        u[acc_idx] = proposal[acc_idx]
+    xk[acc_idx] = proposal[acc_idx]
+    # print(num_acc_samples)
+    return xk, 1 + num_rejection_iters + k, w
 
 def get_samples(x0,dist : Distribution, M, num_iters, num_samples, device, max_grad_complexity=None):
     # x0 is [n,d] is the initialization given by the user

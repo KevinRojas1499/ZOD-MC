@@ -87,7 +87,7 @@ def eval(config):
         for baseline in config.baselines:
             prev = 0
             method_names[k] = baseline
-            in_cond = torch.randn((tot_samples,dim), device=device)
+            in_cond = torch.randn((tot_samples,dim), dtype=torch.double, device=device)
             for i, gc in enumerate(oracle_complexity):
                 if baseline == 'langevin': 
                     samples_all_methods[k][i] = samplers.ula.get_ula_samples(in_cond,
@@ -137,8 +137,9 @@ def eval(config):
 
     if dim == 2:
         take_log = config.density not in ['lmm','gmm'] # This is so that we can have nicer level curves for mueller
-        xlim = [-5,13] if config.density in ['lmm','gmm'] else [-2,1.5]
-        ylim = [-5,13] if config.density in ['lmm','gmm']else [-1,2]
+        rx, ry = -1, 1
+        xlim = [-5,13] if config.density in ['lmm','gmm'] else [-2+rx,1.5+ry]
+        ylim = [-5,13] if config.density in ['lmm','gmm']else [-1+rx,2+ry]
         for i, gc in enumerate(oracle_complexity):
             fig = utils.plots.plot_all_samples(samples_all_methods[:,i,:,:],
                                             method_names,
