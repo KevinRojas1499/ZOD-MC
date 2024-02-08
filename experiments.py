@@ -39,6 +39,7 @@ def parse_arguments():
     p.add_argument('--max_iters_optimization',type=int, default=50)
     p.add_argument('--num_sampler_iterations', type=int) # For langevin
     p.add_argument('--ula_step_size',type=float)
+    p.add_argument('--rdmc_initial_condition',choices=['normal','delta'],default='normal')
     p.add_argument('--num_estimator_batches', type=int, default=1) # For rejection
     p.add_argument('--num_estimator_samples', type=int, default=10000) # Per batch for rejection
     p.add_argument('--eps_stable',type=float, default=1e-9) # For quotient based methods

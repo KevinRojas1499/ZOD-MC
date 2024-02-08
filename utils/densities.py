@@ -57,16 +57,21 @@ class ModifiedMueller(Distribution):
         self.x_c = -0.033923
         self.y_c = 0.465694      
         self.beta = .1
-        self.translation_x = -1.
-        self.translation_y = 1.
-          
+        self.translation_x = 3.5
+        self.translation_y = -6.5
+        self.dilatation = 1/5
+        
+    def transformation(self, xx):
+        x = self.dilatation * (xx[:,0] - self.translation_x)
+        y = self.dilatation * (xx[:,1] - self.translation_y)
+        return x,y
+    
     def _log_prob(self, xx):
         new_shape = list(xx.shape)
         new_shape[-1] = 1
         new_shape = tuple(new_shape)
         xx = xx.view(-1,self.dim)
-        x = xx[:,0] - self.translation_x
-        y = xx[:,1] - self.translation_y
+        x,y = self.transformation(xx)
 
         V_m = 0
         for i in range(self.n):
@@ -82,8 +87,7 @@ class ModifiedMueller(Distribution):
     def _grad_log_prob(self, xx):
         curr_shape = list(xx.shape)
         xx = xx.view(-1,self.dim)
-        x = xx[:,0] - self.translation_x
-        y = xx[:,1] - self.translation_y
+        x,y = self.transformation(xx)
 
         grad_x = 0
         grad_y = 0
@@ -101,7 +105,7 @@ class ModifiedMueller(Distribution):
         grad_y += 2 * 59.8399 * (y-self.y_c)
         grad_x = grad_x.unsqueeze(-1)
         grad_y = grad_y.unsqueeze(-1)
-        return -self.beta * torch.cat((grad_x,grad_y),dim=-1).view(curr_shape)
+        return -self.beta * torch.cat((grad_x,grad_y),dim=-1).view(curr_shape) * self.dilatation
 class MultivariateGaussian(Distribution):
     def __init__(self, mean, cov):
         super().__init__()
@@ -284,7 +288,7 @@ class NonContinuousPotential(Distribution):
         discontinuity[discontinuity > 10] = 0
         discontinuity*=8
         # This helps prevent problems with the backward pass
-        return self.distribution._log_prob(x) - discontinuity.detach() 
+        return self.distribution._log_prob(x) - discontinuity.floor().detach() 
     
     def _grad_log_prob(self, x):
         return self.distribution._grad_log_prob(x)

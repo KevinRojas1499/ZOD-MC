@@ -46,7 +46,10 @@ def get_score_function(config, dist : Distribution, sde, device):
             num_good_samples[num_good_samples == 0] += 1 
             mean_estimate /= num_good_samples
         elif config.p0t_method == 'ula':
-            x0 = inv_scaling * big_x + torch.randn_like(big_x) * variance_conv**.5
+            x0 = big_x
+            if config.rdmc_initial_condition == 'normal':
+                x0 = inv_scaling * big_x + torch.randn_like(big_x) * variance_conv**.5
+            
             samples_from_p0t = ula.get_ula_samples(x0,grad_log_prob_0t,config.ula_step_size,config.num_sampler_iterations)
             samples_from_p0t = samples_from_p0t.view((-1,num_samples,dim))
             

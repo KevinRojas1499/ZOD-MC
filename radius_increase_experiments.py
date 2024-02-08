@@ -110,7 +110,7 @@ def eval(config):
                 if method == 'langevin':
                     # Langevin
                     distribution.keep_minimizer = False
-                    ula_step_size = 0.1
+                    ula_step_size = 0.01
                     num_steps_lang = 5000 
                     samples_all[k][i] = samplers.ula.get_ula_samples(in_cond,
                                                                     distribution.grad_log_prob,

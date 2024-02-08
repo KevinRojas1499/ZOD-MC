@@ -1,6 +1,5 @@
 import configargparse
 import run_toy
-import fourier_experiments
 
 def parse_arguments():
     p = configargparse.ArgParser(description='Arguments for nonconvex sampling')
@@ -26,6 +25,7 @@ def parse_arguments():
     p.add_argument('--num_estimator_samples', type=int, default=10000) # Per batch for rejection
     p.add_argument('--eps_stable',type=float, default=1e-9) # For quotient based methods
     p.add_argument('--num_recursive_steps',type=int, default=6)
+    p.add_argument('--rdmc_initial_condition',choices=['normal','delta'],default='normal')
     
     # SDE Parameters
     p.add_argument('--sde_type', choices=['vp'], default='vp')
@@ -50,8 +50,6 @@ def parse_arguments():
 def main(config):
     if config.mode == 'sample':
         run_toy.eval(config)
-    elif config.mode == 'fourier-experiments':
-        fourier_experiments.run_fourier_experiments(config)
     else:
         print("Mode doesn't exist")
 

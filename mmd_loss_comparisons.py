@@ -138,8 +138,9 @@ def eval(config):
     if dim == 2:
         take_log = config.density not in ['lmm','gmm'] # This is so that we can have nicer level curves for mueller
         rx, ry = -1, 1
-        xlim = [-5,13] if config.density in ['lmm','gmm'] else [-2+rx,1.5+ry]
-        ylim = [-5,13] if config.density in ['lmm','gmm']else [-1+rx,2+ry]
+        l = 5
+        xlim = [-5,13] if config.density in ['lmm','gmm'] else [-5, 9]
+        ylim = [-5,13] if config.density in ['lmm','gmm']else [-8,3.5]
         for i, gc in enumerate(oracle_complexity):
             fig = utils.plots.plot_all_samples(samples_all_methods[:,i,:,:],
                                             method_names,
