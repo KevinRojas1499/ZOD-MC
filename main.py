@@ -11,11 +11,10 @@ def parse_arguments():
     p.add_argument('--tags', type=str)
     
     # Mode
-    p.add_argument('--mode', choices=['sample','eval_mmd','radius','estimator-experiments', 'generation-experiments','fourier-experiments','p0t-experiments'])
-    p.add_argument('--score_method', choices=['quotient-estimator', 'p0t','recursive'],default='p0t')
+    p.add_argument('--mode', choices=['sample','eval_mmd','radius'])
+    p.add_argument('--score_method', choices=['p0t','recursive'],default='p0t')
     p.add_argument('--p0t_method', choices=['rejection','ula'],default='rejection')
     p.add_argument('--dimension', type=int)
-    p.add_argument('--reuse_samples',choices=['no','mala','mrw'],default='no')
     
     # Sampler details
     p.add_argument('--max_iters_optimization',type=int, default=50)
@@ -23,7 +22,6 @@ def parse_arguments():
     p.add_argument('--ula_step_size',type=float)
     p.add_argument('--num_estimator_batches', type=int, default=1) # For rejection
     p.add_argument('--num_estimator_samples', type=int, default=10000) # Per batch for rejection
-    p.add_argument('--eps_stable',type=float, default=1e-9) # For quotient based methods
     p.add_argument('--num_recursive_steps',type=int, default=6)
     p.add_argument('--rdmc_initial_condition',choices=['normal','delta'],default='normal')
     

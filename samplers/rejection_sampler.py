@@ -5,15 +5,17 @@ from utils.optimizers import nesterovs_minimizer, gradient_descent
 def sum_last_dim(x):
     return torch.sum(x,dim=-1, keepdim=True)
 
-def get_rgo_sampling(xk, eta, log_prob, device, threshold, minimizer=None):
+def get_rgo_sampling(xk, eta, log_prob, device, threshold, minimizer=None, minimum=None):
     # Sampling from exp(-f(x) - (x-y)^2/2eta)
     num_samples, d = xk.shape #xk is assumed to be [n,d]
     accepted_samples = torch.ones_like(xk) # 1 if rejected 0 if accepted
     potential = lambda x : - log_prob(x)
-    w = nesterovs_minimizer(xk, potential, threshold) if \
-        minimizer == None else minimizer
-    f_eta = potential(w)
-    
+    if minimum is None:
+        w = nesterovs_minimizer(xk, potential, threshold) if \
+            minimizer == None else minimizer
+        f_eta = potential(w) # if minimum is not None else potential(w) 
+    else:
+        f_eta = minimum
     proposal = xk + eta **.5 * accepted_samples * torch.randn_like(xk)
     
     exp_h1 = potential(proposal)
@@ -28,7 +30,7 @@ def get_samples(y, eta, distribution : utils.densities.Distribution, num_samples
     # y = [n,d] outputs [n,num_samples,d]
     n, d = y.shape[0], y.shape[-1]
     yk = y.repeat_interleave(num_samples,dim=0)
-    samples, accepted_idx = get_rgo_sampling(yk,eta,distribution.log_prob,device, threshold, minimizer=distribution.potential_minimizer)
+    samples, accepted_idx = get_rgo_sampling(yk,eta,distribution.log_prob,device, threshold, minimizer=distribution.potential_minimizer, minimum=distribution.potential_min)
     samples = samples.reshape((n, -1, d))
     accepted_idx = accepted_idx.reshape((n,-1,d))
     return samples, accepted_idx

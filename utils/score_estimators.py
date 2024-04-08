@@ -17,10 +17,11 @@ def get_score_function(config, dist : Distribution, sde, device):
     dim = config.dimension
 
     dist.keep_minimizer = False # We don't need minimizers unless we are in the rejection setting
-    if config.score_method == 'p0t' and config.p0t_method == 'rejection':
-        dist.keep_minimizer = True
-        minimizer = optimizers.newton_conjugate_gradient(torch.randn(dim,device=device),potential, config.max_iters_optimization)
-        dist.log_prob(minimizer) # To make sure we update with the right minimizer
+    # if config.score_method == 'p0t' and config.p0t_method == 'rejection' and config.max_iters_optimization > 0:
+        # print("INSIDE")
+        # dist.keep_minimizer = True
+        # minimizer = optimizers.newton_conjugate_gradient(torch.randn(dim,device=device),potential, config.max_iters_optimization)
+        # dist.log_prob(minimizer) # To make sure we update with the right minimizer
         # print(f'Found minimizer {minimizer.cpu().numpy()}')
 
     def get_samplers_based_on_sampling_p0t(x,tt):

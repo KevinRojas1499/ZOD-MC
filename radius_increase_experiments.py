@@ -131,7 +131,7 @@ def eval(config):
             fig = utils.plots.plot_all_samples(samples_all[:,i,:,:],
                                             method_names,
                                             xlim,ylim,distribution.log_prob)
-            fig.savefig(os.path.join(folder,f'radius_{r}.pdf'), bbox_inches='tight')
+            fig.savefig(os.path.join(folder,f'radius_{r}.png'), bbox_inches='tight')
             plt.close(fig)
     else:
         samples_all = torch.load(config.samples_ckpt).to(device=device).to(dtype=torch.double)
@@ -147,12 +147,12 @@ def eval(config):
                 mmd_stats[k][i] = mmd.get_mmd_squared(samples_all[k][i],samples_all[0][i]).detach().item()
                 w2_stats[k][i] = utils.metrics.get_w2(samples_all[k][i],samples_all[0][i]).detach().item()
                 print(f'{method} {r} {torch.sum((samples_all[k][i][:,0] < 30))} {torch.sum((samples_all[k][i][:,1] < 30))}')
-                xlim = [-4, 8*r + 4]
-                ylim = [-4, 8*r + 4]
+                xlim = [-4, 9*r + 4]
+                ylim = [-4, 9*r + 4]
             fig = utils.plots.plot_all_samples(samples_all[:,i,:,:],
                                             method_names,
                                             xlim,ylim,distribution.log_prob)
-            fig.savefig(os.path.join(folder,f'radius_{r}.pdf'), bbox_inches='tight')
+            fig.savefig(os.path.join(folder,f'radius_{r}.png'), bbox_inches='tight')
             plt.close(fig)
     
     # Save method names and samples

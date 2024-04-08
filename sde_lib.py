@@ -34,8 +34,8 @@ class VP(SDE):
 
   def __init__(self,config):
     super().__init__()
-    self.betad = config.multiplier
-    self.betamin = config.bias
+    self.betad = 0.
+    self.betamin = 2.
     self._T = config.T
     self.delta = config.sampling_eps
 
@@ -78,5 +78,4 @@ class VP(SDE):
     return torch.randn(*shape, dtype=torch.double, device=device)
 
 def get_sde(config):
-    if config.sde_type == 'vp':
-        return VP(config)
+    return VP(config)

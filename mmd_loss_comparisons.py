@@ -146,7 +146,7 @@ def eval(config):
                                             method_names,
                                             xlim,ylim,distribution.log_prob,take_log)
             plt.close(fig)
-            fig.savefig(os.path.join(folder,f'complexity_{gc}_{config.density}.pdf'), bbox_inches='tight')
+            fig.savefig(os.path.join(folder,f'complexity_{gc}_{config.density}.png'), bbox_inches='tight')
         
     if eval_stats:
         plt.rcParams.update({'font.size': 14})

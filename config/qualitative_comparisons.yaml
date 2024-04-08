@@ -6,8 +6,8 @@ p0t_method: rejection
 methods_to_run: [ZOD-MC,RDMC,RSDMC]
 baselines: [langevin,proximal]
 
-# load_from_ckpt: True
-# samples_ckpt: plots/mueller/samples_lmm.pt
+load_from_ckpt: True
+samples_ckpt: plots/mueller/samples_mueller.pt
 
 # RDMC - This actually defines the gradient complexity for everyone else
 num_samples_for_rdmc: 100
