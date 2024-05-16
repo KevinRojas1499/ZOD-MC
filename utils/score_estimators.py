@@ -14,8 +14,7 @@ def get_score_function(config, dist : Distribution, sde, device):
     logdensity, grad_logdensity = dist.log_prob, dist.grad_log_prob
     p0 = lambda x : torch.exp(logdensity(x))
     potential = lambda x :  - logdensity(x)
-    dim = config.dimension
-
+    dim = dist.dim
     dist.keep_minimizer = False # We don't need minimizers unless we are in the rejection setting
     if config.score_method == 'p0t' and config.p0t_method == 'rejection':
         dist.keep_minimizer = True
@@ -41,7 +40,7 @@ def get_score_function(config, dist : Distribution, sde, device):
                                                                                         dist,
                                                                                         num_samples, 
                                                                                         device)
-                num_good_samples += torch.sum(acc_idx, dim=(1,2)).unsqueeze(-1).to(torch.double)/dim
+                num_good_samples += torch.sum(acc_idx, dim=(1,2)).unsqueeze(-1).to(torch.float32)/dim
                 mean_estimate += torch.sum(samples_from_p0t * acc_idx,dim=1)
             num_good_samples[num_good_samples == 0] += 1 
             mean_estimate /= num_good_samples

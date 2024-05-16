@@ -18,7 +18,7 @@ def setup_seed(seed):
     torch.backends.cudnn.deterministic = True
 
 def to_tensor_type(x, device):
-    return torch.tensor(x,device=device, dtype=torch.double)  
+    return torch.tensor(x,device=device, dtype=torch.float32)  
 
 def get_gmm_radius(config,R,device):
     params = yaml.safe_load(open(config.density_parameters_path))
@@ -57,7 +57,7 @@ def eval(config):
     mmd_stats = np.zeros([num_methods, num_rad],dtype='double')
     w2_stats = np.zeros([num_methods, num_rad],dtype='double')
     
-    samples_all = torch.zeros([num_methods, num_rad,tot_samples, config.dimension],device=device,dtype=torch.double)
+    samples_all = torch.zeros([num_methods, num_rad,tot_samples, config.dimension],device=device,dtype=torch.float32)
     
     
     folder = os.path.dirname(config.save_folder)
@@ -134,7 +134,7 @@ def eval(config):
             fig.savefig(os.path.join(folder,f'radius_{r}.pdf'), bbox_inches='tight')
             plt.close(fig)
     else:
-        samples_all = torch.load(config.samples_ckpt).to(device=device).to(dtype=torch.double)
+        samples_all = torch.load(config.samples_ckpt).to(device=device).to(dtype=torch.float32)
         method_names = np.load(os.path.join(folder,f'method_names.npy'))
         
         for i, r in enumerate(radiuses):
@@ -163,16 +163,19 @@ def eval(config):
     
     fig, (ax1,ax2) = plt.subplots(1,2, figsize=(12,6))
     ls=['--','-.',':']
+    markers=['p','*','s','d','h']
+    
     for i,method in enumerate(method_names):
+        method_label = method[0].upper() + method[1:]
         if method == 'Ground Truth':
             continue
         print(method)
-        ax1.plot(radiuses,mmd_stats[i],label=method)
-        ax2.plot(radiuses,w2_stats[i],label=method,linestyle=ls[i%3])
+        ax1.plot(radiuses,mmd_stats[i],label=method_label,linestyle=ls[i%3],marker=markers[i%5],markersize=7)
+        ax2.plot(radiuses,w2_stats[i],label=method_label,linestyle=ls[i%3],marker=markers[i%5],markersize=7)
     # ax1.set_title('MMD as a function of mode separation')
     ax1.set_xlabel('Radius')
     ax1.set_ylabel('MMD')
-    ax1.legend(loc='upper left')
+    ax1.legend(loc='upper left',bbox_to_anchor=(0.6,0.8))
     # ax2.set_title('W2 as a function of mode separation')
     ax2.set_xlabel('Radius')
     ax2.set_ylabel('W2')

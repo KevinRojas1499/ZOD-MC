@@ -75,10 +75,13 @@ def plot_all_samples(samples_array,labels,xlim, ylim,log_prob=None, take_log=Fal
                 dens = dens - np.min(dens) + 5
                 dens = np.log(dens)
             pts_x, pts_y = to_numpy(pts_x), to_numpy(pts_y)
-            axis.contourf(pts_x,pts_y,dens)
+            im = axis.contourf(pts_x,pts_y,dens)
         
         axis.scatter(samp[:,0],samp[:,1],s=5,color='red')
         axis.set_title(labels[i])
+        fig.subplots_adjust(right=0.93)
+        cbar_ax = fig.add_axes([0.95, 0.15, 0.01, 0.7])
+        fig.colorbar(im, cax=cbar_ax)
     return fig
 
    

@@ -1,0 +1,48 @@
+# Method
+mode: eval_mmd
+score_method: p0t
+p0t_method: rejection
+
+eval_mmd: True
+methods_to_run: [ZOD-MC,RDMC, RSDMC]
+baselines: []
+
+# Checkpoints
+load_from_ckpt: False
+samples_ckpt: plots/gmm_5d/samples_gmm.pt
+save_folder: plots/gmm_5d/
+# RDMC - This actually defines the gradient complexity for everyone else
+num_samples_for_rdmc: 500
+sampling_eps_rdmc: 5e-2 # RDMC is more sensible to the stopping time
+min_num_iters_rdmc: 1
+max_num_iters_rdmc: 101
+iters_rdmc_step: 10
+ula_step_size: 0.1
+
+# Recursive
+num_recursive_steps: 10
+
+# Rejection
+sampling_eps_rejec: 5e-3
+
+# Baselines
+langevin_step_size: 0.01
+proximal_M: 2.5
+proximal_num_iters: 100
+
+# Estimator Information
+max_iters_optimization: 50
+
+# SDEs Parameters
+sde_type: vp
+multiplier: 0
+bias: 2
+
+# Sampling parameters
+sampling_method: ei
+num_batches: 1
+sampling_batch_size: 1000
+T: 2
+sampling_eps: 5e-3
+disc_steps: 25
+ula_steps: 0

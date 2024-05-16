@@ -75,7 +75,7 @@ class VP(SDE):
     return t_steps
   
   def prior_sampling(self, shape, device):
-    return torch.randn(*shape, dtype=torch.double, device=device)
+    return torch.randn(*shape, dtype=torch.float32, device=device)
 
 def get_sde(config):
     if config.sde_type == 'vp':

@@ -22,8 +22,8 @@ def sample(config, distribution=None):
 
     n_batch = config.num_batches
     n_samples = config.sampling_batch_size
-    dim = config.dimension
-    samples = torch.zeros((n_batch,n_samples, dim),dtype=torch.double, device=device)
+    dim = distribution.dim
+    samples = torch.zeros((n_batch,n_samples, dim),dtype=torch.float32, device=device)
     pbar = tqdm(range(n_batch),leave=False)
     for i in pbar:
         pbar.set_description(f"Batch {i}/{n_batch}")

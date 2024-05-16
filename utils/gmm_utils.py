@@ -32,7 +32,7 @@ def get_l2_norm(x):
 
 def summarized_stats(config,data):
     params = yaml.safe_load(open(config.density_parameters_path))
-    real_means, real_weights = torch.tensor(params['means'],dtype=torch.double), torch.tensor(params['coeffs'],dtype=torch.double)
+    real_means, real_weights = torch.tensor(params['means'],dtype=torch.float32), torch.tensor(params['coeffs'],dtype=torch.float32)
     means, weights = compute_stats_gmm(data, real_means)
 
     error_means = get_l2_norm(means-real_means)
@@ -40,7 +40,7 @@ def summarized_stats(config,data):
     return error_weights, error_means
 
 def to_tensor(x,device):
-    return torch.tensor(x,dtype=torch.double,device=device)
+    return torch.tensor(x,dtype=torch.float32,device=device)
 
 
 def sample_from_gmm(config, num_samples,device):
@@ -51,7 +51,7 @@ def sample_from_gmm(config, num_samples,device):
     n = len(c)
     d = means[0].shape[0]
     gaussians = [MultivariateNormal(means[i],variances[i]) for i in range(n)]
-    samples = torch.zeros(num_samples,d,dtype=torch.double,device=device)
+    samples = torch.zeros(num_samples,d,dtype=torch.float32,device=device)
     for i in range(num_samples):
         idx = torch.randint(0,n, (1,))
         samples[i] = gaussians[idx].sample()

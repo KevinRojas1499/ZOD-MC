@@ -106,39 +106,7 @@ class ModifiedMueller(Distribution):
         grad_x = grad_x.unsqueeze(-1)
         grad_y = grad_y.unsqueeze(-1)
         return -self.beta * torch.cat((grad_x,grad_y),dim=-1).view(curr_shape) * self.dilatation
-class MultivariateGaussian(Distribution):
-    def __init__(self, mean, cov):
-        super().__init__()
-        self.mean = mean
-        self.cov = cov
-        self.Q = torch.linalg.cholesky(self.cov)
-        self.inv_cov = torch.linalg.inv(cov)
-        self.L = torch.linalg.cholesky(self.inv_cov)
-        self.log_det = torch.log(torch.linalg.det(self.cov))
-        self.dim = mean.shape[0]
-    
-    def sample(self):
-        # TODO: Make this in batches
-        return self.Q @ torch.randn_like(self.mean) + self.mean
-    
-    def _log_prob(self,x):
-        new_shape = list(x.shape)
-        new_shape[-1] = 1
-        new_shape = tuple(new_shape)
-        x = x.view((-1,self.dim))
-        shift_cov = (self.L @ (x-self.mean).T).T
-        log_prob = -.5 * ( self.dim * log(2 * pi) +  self.log_det + torch.sum(shift_cov**2,dim=1)) 
-        log_prob = log_prob.view(new_shape)
-        return log_prob
-
-    def _grad_log_prob(self, x):
-        # This is the gradient of p(x)
-        curr_shape = x.shape
-        x = x.view((-1,self.dim))
-        grad = - (self.inv_cov @ (x - self.mean).T).T
-        grad = grad.view(curr_shape)
-        return grad
-    
+       
 class OneDimensionalGaussian(Distribution):
     # This is a wrapper for Normal
     def __init__(self, mean, cov):
@@ -214,7 +182,7 @@ class RingDistribution(Distribution):
         self.scale = scale
         self.dim = dim
     
-    def sample(self,device='cuda',dtype=torch.double):
+    def sample(self,device='cuda',dtype=torch.float32):
         direction = torch.randn((1,self.dim),device=device,dtype=dtype)
         direction = direction/torch.sum(direction**2,-1,keepdim=True)**.5
         radius = self.radius + self.scale * torch.randn(1,device=device,dtype=dtype)
@@ -229,6 +197,7 @@ class MixtureDistribution(Distribution):
         super().__init__()
         self.n = len(c)
         self.c = c
+        self.cats = torch.distributions.Categorical(c)
         self.distributions = distributions
         self.accum = [0.]
         self.dim = self.distributions[0].dim
@@ -258,7 +227,7 @@ class MixtureDistribution(Distribution):
                               dtype=one_sample.dtype,
                               device=one_sample.device)
         for i in range(num_samples):
-            idx = bisect_left(self.accum, random())
+            idx = self.cats.sample()
             samples[i] = self.distributions[idx].sample()
         return samples
 
@@ -317,7 +286,7 @@ class DistributionFromPotential(Distribution):
     
 def get_distribution(config, device):
     def to_tensor_type(x):
-        return torch.tensor(x,device=device, dtype=torch.double)    
+        return torch.tensor(x,device=device, dtype=torch.float32)    
 
     params = yaml.safe_load(open(config.density_parameters_path))
 

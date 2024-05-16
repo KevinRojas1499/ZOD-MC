@@ -5,7 +5,7 @@ from utils.densities import *
 
 def get_gmm_density_at_t(config, sde, t, device):
     def to_tensor_type(x):
-        return torch.tensor(x,device=device, dtype=torch.double)    
+        return torch.tensor(x,device=device, dtype=torch.float32)    
     params = yaml.safe_load(open(config.density_parameters_path))
 
     c = to_tensor_type(params['coeffs'])

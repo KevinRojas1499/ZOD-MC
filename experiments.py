@@ -1,6 +1,7 @@
 import configargparse
 import mmd_loss_comparisons
 import radius_increase_experiments
+import dimension_increase_experiments
 
 def parse_arguments():
     p = configargparse.ArgParser(description='Arguments for nonconvex sampling')
@@ -8,7 +9,7 @@ def parse_arguments():
     p.add('-c','--config', is_config_file=True)
 
     # Mode
-    p.add_argument('--mode', choices=['eval_mmd','radius'])
+    p.add_argument('--mode', choices=['eval_mmd','radius','dimension'])
     p.add_argument('--score_method', choices=['p0t','recursive'],default='p0t')
     p.add_argument('--p0t_method', choices=['rejection','ula'],default='rejection')
     p.add_argument('--dimension', type=int)
@@ -71,6 +72,8 @@ def main(config):
         mmd_loss_comparisons.eval(config)
     elif config.mode == 'radius':
         radius_increase_experiments.eval(config)
+    elif config.mode == 'dimension':
+        dimension_increase_experiments.eval(config)
     else:
         print("Mode hasn't been implemented")
 

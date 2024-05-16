@@ -28,7 +28,7 @@ def eval(config):
     distribution = utils.densities.get_distribution(config,device)
     mmd = utils.metrics.MMDLoss()
     eval_stats = config.eval_mmd
-    dim = config.dimension
+    dim = distribution.dim
 
     # Baseline
     tot_samples = config.num_batches * config.sampling_batch_size
@@ -38,7 +38,7 @@ def eval(config):
                                                                 config.max_num_iters_rdmc,
                                                                 step=config.iters_rdmc_step)
     print(oracle_complexity)
-    samples_all_methods = torch.zeros((num_methods,len(oracle_complexity), tot_samples,dim),dtype=torch.double, device=device)
+    samples_all_methods = torch.zeros((num_methods,len(oracle_complexity), tot_samples,dim),dtype=torch.float32, device=device)
 
     mmd_stats = np.zeros((num_methods, *oracle_complexity.shape),dtype='double')
     w2_stats = np.zeros((num_methods, *oracle_complexity.shape),dtype='double')
@@ -87,7 +87,7 @@ def eval(config):
         for baseline in config.baselines:
             prev = 0
             method_names[k] = baseline
-            in_cond = torch.randn((tot_samples,dim), dtype=torch.double, device=device)
+            in_cond = torch.randn((tot_samples,dim), dtype=torch.float32, device=device)
             for i, gc in enumerate(oracle_complexity):
                 if baseline == 'langevin': 
                     samples_all_methods[k][i] = samplers.ula.get_ula_samples(in_cond,
@@ -113,7 +113,7 @@ def eval(config):
             k+=1    
     
     else:
-        samples_all_methods = torch.load(config.samples_ckpt).to(device=device).to(dtype=torch.double)
+        samples_all_methods = torch.load(config.samples_ckpt).to(device=device).to(dtype=torch.float32)
         method_names = np.load(os.path.join(folder,f'method_names.npy'))
         mmd_stats = np.zeros((len(method_names), *oracle_complexity.shape),dtype='double')
         
@@ -147,7 +147,19 @@ def eval(config):
                                             xlim,ylim,distribution.log_prob,take_log)
             plt.close(fig)
             fig.savefig(os.path.join(folder,f'complexity_{gc}_{config.density}.pdf'), bbox_inches='tight')
-        
+    else:
+        take_log = config.density not in ['lmm','gmm'] # This is so that we can have nicer level curves for mueller
+        rx, ry = -1, 1
+        l = 5
+        xlim = [-13,13] if config.density in ['lmm','gmm'] else [-5, 9]
+        ylim = [-13,13] if config.density in ['lmm','gmm']else [-8,3.5]
+        for i, gc in enumerate(oracle_complexity):
+            fig = utils.plots.plot_all_samples(samples_all_methods[:,i,:,:],
+                                            method_names,
+                                            xlim,ylim,None,take_log)
+            plt.close(fig)
+            fig.savefig(os.path.join(folder,f'complexity_{gc}_{config.density}.pdf'), bbox_inches='tight')
+            
     if eval_stats:
         plt.rcParams.update({'font.size': 14})
         
