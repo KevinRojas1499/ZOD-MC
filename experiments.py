@@ -35,7 +35,7 @@ def parse_arguments():
     
     p.add_argument('--proximal_M',type=float)
     p.add_argument('--proximal_num_iters',type=int)
-    
+    p.add_argument('--num_chains_parallel',type=int,default=6)
     # Sampler details
     p.add_argument('--max_iters_optimization',type=int, default=50)
     p.add_argument('--num_sampler_iterations', type=int) # For langevin

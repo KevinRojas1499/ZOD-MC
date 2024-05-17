@@ -111,7 +111,7 @@ def eval(config):
                     # Langevin
                     distribution.keep_minimizer = False
                     ula_step_size = 0.01
-                    num_steps_lang = 5000 
+                    num_steps_lang = 50000 
                     samples_all[k][i] = samplers.ula.get_ula_samples(in_cond,
                                                                     distribution.grad_log_prob,
                                                                     ula_step_size,num_steps_lang,display_pbar=False)
@@ -123,6 +123,12 @@ def eval(config):
                                                                             config.proximal_num_iters,
                                                                             1,device
                                                                             ).squeeze(1)
+                elif method == 'parallel':
+                    num_chains = config.num_chains_parallel
+                    num_iters = 50000
+                    betas = torch.linspace(.2,1.,num_chains, dtype=torch.float32,device=device)
+                    samples_all[k][i] = samplers.parallel_tempering.parallel_tempering(distribution,
+                                                                in_cond,betas, num_iters, config.langevin_step_size, device)
                 mmd_stats[k][i] = mmd.get_mmd_squared(samples_all[k][i],samples_all[0][i]).detach().item()
                 w2_stats[k][i] = utils.metrics.get_w2(samples_all[k][i],samples_all[0][i]).detach().item()
                 k+=1

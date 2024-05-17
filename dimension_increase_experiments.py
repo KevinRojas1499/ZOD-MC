@@ -17,9 +17,10 @@ def setup_seed(seed):
 def get_gmm_dimension(D, num_modes,device):
     setup_seed(D)
     c = torch.ones(num_modes, device=device)/D
-    means = torch.randn((num_modes,D), device=device) * 4.5
+    means = torch.randn((num_modes,D), device=device) * 3
     variances = torch.eye(D,device=device).unsqueeze(0).expand((num_modes,D,D))
     gaussians = [utils.densities.MultivariateGaussian(means[i],variances[i]) for i in range(c.shape[0])]
+    # return utils.densities.DoubleWell(D,1.)
     return utils.densities.MixtureDistribution(c,gaussians)
 
 def get_method_names(config):
@@ -51,7 +52,7 @@ def eval(config):
     mmd_stats = np.zeros([num_methods, num_dims],dtype='double')
     w2_stats = np.zeros([num_methods, num_dims],dtype='double')
     
-    num_modes = 3
+    num_modes = 5
     
     folder = os.path.dirname(config.save_folder)
     os.makedirs(folder, exist_ok=True)

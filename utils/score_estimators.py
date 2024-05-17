@@ -1,63 +1,111 @@
 import torch
-import wandb
-from math import pi
+import abc
 
 from utils.densities import Distribution
 import utils.optimizers as optimizers
 import samplers.rejection_sampler as rejection_sampler
 import samplers.ula as ula
 
-def get_score_function(config, dist : Distribution, sde, device):
-    """
-        The following method returns a method that approximates the score
-    """
-    logdensity, grad_logdensity = dist.log_prob, dist.grad_log_prob
-    p0 = lambda x : torch.exp(logdensity(x))
-    potential = lambda x :  - logdensity(x)
-    dim = dist.dim
-    dist.keep_minimizer = False # We don't need minimizers unless we are in the rejection setting
-    if config.score_method == 'p0t' and config.p0t_method == 'rejection':
-        dist.keep_minimizer = True
-        minimizer = optimizers.newton_conjugate_gradient(torch.randn(dim,device=device),potential, config.max_iters_optimization)
-        dist.log_prob(minimizer) # To make sure we update with the right minimizer
-        # print(f'Found minimizer {minimizer.cpu().numpy()}')
 
-    def get_samplers_based_on_sampling_p0t(x,tt):
-        scaling = sde.scaling(tt)
+class ScoreEstimator(abc.ABC):
+    def __init__(self, dist: Distribution,
+                 sde, device,def_num_batches=1,
+                 def_num_samples=10000) -> None:
+        self.sde = sde
+        self.dist = dist
+        self.device = device
+        self.default_num_batches = def_num_batches
+        self.default_num_samples = def_num_samples
+        self.dim = self.dist.dim
+
+    @abc.abstractmethod
+    def score_estimator(self, x,tt, num_batches=None, num_rej_samples=None):
+        pass
+            
+class ZODMC_ScoreEstimator(ScoreEstimator):
+    
+    def __init__(self, dist : Distribution, sde, device,
+                 def_num_batches=1,
+                 def_num_rej_samples=10000,
+                 max_iters_opt=50
+                 ) -> None:
+        super().__init__(dist,sde,device,def_num_batches,def_num_rej_samples)
+        
+        # Set up distribution correctly
+        dist.keep_minimizer = True
+        minimizer = optimizers.newton_conjugate_gradient(torch.randn(dist.dim,device=device),
+                                                         lambda x : -self.dist.log_prob(x), 
+                                                         max_iters_opt)
+        dist.log_prob(minimizer) # To make sure we update with the right minimizer
+    
+    def score_estimator(self, x,tt, num_batches=None, num_samples=None):
+        scaling = self.sde.scaling(tt)
+        variance_conv = (1/scaling)**2 - 1
+        score_estimate = torch.zeros_like(x)
+        num_batches = self.default_num_batches if num_batches is None else num_batches
+        num_samples = self.default_num_samples if num_samples is None else num_samples
+
+        assert num_batches > 0 and num_samples > 0, 'Number of samples needs to be a positive integer'
+        
+        mean_estimate = 0
+        num_good_samples = torch.zeros((x.shape[0],1),device=self.device)
+        for _ in range(num_batches):
+            samples_from_p0t, acc_idx = rejection_sampler.get_samples(x/scaling, variance_conv,
+                                                                                    self.dist,
+                                                                                    num_samples, 
+                                                                                    self.device)
+            num_good_samples += torch.sum(acc_idx, dim=(1,2)).unsqueeze(-1).to(torch.double)/self.dim
+            mean_estimate += torch.sum(samples_from_p0t * acc_idx,dim=1)
+        num_good_samples[num_good_samples == 0] += 1 
+        mean_estimate /= num_good_samples
+        score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)
+        return score_estimate
+
+class RDMC_ScoreEstimator(ScoreEstimator):
+    
+    def __init__(self, dist : Distribution, sde, device,
+                 def_num_batches=1,
+                 def_num_samples=10000,
+                 ula_step_size=0.01,
+                 ula_steps=10,
+                 initial_cond_normal=True) -> None:
+        super().__init__(dist,sde,device,def_num_batches,def_num_samples)
+        self.ula_step_size = ula_step_size
+        self.ula_steps = ula_steps
+        self.initial_cond_normal = initial_cond_normal
+        
+    def score_estimator(self, x,tt):
+        scaling = self.sde.scaling(tt)
         inv_scaling = 1/scaling
         variance_conv = inv_scaling**2 - 1
-        num_samples = config.num_estimator_samples
+        num_samples = self.default_num_samples
         score_estimate = torch.zeros_like(x)
         big_x = x.repeat_interleave(num_samples,dim=0)
-        grad_log_prob_0t = lambda x0 : grad_logdensity(x0) + scaling * (big_x - scaling * x0)/(1 - scaling**2)
+        def grad_log_prob_0t(x0):
+            return self.dist.grad_log_prob(x0) + scaling * (big_x - scaling * x0) / (1 - scaling ** 2)
         
-        if config.p0t_method == 'rejection':
-            num_iters = config.num_estimator_batches
-            mean_estimate = 0
-            num_good_samples = torch.zeros((x.shape[0],1),device=device)
-            for _ in range(num_iters):
-                samples_from_p0t, acc_idx = rejection_sampler.get_samples(inv_scaling * x, variance_conv,
-                                                                                        dist,
-                                                                                        num_samples, 
-                                                                                        device)
-                num_good_samples += torch.sum(acc_idx, dim=(1,2)).unsqueeze(-1).to(torch.float32)/dim
-                mean_estimate += torch.sum(samples_from_p0t * acc_idx,dim=1)
-            num_good_samples[num_good_samples == 0] += 1 
-            mean_estimate /= num_good_samples
-        elif config.p0t_method == 'ula':
-            x0 = big_x
-            if config.rdmc_initial_condition == 'normal':
-                x0 = inv_scaling * big_x + torch.randn_like(big_x) * variance_conv**.5
-            
-            samples_from_p0t = ula.get_ula_samples(x0,grad_log_prob_0t,config.ula_step_size,config.num_sampler_iterations)
-            samples_from_p0t = samples_from_p0t.view((-1,num_samples,dim))
+        mean_estimate = 0
+        x0 = big_x
+        if self.initial_cond_normal:
+            x0 = inv_scaling * big_x + torch.randn_like(big_x) * variance_conv**.5
+        for _ in range(self.default_num_batches):
+            x0 = inv_scaling * big_x + torch.randn_like(big_x) * variance_conv**.5
+            samples_from_p0t = ula.get_ula_samples(x0,grad_log_prob_0t,self.ula_step_size,self.ula_steps)
+            samples_from_p0t = samples_from_p0t.view((-1,num_samples, self.dim))
             
             mean_estimate = torch.mean(samples_from_p0t, dim = 1)
             
         score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)
-
         return score_estimate
-    
+          
+
+def get_score_function(config, dist : Distribution, sde, device):
+    """
+        The following method returns a method that approximates the score
+    """
+    grad_logdensity = dist.grad_log_prob
+    dim = dist.dim
+
     
     def get_recursive_langevin(x,tt,k=config.num_recursive_steps):
         if k == 0 or tt < .2:
@@ -65,7 +113,7 @@ def get_score_function(config, dist : Distribution, sde, device):
         
         num_samples = config.num_estimator_samples
         scaling = sde.scaling(tt)
-        inv_scaling = 1/scaling
+        # inv_scaling = 1/scaling
         h = config.ula_step_size      
 
         big_x = x.repeat_interleave(num_samples,dim=0) 
@@ -80,7 +128,15 @@ def get_score_function(config, dist : Distribution, sde, device):
         return score_estimate
 
         
-    if config.score_method == 'p0t':
-        return get_samplers_based_on_sampling_p0t
+    if config.score_method == 'p0t' and config.p0t_method == 'rejection':
+        return ZODMC_ScoreEstimator(dist,sde,device,
+                                    def_num_batches=config.num_estimator_batches,
+                                    def_num_rej_samples=config.num_estimator_samples).score_estimator
+    elif config.score_method == 'p0t' and config.p0t_method == 'ula':
+        return RDMC_ScoreEstimator(dist,sde,device,
+                                def_num_batches=config.num_estimator_batches,
+                                def_num_samples=config.num_estimator_samples,
+                                ula_step_size=config.ula_step_size,
+                                ula_steps=config.num_sampler_iterations).score_estimator
     elif config.score_method == 'recursive':
         return get_recursive_langevin

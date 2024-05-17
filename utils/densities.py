@@ -3,8 +3,6 @@ import torch
 from torch.distributions import Normal, Laplace
 import yaml
 from math import pi, log
-from bisect import bisect_left
-from random import random
 
 class Distribution(abc.ABC):
     """ Potentials abstract class """

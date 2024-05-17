@@ -1,6 +1,7 @@
 import os
 import torch
 import numpy as np
+import samplers.parallel_tempering
 import utils.gmm_utils
 import utils.plots
 import utils.densities
@@ -58,6 +59,7 @@ def eval(config):
         for method in config.methods_to_run:
             method_names[k] = method
             for i, gc in enumerate(oracle_complexity):
+                print(method, gc)
                 if method == 'ZOD-MC':
                     config.score_method = 'p0t'
                     config.p0t_method = 'rejection'
@@ -89,6 +91,7 @@ def eval(config):
             method_names[k] = baseline
             in_cond = torch.randn((tot_samples,dim), dtype=torch.float32, device=device)
             for i, gc in enumerate(oracle_complexity):
+                print(baseline, gc)
                 if baseline == 'langevin': 
                     samples_all_methods[k][i] = samplers.ula.get_ula_samples(in_cond,
                                                                     distribution.grad_log_prob,
@@ -104,6 +107,12 @@ def eval(config):
                                                                 device,
                                                                 max_grad_complexity = config.disc_steps * (gc - prev)
                                                                 ).squeeze(1)
+                elif baseline == 'parallel':
+                    num_chains = config.num_chains_parallel
+                    num_iters = gc//(6 * num_chains)
+                    betas = torch.linspace(.2,1.,num_chains, dtype=torch.float32,device=device)
+                    samples_all_methods[k][i] = samplers.parallel_tempering.parallel_tempering(distribution,
+                                                                in_cond,betas, num_iters, config.langevin_step_size, device)
                 else:
                     print(f'The baseline method {baseline} has not been implemented yet')
                 prev = gc

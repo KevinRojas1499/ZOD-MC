@@ -5,7 +5,7 @@ p0t_method: rejection
 
 eval_mmd: True
 methods_to_run: [ZOD-MC,RDMC, RSDMC]
-baselines: [langevin,proximal]
+baselines: [langevin,proximal,parallel]
 
 # Checkpoints
 load_from_ckpt: False
