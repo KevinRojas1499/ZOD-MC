@@ -19,6 +19,7 @@ def get_gmm_dimension(D, num_modes,device):
     c = torch.ones(num_modes, device=device)/D
     means = torch.randn((num_modes,D), device=device) * 3
     variances = torch.eye(D,device=device).unsqueeze(0).expand((num_modes,D,D))
+    variances = variances * (torch.rand((num_modes,1,1),device=device) + 0.3 ) # random variances in range [.3, 1.3]
     gaussians = [utils.densities.MultivariateGaussian(means[i],variances[i]) for i in range(c.shape[0])]
     # return utils.densities.DoubleWell(D,1.)
     return utils.densities.MixtureDistribution(c,gaussians)
@@ -81,7 +82,7 @@ def eval(config):
                     config.score_method = 'p0t'
                     config.p0t_method = 'ula'
                     config.T = 2
-                    config.num_estimator_samples = 10000
+                    config.num_estimator_samples = 1000
                     config.num_sampler_iterations = 100
                     config.ula_step_size = 0.01     
                     config.sampling_eps = 5e-2 #RDMC is more sensitive to the early stopping
@@ -104,12 +105,12 @@ def eval(config):
         mmd_stats = torch.load(os.path.join(folder,'mmd.pt')).to(device=device).to(dtype=torch.float32)
         w2_stats = torch.load(os.path.join(folder,'w2.pt')).to(device=device).to(dtype=torch.float32)
         
-        method_names = np.load(os.path.join(folder,f'method_names.npy'))
+        method_names = np.load(os.path.join(folder,'method_names.npy'))
     
     # Save method names and samples
     torch.save(mmd_stats,os.path.join(folder,'mmd.pt'))
     torch.save(w2_stats,os.path.join(folder,'w2.pt'))
-    np.save(os.path.join(folder,f'method_names.npy'), np.array(method_names))
+    np.save(os.path.join(folder,'method_names.npy'), np.array(method_names))
     plt.rcParams.update({'font.size': 14})
     
     fig, (ax1,ax2) = plt.subplots(1,2, figsize=(12,6))
@@ -131,7 +132,7 @@ def eval(config):
     ax2.set_xlabel('Dimension')
     ax2.set_ylabel('W2')
     ax2.legend(loc='upper left')
-    fig.savefig(os.path.join(folder,f'dimension_mmd_results.pdf'),bbox_inches='tight')
+    fig.savefig(os.path.join(folder,'dimension_mmd_results.pdf'),bbox_inches='tight')
 
 
         

@@ -70,6 +70,7 @@ def eval(config):
             samples_all[0][i] = distribution.sample(tot_samples)
             k = 1
             for method in config.methods_to_run:
+                print(method, r)
                 if method == 'ZOD-MC':
                     # Rejection
                     distribution.keep_minimizer = True
@@ -106,6 +107,7 @@ def eval(config):
                 k+=1
                 
             for method in config.baselines:
+                print(method, r)
                 in_cond = torch.randn_like(samples_all[0][i])
                 if method == 'langevin':
                     # Langevin
@@ -125,15 +127,15 @@ def eval(config):
                                                                             ).squeeze(1)
                 elif method == 'parallel':
                     num_chains = config.num_chains_parallel
-                    num_iters = 50000
+                    num_iters = 10000
                     betas = torch.linspace(.2,1.,num_chains, dtype=torch.float32,device=device)
                     samples_all[k][i] = samplers.parallel_tempering.parallel_tempering(distribution,
                                                                 in_cond,betas, num_iters, config.langevin_step_size, device)
                 mmd_stats[k][i] = mmd.get_mmd_squared(samples_all[k][i],samples_all[0][i]).detach().item()
                 w2_stats[k][i] = utils.metrics.get_w2(samples_all[k][i],samples_all[0][i]).detach().item()
                 k+=1
-            xlim = [-4, 8*r + 4]
-            ylim = [-4, 8*r + 4]
+            xlim = [-4, 11*r + 8]
+            ylim = [-4, 11*r + 8]
             fig = utils.plots.plot_all_samples(samples_all[:,i,:,:],
                                             method_names,
                                             xlim,ylim,distribution.log_prob)
@@ -141,7 +143,7 @@ def eval(config):
             plt.close(fig)
     else:
         samples_all = torch.load(config.samples_ckpt).to(device=device).to(dtype=torch.float32)
-        method_names = np.load(os.path.join(folder,f'method_names.npy'))
+        method_names = np.load(os.path.join(folder,'method_names.npy'))
         
         for i, r in enumerate(radiuses):
             for k, method in enumerate(method_names):
@@ -153,17 +155,17 @@ def eval(config):
                 mmd_stats[k][i] = mmd.get_mmd_squared(samples_all[k][i],samples_all[0][i]).detach().item()
                 w2_stats[k][i] = utils.metrics.get_w2(samples_all[k][i],samples_all[0][i]).detach().item()
                 print(f'{method} {r} {torch.sum((samples_all[k][i][:,0] < 30))} {torch.sum((samples_all[k][i][:,1] < 30))}')
-                xlim = [-4, 8*r + 4]
-                ylim = [-4, 8*r + 4]
+                xlim = [-4, 11*r + 8]
+                ylim = [-4, 11*r + 8]
             fig = utils.plots.plot_all_samples(samples_all[:,i,:,:],
                                             method_names,
                                             xlim,ylim,distribution.log_prob)
-            fig.savefig(os.path.join(folder,f'radius_{r}.pdf'), bbox_inches='tight')
+            fig.savefig(os.path.join(folder,f'radius_{r}.png'), bbox_inches='tight')
             plt.close(fig)
     
     # Save method names and samples
     save_file = os.path.join(folder,f'samples_{config.density}.pt')
-    np.save(os.path.join(folder,f'method_names.npy'), np.array(method_names))
+    np.save(os.path.join(folder,'method_names.npy'), np.array(method_names))
     torch.save(samples_all, save_file)
     plt.rcParams.update({'font.size': 14})
     
@@ -186,7 +188,7 @@ def eval(config):
     ax2.set_xlabel('Radius')
     ax2.set_ylabel('W2')
     ax2.legend(loc='upper left')
-    fig.savefig(os.path.join(folder,f'radius_mmd_results.pdf'),bbox_inches='tight')
+    fig.savefig(os.path.join(folder,'radius_mmd_results.pdf'),bbox_inches='tight')
 
 
         

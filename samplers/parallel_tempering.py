@@ -10,9 +10,9 @@ def parallel_tempering(distribution : Distribution,
     num_chains = betas.shape[0]
     betas = betas.reshape(num_chains,1,1)
     xchains = initial_cond.expand(num_chains,*initial_cond.shape).clone().to(device)
-    for i in tqdm(range(num_iters)):
+    for i in tqdm(range(num_iters), leave=False):
         xk = xchains
-        center = xk + h * betas * distribution.grad_log_prob(xk)
+        center = xk + h * betas * distribution.grad_log_prob(xk).nan_to_num()
         proposal = center + (2*h)**.5 * torch.randn_like(xk)
         center_proposal = proposal + h * betas * distribution.grad_log_prob(proposal)
         xchains = proposal
@@ -23,7 +23,6 @@ def parallel_tempering(distribution : Distribution,
         acc = torch.rand_like(acc_rate) < acc_rate
         acc = acc.expand((-1,-1,d))
         xchains[acc] = proposal[acc]
-        
         for k in range(1,num_chains):
             xii = xchains[k-1]
             xi = xchains[k]

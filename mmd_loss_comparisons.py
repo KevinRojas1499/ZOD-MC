@@ -109,16 +109,20 @@ def eval(config):
                                                                 ).squeeze(1)
                 elif baseline == 'parallel':
                     num_chains = config.num_chains_parallel
-                    num_iters = gc//(6 * num_chains)
+                    num_iters = config.disc_steps * (gc - prev)//(6 * num_chains)
                     betas = torch.linspace(.2,1.,num_chains, dtype=torch.float32,device=device)
                     samples_all_methods[k][i] = samplers.parallel_tempering.parallel_tempering(distribution,
                                                                 in_cond,betas, num_iters, config.langevin_step_size, device)
                 else:
                     print(f'The baseline method {baseline} has not been implemented yet')
                 prev = gc
+                samples_all_methods[k,i][samples_all_methods[k,i].abs() > 100] = 0. # it helps stabilize for langevin
+                in_cond = samples_all_methods[k][i]
+                
                 if eval_stats:
                     mmd_stats[k][i] = mmd.get_mmd_squared(samples_all_methods[k][i],real_samples).detach().item()
                     w2_stats[k][i] = utils.metrics.get_w2(samples_all_methods[k][i],real_samples).detach().item()
+                    
             k+=1    
     
     else:
@@ -155,7 +159,7 @@ def eval(config):
                                             method_names,
                                             xlim,ylim,distribution.log_prob,take_log)
             plt.close(fig)
-            fig.savefig(os.path.join(folder,f'complexity_{gc}_{config.density}.pdf'), bbox_inches='tight')
+            fig.savefig(os.path.join(folder,f'complexity_{gc}_{config.density}.png'), bbox_inches='tight')
     else:
         take_log = config.density not in ['lmm','gmm'] # This is so that we can have nicer level curves for mueller
         rx, ry = -1, 1
@@ -172,18 +176,22 @@ def eval(config):
     if eval_stats:
         plt.rcParams.update({'font.size': 14})
         
+        ls=['--','-.',':']
+        markers=['p','*','s','d','h']
         fig, (ax1, ax2) = plt.subplots(1,2, figsize=(12,6))
         for i, method in enumerate(method_names):
             if method == 'Ground Truth':
                 continue
-            ax1.plot(oracle_complexity,mmd_stats[i],label=method)
-            ax2.plot(oracle_complexity,w2_stats[i],label=method)
+            ax1.plot(oracle_complexity,mmd_stats[i],label=method,linestyle=ls[i%3],marker=markers[i%5],markersize=7)
+            ax2.plot(oracle_complexity,w2_stats[i],label=method,linestyle=ls[i%3],marker=markers[i%5],markersize=7)
         # ax1.set_title('MMD as a function of Oracle Complexity per Score Evaluation')
         ax1.set_xlabel('Oracle Complexity')
         ax1.set_ylabel('MMD')
-        ax1.legend(loc='upper left')
+        ax1.legend(loc='upper left',bbox_to_anchor=(0.6,0.8))
         # ax2.set_title('W2 as a function of Oracle Complexity per Score Evaluation')
         ax2.set_xlabel('Oracle Complexity')
         ax2.set_ylabel('W2')
-        ax2.legend(loc='upper left')
+        ax2.legend(loc='upper left',bbox_to_anchor=(0.6,0.6))
+        
+
         fig.savefig(os.path.join(folder,f'mmd_results_{dim}_{config.density}.pdf'),bbox_inches='tight')
