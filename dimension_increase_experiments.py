@@ -82,6 +82,7 @@ def eval(config):
                     config.score_method = 'p0t'
                     config.p0t_method = 'ula'
                     config.T = 2
+                    config.num_estimator_batches = 1
                     config.num_estimator_samples = 1000
                     config.num_sampler_iterations = 100
                     config.ula_step_size = 0.01     
@@ -89,6 +90,7 @@ def eval(config):
                 elif method == 'RSDMC':
                     config.score_method = 'recursive'
                     config.T = 2
+                    config.num_estimator_batches = 1
                     config.num_recursive_steps = 3
                     config.num_estimator_samples = 10
                     config.num_sampler_iterations = 5

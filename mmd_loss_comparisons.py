@@ -69,11 +69,13 @@ def eval(config):
                 elif method == 'RDMC':
                     config.score_method = 'p0t'
                     config.p0t_method = 'ula' 
+                    config.num_estimator_batches = 1
                     config.sampling_eps = config.sampling_eps_rdmc
                     config.num_estimator_samples = config.num_samples_for_rdmc
                     config.num_sampler_iterations = gc//config.num_estimator_samples
                 elif method == 'RSDMC':
                     config.score_method = 'recursive'
+                    config.num_estimator_batches = 1
                     config.num_recursive_steps = 2
                     config.num_estimator_samples = max(1,int(np.exp(np.log(gc)/(2 * config.num_recursive_steps)))) + 1
                     config.num_sampler_iterations = max(1,int(np.exp(np.log(gc)/(2 * config.num_recursive_steps))))
