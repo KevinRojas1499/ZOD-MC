@@ -22,7 +22,7 @@ def get_gmm_dimension(D, num_modes,device):
     setup_seed(D)
     c = torch.ones(num_modes, device=device)/D
     means = torch.randn((num_modes,D), device=device) * 2
-    means+= torch.ones_like(means) * 2
+    means+= torch.ones_like(means) * 3
     variances = torch.eye(D,device=device).unsqueeze(0).expand((num_modes,D,D))
     variances = variances * (torch.rand((num_modes,1,1),device=device) + 0.3 ) # random variances in range [.3, 1.3]
     gaussians = [utils.densities.MultivariateGaussian(means[i],variances[i]) for i in range(c.shape[0])]
@@ -45,8 +45,11 @@ def get_diff_log_z(config, dist, true, device):
         print(true, log_z)
         return (true-log_z).abs().cpu().detach().numpy()
 
-def compute_statistic(samples):
-    return torch.mean(torch.sum((samples-1).abs()**2,dim=-1),dim=0)
+def compute_statistic(distribution : utils.densities.MixtureDistribution, samples):
+    f = 0
+    for dist in distribution.distributions:
+        f += torch.mean(torch.sum((samples-dist.mean)**2,dim=-1),dim=0)
+    return f
 
 def get_method_names(config):
     num_methods = 1 + len(config.methods_to_run) + len(config.baselines)
@@ -88,7 +91,7 @@ def eval(config):
             # distribution = get_double_well(d)
             # Baseline
             true_samples = distribution.sample(tot_samples)
-            stats[0][i] = compute_statistic(true_samples)
+            stats[0][i] = compute_statistic(distribution, true_samples)
             k = 1
             for method in config.methods_to_run:
                 print(f'{method} {d}')
@@ -124,9 +127,9 @@ def eval(config):
                     
                 generated_samples = sample.sample(config,distribution)
                 # stats[k][i] = get_diff_log_z(config,distribution, get_double_well_log_normalizing_constant(d),device)
-                stats[k][i] = compute_statistic(generated_samples)
+                stats[k][i] = compute_statistic(distribution, generated_samples)
                 w2_stats[k][i] = utils.metrics.get_w2(generated_samples,true_samples).detach().item()
-                # print('Stats ', stats[k,i],w2_stats[k,i])
+                print('Stats ', stats[k,i],w2_stats[k,i])
                 k+=1
     else:
         stats = torch.load(os.path.join(folder,'log_z.pt'))#.cpu().numpy()
@@ -156,7 +159,9 @@ def eval(config):
     ax1.set_xlabel('Dimension')
     
     # ax1.set_ylabel(r'$|\Delta \log Z|$')
-    ax1.set_ylabel(r'$\mathbb{E}[f(x)]$')
+    ax1.set_ylabel('E[f(x)]')
+    
+    # ax1.set_ylabel(r'$\mathbb{E}[f(x)]$')
     
     ax1.legend(loc='upper left')
     ax2.set_xlabel('Dimension')
