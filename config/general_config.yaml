@@ -4,7 +4,7 @@ tags: experiments
 
 # Method
 mode: sample
-score_method: p0t
+score_method: recursive
 p0t_method: rejection
 reuse_samples: no
 

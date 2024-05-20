@@ -32,26 +32,22 @@ class SDE(abc.ABC):
 
 class VP(SDE):
 
-  def __init__(self,config):
+  def __init__(self,T=5,delta=5e-3):
     super().__init__()
-    self.betad = config.multiplier
-    self.betamin = config.bias
-    self._T = config.T
-    self.delta = config.sampling_eps
+    self._T = T
+    self.delta = delta
 
   def T(self):
     return self._T
-  
-  def scheduling(self, t):
-        return (torch.exp(self.betad * t**2/2 + self.betamin *t) -1)**.5
+
   def scaling(self, t):
-    return torch.exp(-(self.betad * t**2/2 + self.betamin * t)/2)
+    return torch.exp(-t)
   
   def drift(self, x,t):
-    return - (self.betad * t + self.betamin) * x /2
+    return - x
   
   def diffusion(self, x,t):
-    return (self.betad * t + self.betamin)**.5
+    return (2)**.5
   
   def time_steps(self, n, device):
     from math import exp, log
@@ -79,4 +75,4 @@ class VP(SDE):
 
 def get_sde(config):
     if config.sde_type == 'vp':
-        return VP(config)
+        return VP(config.T, config.sampling_eps)

@@ -111,7 +111,7 @@ def eval(config):
                     config.num_estimator_batches = 1
                     config.num_estimator_samples = 1000
                     config.num_sampler_iterations = 100
-                    config.ula_step_size = 0.01     
+                    config.ula_step_size = 0.1     
                     config.sampling_eps = 5e-2 #RDMC is more sensitive to the early stopping
                 elif method == 'RSDMC':
                     config.score_method = 'recursive'
@@ -120,14 +120,14 @@ def eval(config):
                     config.num_recursive_steps = 3
                     config.num_estimator_samples = 10
                     config.num_sampler_iterations = 5
-                    config.ula_step_size = 0.01
+                    config.ula_step_size = 0.1
                     config.sampling_eps = 5e-2 #RDMC is more sensitive to the early stopping
                     
                 generated_samples = sample.sample(config,distribution)
-                # log_z_stats[k][i] = get_diff_log_z(config,distribution, get_double_well_log_normalizing_constant(d),device)
+                # stats[k][i] = get_diff_log_z(config,distribution, get_double_well_log_normalizing_constant(d),device)
                 stats[k][i] = compute_statistic(generated_samples)
                 w2_stats[k][i] = utils.metrics.get_w2(generated_samples,true_samples).detach().item()
-                
+                # print('Stats ', stats[k,i],w2_stats[k,i])
                 k+=1
     else:
         stats = torch.load(os.path.join(folder,'log_z.pt'))#.cpu().numpy()
@@ -152,12 +152,11 @@ def eval(config):
         if method[-2:] != 'MC' and method != 'Ground Truth':
             continue
         print(method)
-        ax1.semilogy(dimensions,stats[i],label=method_label,linestyle=ls[i%3],marker=markers[i%5],markersize=7)
+        ax1.plot(dimensions,stats[i],label=method_label,linestyle=ls[i%3],marker=markers[i%5],markersize=7)
         ax2.plot(dimensions,w2_stats[i],label=method_label,linestyle=ls[i%3],marker=markers[i%5],markersize=7)
     ax1.set_xlabel('Dimension')
     
     # ax1.set_ylabel(r'$|\Delta \log Z|$')
-    ax1.set_ylim(10**0,10**7)
     ax1.set_ylabel(r'$\mathbb{E}[f(x)]$')
     
     ax1.legend(loc='upper left')

@@ -59,7 +59,7 @@ def divergence(func,x):
 
 def compute_log_normalizing_constant(dist : Distribution, sde : SDE, score_model, approx_div=False):
     num_samples = 1
-    num_disc_steps = 100
+    num_disc_steps = 5000
     num_hutch_samples = 1
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     T = sde.T()

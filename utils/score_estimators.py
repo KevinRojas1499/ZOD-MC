@@ -97,7 +97,52 @@ class RDMC_ScoreEstimator(ScoreEstimator):
         mean_estimate/= (self.default_num_batches * self.default_num_samples)
         score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)
         return score_estimate
-          
+
+class RSDMC_ScoreEstimator(ScoreEstimator):
+    
+    def __init__(self, dist : Distribution, sde, device,
+                 def_num_batches=1,
+                 def_num_samples=10000,
+                 ula_step_size=0.01,
+                 ula_steps=10,
+                 num_recursive_steps=3,
+                 initial_cond_normal=True) -> None:
+        super().__init__(dist,sde,device,def_num_batches,def_num_samples)
+        self.ula_step_size = ula_step_size
+        self.ula_steps = ula_steps
+        self.initial_cond_normal = initial_cond_normal
+        self.num_recursive_steps = num_recursive_steps
+        
+    def _recursive_langevin(self, x,tt,k=None):
+        if k is None:
+            k = self.num_recursive_steps
+        if k == 0 or tt < .2:
+            return self.dist.grad_log_prob(x)
+        
+        num_samples = self.default_num_samples
+        scaling = self.sde.scaling(tt)
+        # inv_scaling = 1/scaling
+        h = self.ula_step_size      
+
+        big_x = x.repeat_interleave(num_samples,dim=0) 
+        x0 = big_x.detach().clone()   
+        # x0 = inv_scaling * x0 + torch.randn_like(x0) * (inv_scaling**2 -1)  # q0 initialization
+        for _ in range(self.ula_steps):
+            score = self._recursive_langevin(x0, (k-1) * tt/k,k-1) + scaling * (big_x - scaling * x0)/(1-scaling**2)
+            x0 = x0 + h * score + (2*h)**.5 * torch.randn_like(x0)
+        x0 = x0.view((-1,num_samples,self.dim))
+        mean_estimate = x0.mean(dim=1)
+        score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)
+        return score_estimate
+    
+    def score_estimator(self, x, tt):
+        
+        score_estimate = 0
+        for _ in range(self.default_num_batches):
+            score_estimate+= self._recursive_langevin(x,tt,self.num_recursive_steps)
+        score_estimate/= self.default_num_batches
+        return score_estimate
+        
 
 def get_score_function(config, dist : Distribution, sde, device):
     """
@@ -139,4 +184,9 @@ def get_score_function(config, dist : Distribution, sde, device):
                                 ula_step_size=config.ula_step_size,
                                 ula_steps=config.num_sampler_iterations).score_estimator
     elif config.score_method == 'recursive':
-        return get_recursive_langevin
+        return RSDMC_ScoreEstimator(dist,sde,device,
+                                def_num_batches=config.num_estimator_batches,
+                                def_num_samples=config.num_estimator_samples,
+                                ula_step_size=config.ula_step_size,
+                                num_recursive_steps=config.num_recursive_steps,
+                                ula_steps=config.num_sampler_iterations).score_estimator
