@@ -7,7 +7,11 @@ import utils.densities
 import utils.metrics
 import sample
 import matplotlib.pyplot as plt
+import torchquad
 
+from utils.metrics import compute_log_normalizing_constant
+from utils.score_estimators import get_score_function
+from sde_lib import get_sde
 
 def setup_seed(seed):
     torch.manual_seed(seed)
@@ -17,12 +21,33 @@ def setup_seed(seed):
 def get_gmm_dimension(D, num_modes,device):
     setup_seed(D)
     c = torch.ones(num_modes, device=device)/D
-    means = torch.randn((num_modes,D), device=device) * 3
+    means = torch.randn((num_modes,D), device=device) * 2
+    means+= torch.ones_like(means) * 2
     variances = torch.eye(D,device=device).unsqueeze(0).expand((num_modes,D,D))
     variances = variances * (torch.rand((num_modes,1,1),device=device) + 0.3 ) # random variances in range [.3, 1.3]
     gaussians = [utils.densities.MultivariateGaussian(means[i],variances[i]) for i in range(c.shape[0])]
-    # return utils.densities.DoubleWell(D,1.)
     return utils.densities.MixtureDistribution(c,gaussians)
+
+def get_double_well(D):
+    return utils.densities.DoubleWell(D,4.)
+ 
+def get_double_well_log_normalizing_constant(D):
+    dw = utils.densities.DoubleWell(1,4.)
+    def unnormalized_dens(x):
+        return torch.exp(dw.log_prob(x))
+    return D * torchquad.Boole().integrate(unnormalized_dens, 1, N=2001, integration_domain=[[-15.,15.]]).log()
+
+def get_diff_log_z(config, dist, true, device):
+    with torch.autograd.detect_anomaly(check_nan=True):
+        sde = get_sde(config)
+        model = get_score_function(config, dist,sde,device)
+        log_z = compute_log_normalizing_constant(dist,sde,model,False)
+        print(true, log_z)
+        return (true-log_z).abs().cpu().detach().numpy()
+
+def compute_statistic(samples):
+    exponents = torch.arange(1,samples.shape[-1]+1,device=samples.device)/samples.shape[-1]
+    return torch.mean(torch.sum(samples.abs()**exponents.view(1,-1),dim=-1),dim=0)
 
 def get_method_names(config):
     num_methods = 1 + len(config.methods_to_run) + len(config.baselines)
@@ -43,14 +68,13 @@ def eval(config):
     setup_seed(1)    
     # Set up 
     device = torch.device('cuda:0'if torch.cuda.is_available() else 'cpu')
-    mmd = utils.metrics.MMDLoss()
 
     tot_samples = config.num_batches * config.sampling_batch_size
     num_methods, method_names = get_method_names(config)
     dimensions = np.arange(1,10,step=1)
     print(dimensions)
     num_dims = len(dimensions)
-    mmd_stats = np.zeros([num_methods, num_dims],dtype='double')
+    stats = np.zeros([num_methods, num_dims],dtype='double')
     w2_stats = np.zeros([num_methods, num_dims],dtype='double')
     
     num_modes = 5
@@ -62,8 +86,10 @@ def eval(config):
         for i, d in enumerate(dimensions):
             config.dimension = d
             distribution = get_gmm_dimension(d,num_modes,device)
+            # distribution = get_double_well(d)
             # Baseline
             true_samples = distribution.sample(tot_samples)
+            stats[0][i] = compute_statistic(true_samples)
             k = 1
             for method in config.methods_to_run:
                 print(f'{method} {d}')
@@ -72,7 +98,7 @@ def eval(config):
                     distribution.keep_minimizer = True
                     config.score_method = 'p0t'
                     config.p0t_method = 'rejection'
-                    config.T = 5
+                    config.T = 2
                     config.num_estimator_batches = 10 * d 
                     config.num_estimator_samples = 10000
                     config.sampling_eps = 5e-3
@@ -97,40 +123,44 @@ def eval(config):
                     config.ula_step_size = 0.01
                     config.sampling_eps = 5e-2 #RDMC is more sensitive to the early stopping
                     
-                    
                 generated_samples = sample.sample(config,distribution)
-                mmd_stats[k][i] = mmd.get_mmd_squared(generated_samples,true_samples).detach().item()
+                # log_z_stats[k][i] = get_diff_log_z(config,distribution, get_double_well_log_normalizing_constant(d),device)
+                stats[k][i] = compute_statistic(generated_samples)
                 w2_stats[k][i] = utils.metrics.get_w2(generated_samples,true_samples).detach().item()
                 
                 k+=1
     else:
-        mmd_stats = torch.load(os.path.join(folder,'mmd.pt')).to(device=device).to(dtype=torch.float32)
-        w2_stats = torch.load(os.path.join(folder,'w2.pt')).to(device=device).to(dtype=torch.float32)
-        
+        stats = torch.load(os.path.join(folder,'log_z.pt'))#.cpu().numpy()
+        w2_stats = torch.load(os.path.join(folder,'w2.pt'))#.cpu().numpy()
         method_names = np.load(os.path.join(folder,'method_names.npy'))
     
     # Save method names and samples
-    torch.save(mmd_stats,os.path.join(folder,'mmd.pt'))
+    torch.save(stats,os.path.join(folder,'log_z.pt'))
     torch.save(w2_stats,os.path.join(folder,'w2.pt'))
     np.save(os.path.join(folder,'method_names.npy'), np.array(method_names))
-    plt.rcParams.update({'font.size': 14})
-    
+    plt.rcParams.update({
+        'font.size': 14,
+        'text.usetex': True,
+        'text.latex.preamble': r'\usepackage{amsfonts}'
+    })
     fig, (ax1,ax2) = plt.subplots(1,2, figsize=(12,6))
     ls=['--','-.',':']
     markers=['p','*','s','d','h']
-    
+    print(stats)
     for i,method in enumerate(method_names):
         method_label = method[0].upper() + method[1:]
-        if method == 'Ground Truth' or method[-2:] != 'MC':
+        if method[-2:] != 'MC' and method != 'Ground Truth':
             continue
         print(method)
-        ax1.plot(dimensions,mmd_stats[i],label=method_label,linestyle=ls[i%3],marker=markers[i%5],markersize=7)
+        ax1.semilogy(dimensions,stats[i],label=method_label,linestyle=ls[i%3],marker=markers[i%5],markersize=7)
         ax2.plot(dimensions,w2_stats[i],label=method_label,linestyle=ls[i%3],marker=markers[i%5],markersize=7)
-    # ax1.set_title('MMD as a function of mode separation')
     ax1.set_xlabel('Dimension')
-    ax1.set_ylabel('MMD')
-    ax1.legend(loc='upper left',bbox_to_anchor=(0.6,0.8))
-    # ax2.set_title('W2 as a function of mode separation')
+    
+    # ax1.set_ylabel(r'$|\Delta \log Z|$')
+    ax1.set_ylim(10**0,10**7)
+    ax1.set_ylabel(r'$\mathbb{E}[f(x)]$')
+    
+    ax1.legend(loc='upper left')
     ax2.set_xlabel('Dimension')
     ax2.set_ylabel('W2')
     ax2.legend(loc='upper left')

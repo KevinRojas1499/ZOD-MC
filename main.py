@@ -45,7 +45,7 @@ def parse_arguments():
     p.add_argument('--density',choices=['gmm','mueller','lmm','rmm','double-well'])
     p.add_argument('--density_parameters_path',type=str)
     p.add_argument('--discontinuity',action='store_true',default=False)
-    return p.parse_known_args()
+    return p.parse_args()
 
 def main(config):
     if config.mode == 'sample':

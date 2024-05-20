@@ -9,3 +9,4 @@ wandb==0.16.3
 Cython==3.0.8
 POT==0.9.3
 pytorch-minimize
+torchquad

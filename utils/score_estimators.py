@@ -93,8 +93,8 @@ class RDMC_ScoreEstimator(ScoreEstimator):
             samples_from_p0t = ula.get_ula_samples(x0,grad_log_prob_0t,self.ula_step_size,self.ula_steps)
             samples_from_p0t = samples_from_p0t.view((-1,num_samples, self.dim))
             
-            mean_estimate = torch.mean(samples_from_p0t, dim = 1)
-            
+            mean_estimate += torch.sum(samples_from_p0t, dim = 1)
+        mean_estimate/= (self.default_num_batches * self.default_num_samples)
         score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)
         return score_estimate
           
@@ -117,7 +117,7 @@ def get_score_function(config, dist : Distribution, sde, device):
         h = config.ula_step_size      
 
         big_x = x.repeat_interleave(num_samples,dim=0) 
-        x0 = big_x.detach().clone()    
+        x0 = big_x.detach().clone()   
         # x0 = inv_scaling * x0 + torch.randn_like(x0) * (inv_scaling**2 -1)  # q0 initialization
         for _ in range(config.num_sampler_iterations):
             score = get_recursive_langevin(x0, (k-1) * tt/k,k-1) + scaling * (big_x - scaling * x0)/(1-scaling**2)
