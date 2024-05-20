@@ -252,7 +252,7 @@ class NonContinuousPotential(Distribution):
     def _log_prob(self, x):
         discontinuity = torch.sum(x**2,dim=-1,keepdim=True)**.5
         discontinuity[discontinuity < 5] = 0
-        discontinuity[discontinuity > 10] = 0
+        discontinuity[discontinuity > 11] = 0
         discontinuity*=8
         # This helps prevent problems with the backward pass
         return self.distribution._log_prob(x) - discontinuity.floor().detach() 

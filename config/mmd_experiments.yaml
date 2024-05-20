@@ -14,8 +14,8 @@ save_folder: plots/gmm/
 # RDMC - This actually defines the gradient complexity for everyone else
 num_samples_for_rdmc: 100
 sampling_eps_rdmc: 5e-2 # RDMC is more sensible to the stopping time
-min_num_iters_rdmc: 1
-max_num_iters_rdmc: 101
+min_num_iters_rdmc: 2
+max_num_iters_rdmc: 103
 iters_rdmc_step: 10
 ula_step_size: 0.01
 

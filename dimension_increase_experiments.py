@@ -46,8 +46,7 @@ def get_diff_log_z(config, dist, true, device):
         return (true-log_z).abs().cpu().detach().numpy()
 
 def compute_statistic(samples):
-    exponents = torch.arange(1,samples.shape[-1]+1,device=samples.device)/samples.shape[-1]
-    return torch.mean(torch.sum(samples.abs()**exponents.view(1,-1),dim=-1),dim=0)
+    return torch.mean(torch.sum((samples-1).abs()**2,dim=-1),dim=0)
 
 def get_method_names(config):
     num_methods = 1 + len(config.methods_to_run) + len(config.baselines)

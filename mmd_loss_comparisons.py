@@ -86,12 +86,12 @@ def eval(config):
                     w2_stats[k][i] = utils.metrics.get_w2(samples_all_methods[k][i],real_samples).detach().item()
                     
             k+=1
-        
         # Baselines
         for baseline in config.baselines:
             prev = 0
             method_names[k] = baseline
             in_cond = torch.randn((tot_samples,dim), dtype=torch.float32, device=device)
+            parallel_curr_state = None
             for i, gc in enumerate(oracle_complexity):
                 print(baseline, gc)
                 if baseline == 'langevin': 
@@ -113,7 +113,8 @@ def eval(config):
                     num_chains = config.num_chains_parallel
                     num_iters = config.disc_steps * (gc - prev)//(6 * num_chains)
                     betas = torch.linspace(.2,1.,num_chains, dtype=torch.float32,device=device)
-                    samples_all_methods[k][i] = samplers.parallel_tempering.parallel_tempering(distribution,
+                    in_cond = in_cond if i == 0 else parallel_curr_state
+                    samples_all_methods[k][i], parallel_curr_state = samplers.parallel_tempering.parallel_tempering(distribution,
                                                                 in_cond,betas, num_iters, config.langevin_step_size, device)
                 else:
                     print(f'The baseline method {baseline} has not been implemented yet')

@@ -25,9 +25,16 @@ def get_gmm_radius(config,R,device):
     c = to_tensor_type(params['coeffs'],device)
     means = to_tensor_type(params['means'],device)
     variances = to_tensor_type(params['variances'],device)
-    means = R * means
+    means = R * means / 11
     gaussians = [utils.densities.MultivariateGaussian(means[i],variances[i]) for i in range(c.shape[0])]
     return utils.densities.MixtureDistribution(c,gaussians)
+
+def get_mass_center(config, samples, R):
+    dist : utils.densities.MixtureDistribution = get_gmm_radius(config,R,samples.device)
+    means = torch.cat([ d.mean.unsqueeze(0) for d in dist.distributions],dim=0).unsqueeze(0) # [1, n_modes, d]
+    idx = torch.argmin(torch.sum((means-samples.view(-1,1,dist.dim))**2,dim=-1),dim=-1)
+    # print(idx)
+    return len(idx[idx == 0])/samples.shape[0]
 
 def get_method_names(config):
     num_methods = 1 + len(config.methods_to_run) + len(config.baselines)
@@ -52,10 +59,11 @@ def eval(config):
 
     tot_samples = config.num_batches * config.sampling_batch_size
     num_methods, method_names = get_method_names(config)
-    radiuses = np.arange(1,10,step=2)
+    radiuses = np.arange(1,70,step=5)
     num_rad = len(radiuses)
     mmd_stats = np.zeros([num_methods, num_rad],dtype='double')
     w2_stats = np.zeros([num_methods, num_rad],dtype='double')
+    mass_center = np.zeros_like(w2_stats)
     
     samples_all = torch.zeros([num_methods, num_rad,tot_samples, config.dimension],device=device,dtype=torch.float32)
     
@@ -135,18 +143,18 @@ def eval(config):
                                                                 in_cond,betas, num_iters, config.langevin_step_size, device)
                 mmd_stats[k][i] = mmd.get_mmd_squared(samples_all[k][i],samples_all[0][i]).detach().item()
                 w2_stats[k][i] = utils.metrics.get_w2(samples_all[k][i],samples_all[0][i]).detach().item()
+                mass_center[k][i] = get_mass_center(config,samples_all[k][i],r)
                 k+=1
-            xlim = [-4, 11*r + 8]
-            ylim = [-4, 11*r + 8]
+            xlim = [-4, r + 8]
+            ylim = [-4, r + 8]
             fig = utils.plots.plot_all_samples(samples_all[:,i,:,:],
                                             method_names,
                                             xlim,ylim,distribution.log_prob)
-            fig.savefig(os.path.join(folder,f'radius_{r}.pdf'), bbox_inches='tight')
+            fig.savefig(os.path.join(folder,f'radius_{r}.png'), bbox_inches='tight')
             plt.close(fig)
     else:
         samples_all = torch.load(config.samples_ckpt).to(device=device).to(dtype=torch.float32)
         method_names = np.load(os.path.join(folder,'method_names.npy'))
-        
         for i, r in enumerate(radiuses):
             for k, method in enumerate(method_names):
                 if method == 'Ground Truth':
@@ -156,9 +164,10 @@ def eval(config):
                 
                 mmd_stats[k][i] = mmd.get_mmd_squared(samples_all[k][i],samples_all[0][i]).detach().item()
                 w2_stats[k][i] = utils.metrics.get_w2(samples_all[k][i],samples_all[0][i]).detach().item()
+                mass_center[k][i] = get_mass_center(config,samples_all[k][i],r)
                 print(f'{method} {r} {torch.sum((samples_all[k][i][:,0] < 30))} {torch.sum((samples_all[k][i][:,1] < 30))}')
-                xlim = [-4, 11*r + 8]
-                ylim = [-4, 11*r + 8]
+                xlim = [-4, r + 8]
+                ylim = [-4, r + 8]
             fig = utils.plots.plot_all_samples(samples_all[:,i,:,:],
                                             method_names,
                                             xlim,ylim,distribution.log_prob)
@@ -171,7 +180,7 @@ def eval(config):
     torch.save(samples_all, save_file)
     plt.rcParams.update({'font.size': 14})
     
-    fig, (ax1,ax2) = plt.subplots(1,2, figsize=(12,6))
+    fig, (ax1,ax2,ax3) = plt.subplots(1,3, figsize=(18,6))
     ls=['--','-.',':']
     markers=['p','*','s','d','h']
     
@@ -180,8 +189,9 @@ def eval(config):
         if method == 'Ground Truth':
             continue
         print(method)
-        ax1.plot(radiuses,mmd_stats[i],label=method_label,linestyle=ls[i%3],marker=markers[i%5],markersize=7)
-        ax2.plot(radiuses,w2_stats[i],label=method_label,linestyle=ls[i%3],marker=markers[i%5],markersize=7)
+        ax1.plot(radiuses,mmd_stats[i,:radiuses.shape[0]],label=method_label,linestyle=ls[i%3],marker=markers[i%5],markersize=7)
+        ax2.plot(radiuses,w2_stats[i, :radiuses.shape[0]],label=method_label,linestyle=ls[i%3],marker=markers[i%5],markersize=7)
+        ax3.plot(radiuses,mass_center[i,:radiuses.shape[0]],label=method_label,linestyle=ls[i%3],marker=markers[i%5],markersize=7)
     # ax1.set_title('MMD as a function of mode separation')
     ax1.set_xlabel('Radius')
     ax1.set_ylabel('MMD')
@@ -190,6 +200,12 @@ def eval(config):
     ax2.set_xlabel('Radius')
     ax2.set_ylabel('W2')
     ax2.legend(loc='upper left')
+    
+    ax3.set_yticks(np.arange(0.1, 1.1, 0.1))
+    ax3.axhline(y=.1, label='True Weight',color='black',linestyle='dotted')
+    ax3.set_xlabel('Radius')
+    ax3.set_ylabel('Mass on Center Mode')
+    ax3.legend(loc='upper right')
     fig.savefig(os.path.join(folder,'radius_mmd_results.pdf'),bbox_inches='tight')
 
 
