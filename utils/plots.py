@@ -84,6 +84,42 @@ def plot_all_samples(samples_array,labels,xlim, ylim,log_prob=None, take_log=Fal
         # fig.colorbar(im, cax=cbar_ax)
     return fig
 
+def plot_2d_marginals(data_array, method_names):
+    # data_array = [Truth, Methods]
+    true_data = data_array[0] 
+    other_methods = [data_array[i] for i in range(1,len(data_array))]
+    dim = true_data.shape[-1]
+    
+    # Calculate the number of subplots needed
+    fig, axes = plt.subplots(dim,dim, figsize=(5 * dim, 5 * dim))
+    lim = -23
+    for i in range(dim):
+        for j in range(dim):
+            ax = axes[i][j]
+            
+            if i == j:
+                continue
+            elif i < j:
+                for k, data in enumerate(other_methods):
+                    ax.set_xlim(-lim,lim)
+                    ax.set_ylim(-lim,lim)
+                    
+                    ax.scatter(data[:, i], data[:, j], alpha=0.2,label=method_names[k+1])
+                    ax.set_xlabel(f'Dimension {i+1}')
+                    ax.set_ylabel(f'Dimension {j+1}')
+                    ax.set_title(f'2D Marginal: Dim {i+1} vs Dim {j+1}')
+                    ax.legend()
+            else:
+                ax.set_xlim(-lim,lim)
+                ax.set_ylim(-lim,lim)
+                ax.scatter(true_data[:, i], true_data[:, j], alpha=0.5,label=method_names[0])
+                ax.set_xlabel(f'Dimension {i+1}')
+                ax.set_ylabel(f'Dimension {j+1}')
+                ax.set_title(f'2D Marginal: Dim {i+1} vs Dim {j+1}')
+                ax.legend()
+                
+    
+    return fig
    
 def plot_samples(config, distribution, samples,real_samples=None):
     dim = config.dimension

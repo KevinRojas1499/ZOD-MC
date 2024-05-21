@@ -25,7 +25,10 @@ def get_gmm(device):
     return c, means, variances
 
 def get_l2_error(real_score, generated_score):
-    return torch.mean(torch.sum((real_score-generated_score)**2,dim=-1))**.5
+    errors = torch.sum((real_score-generated_score)**2,dim=-1)**.5
+    mean_error = torch.mean(errors)
+    std = torch.mean((errors - mean_error)**2)**.5
+    return mean_error, std
 
 def eval(num_samples_pt, save_folder, load_from_ckpt):
     setup_seed(1)    
@@ -46,12 +49,17 @@ def eval(num_samples_pt, save_folder, load_from_ckpt):
     zodmc_score_fn = score_estimators.ZODMC_ScoreEstimator(dist,sde,device,10*dim,10000).score_estimator
     rdmc_score_normal_fn = score_estimators.RDMC_ScoreEstimator(dist,sde,device,1,1000,0.1,100,True).score_estimator
     rsdmc_score_fn = score_estimators.RSDMC_ScoreEstimator(dist,sde,device,1,10,0.1,5,3,True).score_estimator
+    def standard_gaussian_score(x,t):
+        return -x
     
     score_fns = [zodmc_score_fn, rdmc_score_normal_fn, rsdmc_score_fn]
     method_names = ['ZOD-MC','RDMC','RSDMC']
     num_ts = 20
+    num_methods = len(method_names)
     ts = torch.linspace(delta, T, num_ts,device=device)
-    errors = torch.zeros((3,num_ts),device=device)
+    errors = torch.zeros((num_methods,num_ts),device=device)
+    error_std = torch.zeros((num_methods,num_ts),device=device)
+    
     if not load_from_ckpt:
         for i, t in tqdm(enumerate(ts)):
             dist_t = get_gmm_density_at_t_no_config(sde,t,c,means,variances)
@@ -59,13 +67,19 @@ def eval(num_samples_pt, save_folder, load_from_ckpt):
             samples_t = dist_t.sample(num_samples_pt)
             true_score = dist_t.grad_log_prob(samples_t)
             for k, score in enumerate(score_fns):
-                errors[k,i] = get_l2_error(true_score, score(samples_t,t))
+                mean, std = get_l2_error(true_score, score(samples_t,t))
+                errors[k,i] = mean
+                error_std[k,i] = std
     else:
         errors = torch.load(os.path.join(folder,'errors.pt'))#.cpu().numpy()
+        error_std = torch.load(os.path.join(folder,'std.pt'))
+        
         method_names = np.load(os.path.join(folder,'method_names.npy'))
     
     # Save method names and samples
     torch.save(errors,os.path.join(folder,'errors.pt'))
+    torch.save(error_std,os.path.join(folder,'std.pt'))
+    
     np.save(os.path.join(folder,'method_names.npy'), np.array(method_names))
     plt.rcParams.update({
         'font.size': 14,
@@ -75,13 +89,15 @@ def eval(num_samples_pt, save_folder, load_from_ckpt):
     fig, ax1 = plt.subplots(1,1, figsize=(6,6))
     ls=['--','-.',':']
     markers=['p','*','s','d','h']
-    print(errors)
+    ax1.set_ylim(-1,4)
     for i,method in enumerate(method_names):
+        if method != 'Gaussian':
+            ax1.fill_between(ts.cpu(),(errors[i] -  error_std[i]).cpu().numpy(), (errors[i] + error_std[i]).cpu().numpy(),alpha=.5)
         ax1.plot(ts.cpu().numpy(),errors[i].cpu().numpy(),label=method,linestyle=ls[i%3],marker=markers[i%5],markersize=7)
     ax1.set_xlabel('Time')
     
     # ax1.set_ylim(10**0,10**7)
-    ax1.set_ylabel(r'$\mathbb{E}_{p_t}^{1/2}[\| s(x,t) - \nabla \log p(x,t)\|^2]$')
+    ax1.set_ylabel(r'$\mathbb{E}_{p_t}[\| s(x,t) - \nabla \log p(x,t)\|]$')
     
     ax1.legend(loc='upper right')
     fig.savefig(os.path.join(folder,'error_mmd_results.pdf'),bbox_inches='tight')

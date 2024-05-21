@@ -21,8 +21,8 @@ def setup_seed(seed):
 def get_gmm_dimension(D, num_modes,device):
     setup_seed(D)
     c = torch.ones(num_modes, device=device)/D
-    means = torch.randn((num_modes,D), device=device) * 2
-    means+= torch.ones_like(means) * 3
+    noise = torch.rand((num_modes,D), device=device)
+    means = noise/(torch.sum(noise**2,dim=-1,keepdim=True)**.5) * 6
     variances = torch.eye(D,device=device).unsqueeze(0).expand((num_modes,D,D))
     variances = variances * (torch.rand((num_modes,1,1),device=device) + 0.3 ) # random variances in range [.3, 1.3]
     gaussians = [utils.densities.MultivariateGaussian(means[i],variances[i]) for i in range(c.shape[0])]
@@ -73,7 +73,7 @@ def eval(config):
 
     tot_samples = config.num_batches * config.sampling_batch_size
     num_methods, method_names = get_method_names(config)
-    dimensions = np.arange(1,10,step=1)
+    dimensions = np.arange(1,8,step=1)
     print(dimensions)
     num_dims = len(dimensions)
     stats = np.zeros([num_methods, num_dims],dtype='double')
