@@ -4,7 +4,7 @@ score_method: p0t
 p0t_method: rejection
 
 methods_to_run: [ZOD-MC,RDMC,RSDMC]
-baselines: [langevin,proximal]
+baselines: [langevin,proximal,parallel]
 
 # load_from_ckpt: True
 # samples_ckpt: plots/mueller/samples_lmm.pt
@@ -15,7 +15,7 @@ sampling_eps_rdmc: 5e-3 # RDMC is more sensible to the stopping time
 min_num_iters_rdmc: 11
 max_num_iters_rdmc: 21
 iters_rdmc_step: 10
-ula_step_size: 0.0005
+ula_step_size: 0.0005 # This needs to be small for Mueller
 
 # Rejection
 sampling_eps_rejec: 5e-4

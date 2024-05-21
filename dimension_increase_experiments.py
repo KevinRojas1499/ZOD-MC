@@ -151,18 +151,16 @@ def eval(config):
     print(stats)
     for i,method in enumerate(method_names):
         method_label = method[0].upper() + method[1:]
-        if method[-2:] != 'MC' and method != 'Ground Truth':
+        if method[-2:] != 'MC':
             continue
         print(method)
-        ax1.plot(dimensions,stats[i],label=method_label,linestyle=ls[i%3],marker=markers[i%5],markersize=7)
+        ax1.plot(dimensions,np.abs(stats[i]-stats[0]),label=method_label,linestyle=ls[i%3],marker=markers[i%5],markersize=7)
         ax2.plot(dimensions,w2_stats[i],label=method_label,linestyle=ls[i%3],marker=markers[i%5],markersize=7)
     ax1.set_xlabel('Dimension')
     
     # ax1.set_ylabel(r'$|\Delta \log Z|$')
-    ax1.set_ylabel('E[f(x)]')
-    
-    # ax1.set_ylabel(r'$\mathbb{E}[f(x)]$')
-    
+    ax1.set_ylabel(r'Error in estimation of $\mathbb{E}[f(x)]$')
+    ax1.set_ylim(0,800)
     ax1.legend(loc='upper left')
     ax2.set_xlabel('Dimension')
     ax2.set_ylabel('W2')

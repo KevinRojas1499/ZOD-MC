@@ -5,9 +5,9 @@ def get_sampler(config, device, sde):
     torch.manual_seed(123)
     
     def plot_trajectory(x_t, i, t):
-        l = 3 if config.density == 'mueller' else 15
-        plt.xlim([-l,l])
-        plt.ylim([-l,l])
+        lim = 3 if config.density == 'mueller' else 15
+        plt.xlim([-lim,lim])
+        plt.ylim([-lim,lim])
         plt.scatter(x_t[:,0].cpu(), x_t[:,1].cpu(),s=2)
         plt.savefig(f'./trajectory/{i}_{t : .3f}.png')
         plt.close()

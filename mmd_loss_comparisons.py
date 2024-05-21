@@ -73,6 +73,7 @@ def eval(config):
                     config.sampling_eps = config.sampling_eps_rdmc
                     config.num_estimator_samples = config.num_samples_for_rdmc
                     config.num_sampler_iterations = gc//config.num_estimator_samples
+                    config.initial_cond_type = 'delta'
                 elif method == 'RSDMC':
                     config.score_method = 'recursive'
                     config.num_estimator_batches = 1
@@ -130,7 +131,7 @@ def eval(config):
     
     else:
         samples_all_methods = torch.load(config.samples_ckpt).to(device=device).to(dtype=torch.float32)
-        method_names = np.load(os.path.join(folder,f'method_names.npy'))
+        method_names = np.load(os.path.join(folder,'method_names.npy'))
         mmd_stats = np.zeros((len(method_names), *oracle_complexity.shape),dtype='double')
         
         if eval_stats:
@@ -146,15 +147,13 @@ def eval(config):
         
     # Save method names and samples
     save_file = os.path.join(folder,f'samples_{config.density}.pt')
-    np.save(os.path.join(folder,f'method_names.npy'), np.array(method_names))
+    np.save(os.path.join(folder,'method_names.npy'), np.array(method_names))
     torch.save(samples_all_methods, save_file)
     np.savetxt(os.path.join(folder,'mmd.txt'), mmd_stats)
     np.savetxt(os.path.join(folder,'w2.txt'), w2_stats)
 
     if dim == 2:
         take_log = config.density not in ['lmm','gmm'] # This is so that we can have nicer level curves for mueller
-        rx, ry = -1, 1
-        l = 5
         xlim = [-5,13] if config.density in ['lmm','gmm'] else [-5, 9]
         ylim = [-5,13] if config.density in ['lmm','gmm']else [-8,3.5]
         for i, gc in enumerate(oracle_complexity):
@@ -165,8 +164,6 @@ def eval(config):
             fig.savefig(os.path.join(folder,f'complexity_{gc}_{config.density}.png'), bbox_inches='tight')
     else:
         take_log = config.density not in ['lmm','gmm'] # This is so that we can have nicer level curves for mueller
-        rx, ry = -1, 1
-        l = 5
         xlim = [-13,13] if config.density in ['lmm','gmm'] else [-5, 9]
         ylim = [-13,13] if config.density in ['lmm','gmm']else [-8,3.5]
         for i, gc in enumerate(oracle_complexity):

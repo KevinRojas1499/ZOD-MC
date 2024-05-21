@@ -57,7 +57,7 @@ def plot_2d_dist_with_contour(data,log_prob, ground_truth=None):
 
 def plot_all_samples(samples_array,labels,xlim, ylim,log_prob=None, take_log=False):
     plt.rcParams.update({'font.size': 18})
-    fig, ax = plt.subplots(1,len(samples_array), figsize=(5 * len(samples_array),6))
+    fig, ax = plt.subplots(1,len(samples_array), figsize=(5 * len(samples_array),5))
     if len(samples_array) == 1:
         ax = [ax]
     for i, axis in enumerate(ax):
@@ -79,9 +79,9 @@ def plot_all_samples(samples_array,labels,xlim, ylim,log_prob=None, take_log=Fal
         
         axis.scatter(samp[:,0],samp[:,1],s=5,color='red')
         axis.set_title(labels[i])
-        fig.subplots_adjust(right=0.93)
-        cbar_ax = fig.add_axes([0.95, 0.15, 0.01, 0.7])
-        fig.colorbar(im, cax=cbar_ax)
+        # fig.subplots_adjust(right=0.93)
+        # cbar_ax = fig.add_axes([0.95, 0.15, 0.01, 0.7])
+        # fig.colorbar(im, cax=cbar_ax)
     return fig
 
    

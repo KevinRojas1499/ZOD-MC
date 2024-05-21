@@ -1,5 +1,5 @@
 python3 experiments.py --config config/mmd_experiments.yaml \
-    --mode dimension --T 10 --disc_steps 50 --sampling_eps 5e-3 \
+    --mode dimension --T 10 --disc_steps 25 --sampling_eps 5e-3 \
     --sampling_method ei \
     --sampling_batch_size 1000 --num_batches 1 \
     --score_method p0t --density gmm --dimension 2 \

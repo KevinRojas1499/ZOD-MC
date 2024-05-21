@@ -59,7 +59,7 @@ def eval(config):
 
     tot_samples = config.num_batches * config.sampling_batch_size
     num_methods, method_names = get_method_names(config)
-    radiuses = np.arange(1,70,step=5)
+    radiuses = np.arange(1,30,step=5)
     num_rad = len(radiuses)
     mmd_stats = np.zeros([num_methods, num_rad],dtype='double')
     w2_stats = np.zeros([num_methods, num_rad],dtype='double')
@@ -195,17 +195,17 @@ def eval(config):
     # ax1.set_title('MMD as a function of mode separation')
     ax1.set_xlabel('Radius')
     ax1.set_ylabel('MMD')
-    ax1.legend(loc='upper left',bbox_to_anchor=(0.6,0.8))
+    ax1.legend(loc='upper left',bbox_to_anchor=(0.55,0.8))
     # ax2.set_title('W2 as a function of mode separation')
     ax2.set_xlabel('Radius')
     ax2.set_ylabel('W2')
     ax2.legend(loc='upper left')
     
     ax3.set_yticks(np.arange(0.1, 1.1, 0.1))
-    ax3.axhline(y=.1, label='True Weight',color='black',linestyle='dotted')
+    ax3.axhline(y=.1, label='True\nWeight',color='black',linestyle='dotted')
     ax3.set_xlabel('Radius')
     ax3.set_ylabel('Mass on Center Mode')
-    ax3.legend(loc='upper right')
+    ax3.legend(loc='upper left',bbox_to_anchor=(0.6,0.7))
     fig.savefig(os.path.join(folder,'radius_mmd_results.pdf'),bbox_inches='tight')
 
 

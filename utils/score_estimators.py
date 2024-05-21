@@ -86,10 +86,10 @@ class RDMC_ScoreEstimator(ScoreEstimator):
         
         mean_estimate = 0
         x0 = big_x
-        if self.initial_cond_normal:
-            x0 = inv_scaling * big_x + torch.randn_like(big_x) * variance_conv**.5
+
         for _ in range(self.default_num_batches):
-            x0 = inv_scaling * big_x + torch.randn_like(big_x) * variance_conv**.5
+            if self.initial_cond_normal:
+                x0 = inv_scaling * big_x + torch.randn_like(big_x) * variance_conv**.5
             samples_from_p0t = ula.get_ula_samples(x0,grad_log_prob_0t,self.ula_step_size,self.ula_steps)
             samples_from_p0t = samples_from_p0t.view((-1,num_samples, self.dim))
             
@@ -178,11 +178,13 @@ def get_score_function(config, dist : Distribution, sde, device):
                                     def_num_batches=config.num_estimator_batches,
                                     def_num_rej_samples=config.num_estimator_samples).score_estimator
     elif config.score_method == 'p0t' and config.p0t_method == 'ula':
+        initial_cond_normal= True if config.rdmc_initial_condition.lower() == 'normal' else False
         return RDMC_ScoreEstimator(dist,sde,device,
                                 def_num_batches=config.num_estimator_batches,
                                 def_num_samples=config.num_estimator_samples,
                                 ula_step_size=config.ula_step_size,
-                                ula_steps=config.num_sampler_iterations).score_estimator
+                                ula_steps=config.num_sampler_iterations,
+                                initial_cond_normal=initial_cond_normal).score_estimator
     elif config.score_method == 'recursive':
         return RSDMC_ScoreEstimator(dist,sde,device,
                                 def_num_batches=config.num_estimator_batches,
