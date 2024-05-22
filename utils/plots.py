@@ -112,10 +112,10 @@ def plot_2d_marginals(data_array, method_names):
             else:
                 ax.set_xlim(-lim,lim)
                 ax.set_ylim(-lim,lim)
-                ax.scatter(true_data[:, i], true_data[:, j], alpha=0.5,label=method_names[0])
-                ax.set_xlabel(f'Dimension {i+1}')
-                ax.set_ylabel(f'Dimension {j+1}')
-                ax.set_title(f'2D Marginal: Dim {i+1} vs Dim {j+1}')
+                ax.scatter(true_data[:, j], true_data[:, i], alpha=0.5,label=method_names[0])
+                ax.set_xlabel(f'Dimension {j+1}')
+                ax.set_ylabel(f'Dimension {i+1}')
+                ax.set_title(f'2D Marginal: Dim {j+1} vs Dim {i+1}')
                 ax.legend()
                 
     

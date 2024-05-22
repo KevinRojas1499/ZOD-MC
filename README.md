@@ -42,5 +42,7 @@ bash scripts/replicate_2d_mmd.sh
 bash scripts/replicate_radius.sh
 bash scripts/replicate_non_continuous.sh
 bash scripts/replicate_mueller.sh
+bash scripts/replicate_dimension.sh
+bash scripts/replicate_score_error.sh
 ```
 

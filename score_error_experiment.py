@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import yaml
+import click
 
 import utils.score_estimators as score_estimators
 from sde_lib import VP
@@ -17,8 +18,8 @@ def setup_seed(seed):
 def to_tensor_type(x, device):
     return torch.tensor(x,device=device, dtype=torch.float32)  
 
-def get_gmm(device):
-    params = yaml.safe_load(open('config/density_parameters/5d_gmm.yaml'))
+def get_gmm(path, device):
+    params = yaml.safe_load(open(path))
     c = to_tensor_type(params['coeffs'],device)
     means = to_tensor_type(params['means'],device)
     variances = to_tensor_type(params['variances'],device)
@@ -30,7 +31,12 @@ def get_l2_error(real_score, generated_score):
     std = torch.mean((errors - mean_error)**2)**.5
     return mean_error, std
 
-def eval(num_samples_pt, save_folder, load_from_ckpt):
+@click.command()
+@click.option('--num_samples_pt', type=int, default=1000)
+@click.option('--save_folder', type=str)
+@click.option('--density_params_path', type=str)
+@click.option('--load_from_ckpt', is_flag=True)
+def eval(num_samples_pt, save_folder, density_params_path, load_from_ckpt):
     setup_seed(1)    
     # Set up 
     device = torch.device('cuda:0'if torch.cuda.is_available() else 'cpu')
@@ -39,10 +45,10 @@ def eval(num_samples_pt, save_folder, load_from_ckpt):
     folder = os.path.dirname(save_folder)
     os.makedirs(folder, exist_ok=True)
     
-    T = 2.
+    T = 4.
     delta = .1
     sde = VP(T,delta)
-    c, means, variances = get_gmm(device)
+    c, means, variances = get_gmm(density_params_path, device)
     dim = means.shape[-1]
     
     dist = get_gmm_density_at_t_no_config(sde,torch.tensor([0.],device=device),c,means,variances)
@@ -95,13 +101,14 @@ def eval(num_samples_pt, save_folder, load_from_ckpt):
             ax1.fill_between(ts.cpu(),(errors[i] -  error_std[i]).cpu().numpy(), (errors[i] + error_std[i]).cpu().numpy(),alpha=.5)
         ax1.plot(ts.cpu().numpy(),errors[i].cpu().numpy(),label=method,linestyle=ls[i%3],marker=markers[i%5],markersize=7)
     ax1.set_xlabel('Time')
+    ax1.axhline(y=0,linestyle='dotted',color='black')
     
     # ax1.set_ylim(10**0,10**7)
     ax1.set_ylabel(r'$\mathbb{E}_{p_t}[\| s(x,t) - \nabla \log p(x,t)\|]$')
     
     ax1.legend(loc='upper right')
-    fig.savefig(os.path.join(folder,'error_mmd_results.pdf'),bbox_inches='tight')
+    fig.savefig(os.path.join(folder,f'error_mmd_results_{dim}.pdf'),bbox_inches='tight')
 
 
 if __name__ == '__main__':
-    eval(1000,'plots/error/',True)
+    eval()
