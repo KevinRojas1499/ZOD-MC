@@ -59,7 +59,8 @@ def parse_arguments():
     p.add_argument('--sampling_eps', type=float) # early stopping
     p.add_argument('--disc_steps',type=int)
     p.add_argument('--ula_steps',type=int,default=0) # Finish off with some ula steps
-
+    p.add_argument('--in_cond_sigma', type=float, default=1.)
+    
     # Problem Specifics
     p.add_argument('--density',choices=['gmm','mueller','lmm'])
     p.add_argument('--density_parameters_path',type=str)

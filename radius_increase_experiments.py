@@ -10,6 +10,10 @@ import sample
 import matplotlib.pyplot as plt
 import samplers.ula
 import samplers.proximal_sampler
+from slips.samplers.smc import smc_algorithm, init_sample_gaussian, init_log_prob_and_grad_gaussian
+from slips.samplers.sto_loc import sto_loc_algorithm, sample_y_init
+from slips.samplers.alphas import AlphaGeometric
+from slips.samplers.mcmc import MCMCScoreEstimator
 
 
 def setup_seed(seed):
@@ -74,6 +78,10 @@ def eval(config):
     if not config.load_from_ckpt:
         for i, r in enumerate(radiuses):
             distribution = get_gmm_radius(config,r,device)
+            def target_log_prob_and_grad(y):
+                return  distribution.log_prob(y).flatten(),\
+                        distribution.grad_log_prob(y) #torch.autograd.grad(log_prob_y.sum(), y_)[0].detach()
+
             # Baseline
             samples_all[0][i] = distribution.sample(tot_samples)
             k = 1
@@ -115,10 +123,11 @@ def eval(config):
                 w2_stats[k][i] = utils.metrics.get_w2(samples_all[k][i],samples_all[0][i]).detach().item()
                 
                 k+=1
-                
+            
+            sigma = torch.tensor([1.],device=device)
             for method in config.baselines:
                 print(method, r)
-                in_cond = torch.randn_like(samples_all[0][i])
+                in_cond = sigma * torch.randn_like(samples_all[0][i])
                 if method == 'langevin':
                     # Langevin
                     distribution.keep_minimizer = False
@@ -141,6 +150,61 @@ def eval(config):
                     betas = torch.linspace(.2,1.,num_chains, dtype=torch.float32,device=device)
                     samples_all[k][i] = samplers.parallel_tempering.parallel_tempering(distribution,
                                                                 in_cond,betas, num_iters, config.langevin_step_size, device)
+                elif method == 'ais':
+                    
+                    num_chains = config.num_chains_parallel
+                    n_mcmc_steps = config.num_sampler_iterations
+                    samples, weights = smc_algorithm(n_particles=tot_samples,
+                        target_log_prob=lambda y :distribution.log_prob(y).flatten(),
+                        target_log_prob_and_grad=target_log_prob_and_grad,
+                        init_sample=lambda n_samples : init_sample_gaussian(n_samples, sigma, 2, device),
+                        init_log_prob_and_grad=lambda x : init_log_prob_and_grad_gaussian(x, sigma),                    
+                        betas=torch.linspace(0.0, 1.0, num_chains),
+                        n_mcmc_steps=n_mcmc_steps,
+                        use_ais=True,
+                        verbose=True
+                    )
+                    samples_all[k][i], weights = samples.detach().cpu(), weights.detach().cpu()
+                    
+                elif method == 'smc':
+                    
+                    num_chains = config.num_chains_parallel
+                    n_mcmc_steps = config.num_sampler_iterations
+                    samples_all[k][i] = smc_algorithm(n_particles=tot_samples,
+                            target_log_prob=lambda y : distribution.log_prob(y).flatten(),
+                            target_log_prob_and_grad=target_log_prob_and_grad,
+                            init_sample=lambda n_samples : init_sample_gaussian(n_samples, sigma, 2, device),
+                            init_log_prob_and_grad=lambda x : init_log_prob_and_grad_gaussian(x, sigma),                  
+                            betas=torch.linspace(0.0, 1.0, num_chains),
+                            n_mcmc_steps=n_mcmc_steps,
+                            verbose=True
+                        ).detach().cpu()
+                elif method == 'slips':
+                    alpha = AlphaGeometric(a=1.0, b=1.0)
+                    
+                    K = config.disc_steps
+                    num_chains = config.num_estimator_samples
+                    n_mcmc_steps = config.num_sampler_iterations
+                    epsilon, epsilon_end, T = 0.35, 6.62e-03, 1.0
+                    score_est = MCMCScoreEstimator(
+                        step_size=1e-5,
+                        n_mcmc_samples=n_mcmc_steps,
+                        log_prob_and_grad=target_log_prob_and_grad,
+                        n_mcmc_chains=num_chains,
+                        keep_mcmc_length=int(0.5 * n_mcmc_steps)
+                    )
+                    # Sample the initial point with Langevin-within-Langevin
+                    y_init = sample_y_init((tot_samples, 2), sigma=sigma, epsilon=epsilon, alpha=alpha, device=device,
+                            n_langevin_steps=32, langevin_init=True, score_est=score_est, score_type='mc')
+                    # Run the SLIPS algorithm
+                    samples_all[k][i] = sto_loc_algorithm(alpha=alpha, y_init=y_init, K=K, T=T, sigma=sigma, score_est=score_est, score_type='mc',
+                        epsilon=epsilon, epsilon_end=epsilon_end, use_exponential_integrator=True, use_snr_discretization=True,
+                        verbose=True
+                    ).detach().cpu()
+                else:
+                    print('baseline not implemented')
+                
+                
                 mmd_stats[k][i] = mmd.get_mmd_squared(samples_all[k][i],samples_all[0][i]).detach().item()
                 w2_stats[k][i] = utils.metrics.get_w2(samples_all[k][i],samples_all[0][i]).detach().item()
                 mass_center[k][i] = get_mass_center(config,samples_all[k][i],r)

@@ -105,10 +105,12 @@ def eval(config):
 
             k+=1
         # Baselines
+        
+        sigma = torch.tensor([config.in_cond_sigma],device=device)
         for baseline in config.baselines:
             prev = 0
             method_names[k] = baseline
-            in_cond = torch.randn((tot_samples,dim), dtype=torch.float32, device=device)
+            in_cond = sigma * torch.randn((tot_samples,dim), dtype=torch.float32, device=device)
             parallel_curr_state = None
             for i, gc in enumerate(oracle_complexity):
                 print(baseline, gc)
@@ -137,7 +139,7 @@ def eval(config):
                     samples_all_methods[k][i], parallel_curr_state = samplers.parallel_tempering.parallel_tempering(distribution,
                                                                 in_cond,betas, num_iters, config.langevin_step_size, device)
                 elif baseline == 'ais':
-                    sigma = torch.tensor([1.],device=device)
+                    
                     num_chains = config.num_chains_parallel
                     n_mcmc_steps = config.disc_steps * gc //(2 + 2 * num_chains)
                     print('Ais' , gc, num_chains, n_mcmc_steps)
@@ -154,7 +156,7 @@ def eval(config):
                     samples_all_methods[k][i], weights = samples.detach().cpu(), weights.detach().cpu()
                     
                 elif baseline == 'smc':
-                    sigma = torch.tensor([1.],device=device)
+                    
                     num_chains = config.num_chains_parallel
                     n_mcmc_steps = config.disc_steps * gc //(2 + 2 * num_chains)
                     samples_all_methods[k][i] = smc_algorithm(n_particles=tot_samples,
@@ -168,7 +170,7 @@ def eval(config):
                         ).detach().cpu()
                 elif baseline == 'slips':
                     alpha = AlphaGeometric(a=1.0, b=1.0)
-                    sigma = torch.tensor([1.],device=device)
+                    
                     K = config.disc_steps
                     num_chains = config.num_samples_for_rdmc
                     n_mcmc_steps = gc//num_chains
@@ -188,7 +190,6 @@ def eval(config):
                         epsilon=epsilon, epsilon_end=epsilon_end, use_exponential_integrator=True, use_snr_discretization=True,
                         verbose=True
                     ).detach().cpu()
-                    pass
                 else:
                     print(f'The baseline method {baseline} has not been implemented yet')
                 prev = gc
@@ -198,6 +199,8 @@ def eval(config):
                 if eval_stats:
                     end = time.time()
                     wall_time[k][i] = end - start
+                    if baseline in ['langevin','proximal','parallel'] and k>0:
+                        wall_time[k][i] += wall_time[k-1][i]
                     mmd_stats[k][i] = mmd.get_mmd_squared(samples_all_methods[k][i],real_samples).detach().item()
                     w2_stats[k][i] = utils.metrics.get_w2(samples_all_methods[k][i],real_samples).detach().item()
                     
@@ -225,6 +228,8 @@ def eval(config):
     torch.save(samples_all_methods, save_file)
     np.savetxt(os.path.join(folder,'mmd.txt'), mmd_stats)
     np.savetxt(os.path.join(folder,'w2.txt'), w2_stats)
+    np.savetxt(os.path.join(folder,'time.txt'), wall_time)
+    
 
     if dim == 2:
         take_log = config.density not in ['lmm','gmm'] # This is so that we can have nicer level curves for mueller
@@ -263,16 +268,17 @@ def eval(config):
         # ax1.set_title('MMD as a function of Oracle Complexity per Score Evaluation')
         ax1.set_xlabel('Oracle Complexity')
         ax1.set_ylabel('MMD')
-        ax1.legend(loc='upper left',bbox_to_anchor=(0.6,0.8))
+        ax1.legend(loc='lower left',bbox_to_anchor=(0.0,0.2))
         # ax2.set_title('W2 as a function of Oracle Complexity per Score Evaluation')
         ax2.set_xlabel('Oracle Complexity')
         ax2.set_ylabel('W2')
-        ax2.legend(loc='upper left',bbox_to_anchor=(0.6,0.6))
+        ax2.legend(loc='lower left',bbox_to_anchor=(0.0,0.2))
+
         
         ax_time.set_yscale('log')
         ax_time.set_xlabel('Gradient Complexity')
         ax_time.set_ylabel('Time (s)')
-        ax_time.legend(loc='upper right')
+        ax_time.legend(loc='upper left')
 
         fig.savefig(os.path.join(folder,f'mmd_results_{dim}_{config.density}.pdf'),bbox_inches='tight')
         fig_time.savefig(os.path.join(folder,f'time_results_{dim}_{config.density}.pdf'),bbox_inches='tight')
