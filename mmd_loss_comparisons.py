@@ -10,6 +10,14 @@ import sample
 import matplotlib.pyplot as plt
 import samplers.ula
 import samplers.proximal_sampler
+from slips.samplers.smc import smc_algorithm, init_sample_gaussian, init_log_prob_and_grad_gaussian
+from slips.samplers.sto_loc import sto_loc_algorithm, sample_y_init
+from slips.samplers.alphas import AlphaGeometric
+from slips.samplers.mcmc import MCMCScoreEstimator
+
+import time
+
+
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -27,6 +35,10 @@ def eval(config):
     # Set up 
     device = torch.device('cuda:0'if torch.cuda.is_available() else 'cpu')
     distribution = utils.densities.get_distribution(config,device)
+    def target_log_prob_and_grad(y):
+        return  distribution.log_prob(y).flatten(),\
+            distribution.grad_log_prob(y) #torch.autograd.grad(log_prob_y.sum(), y_)[0].detach()
+
     mmd = utils.metrics.MMDLoss()
     eval_stats = config.eval_mmd
     dim = distribution.dim
@@ -43,6 +55,7 @@ def eval(config):
 
     mmd_stats = np.zeros((num_methods, *oracle_complexity.shape),dtype='double')
     w2_stats = np.zeros((num_methods, *oracle_complexity.shape),dtype='double')
+    wall_time = np.zeros((num_methods, *oracle_complexity.shape),dtype='double')
 
     k = 0
     if eval_stats:
@@ -59,6 +72,8 @@ def eval(config):
         for method in config.methods_to_run:
             method_names[k] = method
             for i, gc in enumerate(oracle_complexity):
+                start = time.time()
+
                 print(method, gc)
                 if method == 'ZOD-MC':
                     config.score_method = 'p0t'
@@ -83,9 +98,11 @@ def eval(config):
                     
                 samples_all_methods[k][i] = sample.sample(config)
                 if eval_stats:
+                    end = time.time()
+                    wall_time[k][i] = end - start
                     mmd_stats[k][i] = mmd.get_mmd_squared(samples_all_methods[k][i],real_samples).detach().item()
                     w2_stats[k][i] = utils.metrics.get_w2(samples_all_methods[k][i],real_samples).detach().item()
-                    
+
             k+=1
         # Baselines
         for baseline in config.baselines:
@@ -95,6 +112,8 @@ def eval(config):
             parallel_curr_state = None
             for i, gc in enumerate(oracle_complexity):
                 print(baseline, gc)
+                start = time.time()
+                
                 if baseline == 'langevin': 
                     samples_all_methods[k][i] = samplers.ula.get_ula_samples(in_cond,
                                                                     distribution.grad_log_prob,
@@ -117,6 +136,59 @@ def eval(config):
                     in_cond = in_cond if i == 0 else parallel_curr_state
                     samples_all_methods[k][i], parallel_curr_state = samplers.parallel_tempering.parallel_tempering(distribution,
                                                                 in_cond,betas, num_iters, config.langevin_step_size, device)
+                elif baseline == 'ais':
+                    sigma = torch.tensor([1.],device=device)
+                    num_chains = config.num_chains_parallel
+                    n_mcmc_steps = config.disc_steps * gc //(2 + 2 * num_chains)
+                    print('Ais' , gc, num_chains, n_mcmc_steps)
+                    samples, weights = smc_algorithm(n_particles=tot_samples,
+                        target_log_prob=lambda y :distribution.log_prob(y).flatten(),
+                        target_log_prob_and_grad=target_log_prob_and_grad,
+                        init_sample=lambda n_samples : init_sample_gaussian(n_samples, sigma, dim, device),
+                        init_log_prob_and_grad=lambda x : init_log_prob_and_grad_gaussian(x, sigma),                    
+                        betas=torch.linspace(0.0, 1.0, num_chains),
+                        n_mcmc_steps=n_mcmc_steps,
+                        use_ais=True,
+                        verbose=True
+                    )
+                    samples_all_methods[k][i], weights = samples.detach().cpu(), weights.detach().cpu()
+                    
+                elif baseline == 'smc':
+                    sigma = torch.tensor([1.],device=device)
+                    num_chains = config.num_chains_parallel
+                    n_mcmc_steps = config.disc_steps * gc //(2 + 2 * num_chains)
+                    samples_all_methods[k][i] = smc_algorithm(n_particles=tot_samples,
+                            target_log_prob=lambda y : distribution.log_prob(y).flatten(),
+                            target_log_prob_and_grad=target_log_prob_and_grad,
+                            init_sample=lambda n_samples : init_sample_gaussian(n_samples, sigma, dim, device),
+                            init_log_prob_and_grad=lambda x : init_log_prob_and_grad_gaussian(x, sigma),                  
+                            betas=torch.linspace(0.0, 1.0, num_chains),
+                            n_mcmc_steps=n_mcmc_steps,
+                            verbose=True
+                        ).detach().cpu()
+                elif baseline == 'slips':
+                    alpha = AlphaGeometric(a=1.0, b=1.0)
+                    sigma = torch.tensor([1.],device=device)
+                    K = config.disc_steps
+                    num_chains = config.num_samples_for_rdmc
+                    n_mcmc_steps = gc//num_chains
+                    epsilon, epsilon_end, T = 0.35, 6.62e-03, 1.0
+                    score_est = MCMCScoreEstimator(
+                        step_size=1e-5,
+                        n_mcmc_samples=n_mcmc_steps,
+                        log_prob_and_grad=target_log_prob_and_grad,
+                        n_mcmc_chains=num_chains,
+                        keep_mcmc_length=int(0.5 * n_mcmc_steps)
+                    )
+                    # Sample the initial point with Langevin-within-Langevin
+                    y_init = sample_y_init((tot_samples, dim), sigma=sigma, epsilon=epsilon, alpha=alpha, device=device,
+                            n_langevin_steps=32, langevin_init=True, score_est=score_est, score_type='mc')
+                    # Run the SLIPS algorithm
+                    samples_all_methods[k][i] = sto_loc_algorithm(alpha=alpha, y_init=y_init, K=K, T=T, sigma=sigma, score_est=score_est, score_type='mc',
+                        epsilon=epsilon, epsilon_end=epsilon_end, use_exponential_integrator=True, use_snr_discretization=True,
+                        verbose=True
+                    ).detach().cpu()
+                    pass
                 else:
                     print(f'The baseline method {baseline} has not been implemented yet')
                 prev = gc
@@ -124,6 +196,8 @@ def eval(config):
                 in_cond = samples_all_methods[k][i]
                 
                 if eval_stats:
+                    end = time.time()
+                    wall_time[k][i] = end - start
                     mmd_stats[k][i] = mmd.get_mmd_squared(samples_all_methods[k][i],real_samples).detach().item()
                     w2_stats[k][i] = utils.metrics.get_w2(samples_all_methods[k][i],real_samples).detach().item()
                     
@@ -179,11 +253,13 @@ def eval(config):
         ls=['--','-.',':']
         markers=['p','*','s','d','h']
         fig, (ax1, ax2) = plt.subplots(1,2, figsize=(12,6))
+        fig_time, ax_time = plt.subplots(1,1,figsize=(6,6))
         for i, method in enumerate(method_names):
             if method == 'Ground Truth':
                 continue
             ax1.plot(oracle_complexity,mmd_stats[i],label=method,linestyle=ls[i%3],marker=markers[i%5],markersize=7)
             ax2.plot(oracle_complexity,w2_stats[i],label=method,linestyle=ls[i%3],marker=markers[i%5],markersize=7)
+            ax_time.plot(oracle_complexity,wall_time[i],label=method,linestyle=ls[i%3],marker=markers[i%5],markersize=7)
         # ax1.set_title('MMD as a function of Oracle Complexity per Score Evaluation')
         ax1.set_xlabel('Oracle Complexity')
         ax1.set_ylabel('MMD')
@@ -193,5 +269,10 @@ def eval(config):
         ax2.set_ylabel('W2')
         ax2.legend(loc='upper left',bbox_to_anchor=(0.6,0.6))
         
+        ax_time.set_yscale('log')
+        ax_time.set_xlabel('Gradient Complexity')
+        ax_time.set_ylabel('Time (s)')
+        ax_time.legend(loc='upper right')
 
         fig.savefig(os.path.join(folder,f'mmd_results_{dim}_{config.density}.pdf'),bbox_inches='tight')
+        fig_time.savefig(os.path.join(folder,f'time_results_{dim}_{config.density}.pdf'),bbox_inches='tight')
