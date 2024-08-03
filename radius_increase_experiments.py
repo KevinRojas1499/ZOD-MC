@@ -145,15 +145,15 @@ def eval(config):
                                                                             1,device
                                                                             ).squeeze(1)
                 elif method == 'parallel':
-                    num_chains = config.num_chains_parallel
-                    num_iters = 10000
+                    num_chains = 128
+                    num_iters = 500
                     betas = torch.linspace(.2,1.,num_chains, dtype=torch.float32,device=device)
                     samples_all[k][i] = samplers.parallel_tempering.parallel_tempering(distribution,
                                                                 in_cond,betas, num_iters, config.langevin_step_size, device)
                 elif method == 'ais':
                     
-                    num_chains = config.num_chains_parallel
-                    n_mcmc_steps = config.num_sampler_iterations
+                    num_chains = 128
+                    n_mcmc_steps = 500
                     samples, weights = smc_algorithm(n_particles=tot_samples,
                         target_log_prob=lambda y :distribution.log_prob(y).flatten(),
                         target_log_prob_and_grad=target_log_prob_and_grad,
@@ -168,8 +168,8 @@ def eval(config):
                     
                 elif method == 'smc':
                     
-                    num_chains = config.num_chains_parallel
-                    n_mcmc_steps = config.num_sampler_iterations
+                    num_chains = 128
+                    n_mcmc_steps = 500
                     samples_all[k][i] = smc_algorithm(n_particles=tot_samples,
                             target_log_prob=lambda y : distribution.log_prob(y).flatten(),
                             target_log_prob_and_grad=target_log_prob_and_grad,
@@ -183,8 +183,8 @@ def eval(config):
                     alpha = AlphaGeometric(a=1.0, b=1.0)
                     
                     K = config.disc_steps
-                    num_chains = config.num_estimator_samples
-                    n_mcmc_steps = config.num_sampler_iterations
+                    num_chains = 1000
+                    n_mcmc_steps = 100
                     epsilon, epsilon_end, T = 0.35, 6.62e-03, 1.0
                     score_est = MCMCScoreEstimator(
                         step_size=1e-5,

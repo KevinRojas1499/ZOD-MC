@@ -26,6 +26,7 @@ num_recursive_steps: 10
 sampling_eps_rejec: 5e-3
 
 # Baselines
+in_cond_sigma: 1.
 langevin_step_size: 0.07
 proximal_M: 2.5
 proximal_num_iters: 100
