@@ -54,7 +54,7 @@ def get_method_names(config):
          
     return num_methods, method_names     
 
-
+@torch.no_grad()
 def eval(config):
     setup_seed(1)    
     # Set up 
@@ -148,7 +148,7 @@ def eval(config):
                     num_chains = 128
                     num_iters = 500
                     betas = torch.linspace(.2,1.,num_chains, dtype=torch.float32,device=device)
-                    samples_all[k][i] = samplers.parallel_tempering.parallel_tempering(distribution,
+                    samples_all[k][i], _ = samplers.parallel_tempering.parallel_tempering(distribution,
                                                                 in_cond,betas, num_iters, config.langevin_step_size, device)
                 elif method == 'ais':
                     
@@ -183,8 +183,8 @@ def eval(config):
                     alpha = AlphaGeometric(a=1.0, b=1.0)
                     
                     K = config.disc_steps
-                    num_chains = 1000
-                    n_mcmc_steps = 100
+                    num_chains = 5
+                    n_mcmc_steps = 1000
                     epsilon, epsilon_end, T = 0.35, 6.62e-03, 1.0
                     score_est = MCMCScoreEstimator(
                         step_size=1e-5,

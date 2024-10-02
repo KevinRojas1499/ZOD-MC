@@ -5,4 +5,5 @@ utils/__pycache__/
 *.pdf
 *.npy
 *.pt
+*.txt
 wandb/

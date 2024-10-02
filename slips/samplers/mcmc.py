@@ -345,7 +345,7 @@ class MCMCScoreEstimator:
         else:
             return ula_mcmc(x0, self.step_size, target_fn, self.n_mcmc_samples, return_intermediates=True)
 
-    def __call__(self, y, t, sigma, alpha):
+    def __call__(self, y, t, sigma, alpha,manual_n_steps=None):
         """Markov-Chain-Monte-Carlo estimator for the score of the noise distribution
 
             if self.use_gradient_observable is True, the gradient of the target distribution is used as an observable
@@ -379,7 +379,7 @@ class MCMCScoreEstimator:
                 self.default_step_size))) and (self.step_size == self.default_step_size):
             # Run for a long time
             x0 = self.sample(x0, self.step_size, lambda x: self.cond_score(x, y, t, sigma, alpha),
-                             manual_n_steps=50 * self.n_mcmc_samples)[-1].clone()
+                             manual_n_steps=50 * self.n_mcmc_samples if manual_n_steps is None else manual_n_steps)[-1].clone()
         # Sample with MCMC starting
         xs = self.sample(x0, self.step_size, lambda x: self.cond_score(x, y, t, sigma, alpha))
         xs = xs[-self.keep_mcmc_length:]

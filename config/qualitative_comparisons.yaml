@@ -4,7 +4,7 @@ score_method: p0t
 p0t_method: rejection
 
 methods_to_run: [ZOD-MC,RDMC,RSDMC]
-baselines: [langevin,proximal,parallel]
+baselines: [slips,ais, smc,langevin,proximal,parallel]
 
 # load_from_ckpt: True
 # samples_ckpt: plots/mueller/samples_lmm.pt

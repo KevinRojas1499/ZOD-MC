@@ -43,7 +43,7 @@ def get_sampler(config, device, sde):
         # torch.set_printoptions(precision=3,sci_mode=False)
         # print(time_pts)
         pbar = tqdm(range(len(time_pts) - 1),leave=False)
-        for i in pbar:
+        for i in range(len(time_pts) - 1):
             t = time_pts[i]
             dt = time_pts[i+1] - time_pts[i]
             score = model(x_t, T - t)

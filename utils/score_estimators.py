@@ -56,7 +56,8 @@ class ZODMC_ScoreEstimator(ScoreEstimator):
                                                                                     self.device)
             num_good_samples += torch.sum(acc_idx, dim=(1,2)).unsqueeze(-1).to(torch.double)/self.dim
             mean_estimate += torch.sum(samples_from_p0t * acc_idx,dim=1)
-        num_good_samples[num_good_samples == 0] += 1 
+        num_good_samples[num_good_samples == 0] += 1
+        print(f'{tt.item() : .5f} {num_good_samples.mean() : .2f}') 
         mean_estimate /= num_good_samples
         score_estimate = (scaling * mean_estimate - x)/(1 - scaling**2)
         return score_estimate

@@ -4,14 +4,14 @@ tags: experiments
 
 # Method
 mode: sample
-score_method: recursive
+score_method: p0t
 p0t_method: rejection
 reuse_samples: no
 
 # Estimator Information
 # Rejection
 max_iters_optimization: 50
-num_estimator_batches: 5
+num_estimator_batches: 1
 num_estimator_samples: 10000
 # ULA
 num_sampler_iterations: 100
