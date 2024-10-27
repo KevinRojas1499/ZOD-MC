@@ -11,6 +11,7 @@ from sde_lib import VP
 from utils.gmm_score import get_gmm_density_at_t_no_config
 from slips.samplers.mcmc import MCMCScoreEstimator
 from slips.samplers.alphas import AlphaGeometric
+from utils.densities import MultivariateGaussian, MixtureDistribution
 
 def setup_seed(seed):
     torch.manual_seed(seed)
@@ -63,7 +64,7 @@ def eval(num_samples_pt, save_folder, density_params_path, load_from_ckpt):
         log_prob_y = dist.log_prob(y_).flatten()
         return log_prob_y, dist.grad_log_prob(y)
     alpha = AlphaGeometric(a=1.0, b=1.0)
-    sigma = torch.tensor(5.0)
+    sigma = torch.tensor(8.0)
     slips_score = MCMCScoreEstimator(
         step_size=1e-5,
         n_mcmc_samples=1000,
@@ -72,7 +73,7 @@ def eval(num_samples_pt, save_folder, density_params_path, load_from_ckpt):
         keep_mcmc_length=int(0.5 * 100),
         use_last_mcmc_iterate=True
     )
-    T_tensor = torch.tensor([T],device=device)
+    T_tensor = torch.tensor([T],device=device) + 1e-3
     slips_score_fn = lambda x,t : slips_score(x,t/T_tensor,sigma,alpha) # We divide by T to kep in the desired range
     def standard_gaussian_score(x,t):
         return -x
@@ -92,9 +93,16 @@ def eval(num_samples_pt, save_folder, density_params_path, load_from_ckpt):
             samples_t = dist_t.sample(num_samples_pt)
             true_score = dist_t.grad_log_prob(samples_t)
             for k, score in enumerate(score_fns):
+                if method_names[k] == 'SLIPS':
+                    mean_t = means * alpha.g(t/T_tensor) # Doing this at the end 
+                    var_t = variances * alpha.g(t/T_tensor)**2 + sigma**2 * torch.eye(means.shape[-1],device=variances.device)
+                    gaussians = [MultivariateGaussian(mean_t[i],var_t[i]) for i in range(len(c))]
+                    dist_slips = MixtureDistribution(c, gaussians)
+                    true_score = dist_slips.grad_log_prob(samples_t) 
                 mean, std = get_l2_error(true_score, score(samples_t,t))
                 errors[k,i] = mean
                 error_std[k,i] = std
+                print(method_names[k], mean)
     else:
         errors = torch.load(os.path.join(folder,'errors.pt'))#.cpu().numpy()
         error_std = torch.load(os.path.join(folder,'std.pt'))
@@ -114,7 +122,7 @@ def eval(num_samples_pt, save_folder, density_params_path, load_from_ckpt):
     fig, ax1 = plt.subplots(1,1, figsize=(6,6))
     ls=['--','-.',':']
     markers=['p','*','s','d','h']
-    ax1.set_ylim(-1,4)
+    ax1.set_ylim(-1,7)
     for i,method in enumerate(method_names):
         if method != 'Gaussian':
             ax1.fill_between(ts.cpu(),(errors[i] -  error_std[i]).cpu().numpy(), (errors[i] + error_std[i]).cpu().numpy(),alpha=.5)

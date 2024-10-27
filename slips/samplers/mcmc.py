@@ -379,7 +379,7 @@ class MCMCScoreEstimator:
                 self.default_step_size))) and (self.step_size == self.default_step_size):
             # Run for a long time
             x0 = self.sample(x0, self.step_size, lambda x: self.cond_score(x, y, t, sigma, alpha),
-                             manual_n_steps=50 * self.n_mcmc_samples if manual_n_steps is None else manual_n_steps)[-1].clone()
+                             manual_n_steps=self.n_mcmc_samples if manual_n_steps is None else manual_n_steps)[-1].clone()
         # Sample with MCMC starting
         xs = self.sample(x0, self.step_size, lambda x: self.cond_score(x, y, t, sigma, alpha))
         xs = xs[-self.keep_mcmc_length:]

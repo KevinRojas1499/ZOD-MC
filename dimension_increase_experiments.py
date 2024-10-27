@@ -13,6 +13,10 @@ from utils.metrics import compute_log_normalizing_constant
 from utils.score_estimators import get_score_function
 from sde_lib import get_sde
 
+from slips.samplers.sto_loc import sto_loc_algorithm, sample_y_init
+from slips.samplers.alphas import AlphaGeometric
+from slips.samplers.mcmc import MCMCScoreEstimator
+
 def setup_seed(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
@@ -88,6 +92,9 @@ def eval(config):
         for i, d in enumerate(dimensions):
             config.dimension = d
             distribution = get_gmm_dimension(d,num_modes,device)
+            def target_log_prob_and_grad(y):
+                return  distribution.log_prob(y).flatten(),\
+                    distribution.grad_log_prob(y) #torch.autograd.grad(log_prob_y.sum(), y_)[0].detach()
             # distribution = get_double_well(d)
             # Baseline
             true_samples = distribution.sample(tot_samples)
@@ -124,8 +131,32 @@ def eval(config):
                     config.num_sampler_iterations = 5
                     config.ula_step_size = 0.1
                     config.sampling_eps = 5e-2 #RDMC is more sensitive to the early stopping
+                elif method == 'SLIPS':
+                    alpha = AlphaGeometric(a=1.0, b=1.0)
                     
-                generated_samples = sample.sample(config,distribution)
+                    sigma = torch.tensor([5.],device=device)
+                    K = config.disc_steps
+                    num_chains = 1000 
+                    n_mcmc_steps = 100 
+                    epsilon, epsilon_end, T = 0.35, 6.62e-03, 1.0
+                    score_est = MCMCScoreEstimator(
+                        step_size=1e-5,
+                        n_mcmc_samples=n_mcmc_steps,
+                        log_prob_and_grad=target_log_prob_and_grad,
+                        n_mcmc_chains=num_chains,
+                        keep_mcmc_length=int(0.5 * n_mcmc_steps)
+                    )
+                    # Sample the initial point with Langevin-within-Langevin
+                    y_init = sample_y_init((tot_samples, d), sigma=sigma, epsilon=epsilon, alpha=alpha, device=device,
+                            n_langevin_steps=32, langevin_init=True, score_est=score_est, score_type='mc')
+                    # Run the SLIPS algorithm
+                    generated_samples = sto_loc_algorithm(alpha=alpha, y_init=y_init, K=K, T=T, sigma=sigma, score_est=score_est, score_type='mc',
+                        epsilon=epsilon, epsilon_end=epsilon_end, use_exponential_integrator=True, use_snr_discretization=True,
+                        verbose=True
+                    )
+                    
+                if method != 'SLIPS':
+                    generated_samples = sample.sample(config,distribution)
                 # stats[k][i] = get_diff_log_z(config,distribution, get_double_well_log_normalizing_constant(d),device)
                 stats[k][i] = compute_statistic(distribution, generated_samples)
                 w2_stats[k][i] = utils.metrics.get_w2(generated_samples,true_samples).detach().item()

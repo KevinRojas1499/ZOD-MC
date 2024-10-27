@@ -4,11 +4,11 @@ score_method: p0t
 p0t_method: rejection
 
 eval_mmd: True
-methods_to_run: [ZOD-MC,RDMC, RSDMC]
+methods_to_run: [ZOD-MC,RDMC, RSDMC,SLIPS]
 baselines: [slips,ais,smc,langevin,proximal,parallel]
 
 # Checkpoints
-load_from_ckpt: True 
+load_from_ckpt: False 
 samples_ckpt: plots/disc_gmm/samples_gmm.pt
 save_folder: plots/disc_gmm/
 # RDMC - This actually defines the gradient complexity for everyone else
