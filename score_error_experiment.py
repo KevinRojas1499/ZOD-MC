@@ -9,6 +9,8 @@ import click
 import utils.score_estimators as score_estimators
 from sde_lib import VP
 from utils.gmm_score import get_gmm_density_at_t_no_config
+from slips.samplers.mcmc import MCMCScoreEstimator
+from slips.samplers.alphas import AlphaGeometric
 
 def setup_seed(seed):
     torch.manual_seed(seed)
@@ -55,11 +57,28 @@ def eval(num_samples_pt, save_folder, density_params_path, load_from_ckpt):
     zodmc_score_fn = score_estimators.ZODMC_ScoreEstimator(dist,sde,device,10*dim,10000).score_estimator
     rdmc_score_normal_fn = score_estimators.RDMC_ScoreEstimator(dist,sde,device,1,1000,0.1,100,True).score_estimator
     rsdmc_score_fn = score_estimators.RSDMC_ScoreEstimator(dist,sde,device,1,10,0.1,5,3,True).score_estimator
+    
+    def target_log_prob_and_grad(y):
+        y_ = torch.autograd.Variable(y, requires_grad=True)
+        log_prob_y = dist.log_prob(y_).flatten()
+        return log_prob_y, dist.grad_log_prob(y)
+    alpha = AlphaGeometric(a=1.0, b=1.0)
+    sigma = torch.tensor(5.0)
+    slips_score = MCMCScoreEstimator(
+        step_size=1e-5,
+        n_mcmc_samples=1000,
+        log_prob_and_grad=target_log_prob_and_grad,
+        n_mcmc_chains=50, # SLIPS has a 2 built in due to MALA
+        keep_mcmc_length=int(0.5 * 100),
+        use_last_mcmc_iterate=True
+    )
+    T_tensor = torch.tensor([T],device=device)
+    slips_score_fn = lambda x,t : slips_score(x,t/T_tensor,sigma,alpha) # We divide by T to kep in the desired range
     def standard_gaussian_score(x,t):
         return -x
     
-    score_fns = [zodmc_score_fn, rdmc_score_normal_fn, rsdmc_score_fn]
-    method_names = ['ZOD-MC','RDMC','RSDMC']
+    score_fns = [zodmc_score_fn, rdmc_score_normal_fn, rsdmc_score_fn, slips_score_fn]
+    method_names = ['ZOD-MC','RDMC','RSDMC', 'SLIPS']
     num_ts = 20
     num_methods = len(method_names)
     ts = torch.linspace(delta, T, num_ts,device=device)
