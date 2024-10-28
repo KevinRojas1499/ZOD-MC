@@ -163,6 +163,8 @@ def eval(config):
                 print('Stats ', stats[k,i],w2_stats[k,i])
                 k+=1
     else:
+        print(folder)
+        print(os.path.join(folder,'log_z.pt'))
         stats = torch.load(os.path.join(folder,'log_z.pt'))#.cpu().numpy()
         w2_stats = torch.load(os.path.join(folder,'w2.pt'))#.cpu().numpy()
         method_names = np.load(os.path.join(folder,'method_names.npy'))
@@ -182,7 +184,7 @@ def eval(config):
     print(stats)
     for i,method in enumerate(method_names):
         method_label = method[0].upper() + method[1:]
-        if method[-2:] != 'MC':
+        if method[-2:] != 'MC' and method != 'SLIPS':
             continue
         print(method)
         ax1.plot(dimensions,np.abs(stats[i]-stats[0]),label=method_label,linestyle=ls[i%3],marker=markers[i%5],markersize=7)

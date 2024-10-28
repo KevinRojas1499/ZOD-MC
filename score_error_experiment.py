@@ -64,7 +64,7 @@ def eval(num_samples_pt, save_folder, density_params_path, load_from_ckpt):
         log_prob_y = dist.log_prob(y_).flatten()
         return log_prob_y, dist.grad_log_prob(y)
     alpha = AlphaGeometric(a=1.0, b=1.0)
-    sigma = torch.tensor(8.0)
+    sigma = torch.tensor(3.5)
     slips_score = MCMCScoreEstimator(
         step_size=1e-5,
         n_mcmc_samples=1000,

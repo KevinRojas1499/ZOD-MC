@@ -8,7 +8,7 @@ This is the official repo for the ZOD-MC.
 To install the required packages simply run:
 
 ```bash
-conda create --name zodmc
+conda create --name zodmc --python=3.12
 pip install pip --upgrade
 pip install -r requirements.txt
 ```
