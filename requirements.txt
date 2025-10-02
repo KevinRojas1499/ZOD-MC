@@ -10,4 +10,3 @@ Cython==3.0.8
 POT==0.9.3
 scipy==1.14
 pytorch-minimize
-torchquad

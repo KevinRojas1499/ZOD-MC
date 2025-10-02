@@ -7,7 +7,6 @@ import utils.densities
 import utils.metrics
 import sample
 import matplotlib.pyplot as plt
-import torchquad
 
 from utils.metrics import compute_log_normalizing_constant
 from utils.score_estimators import get_score_function
@@ -35,12 +34,6 @@ def get_gmm_dimension(D, num_modes,device):
 def get_double_well(D):
     return utils.densities.DoubleWell(D,4.)
  
-def get_double_well_log_normalizing_constant(D):
-    dw = utils.densities.DoubleWell(1,4.)
-    def unnormalized_dens(x):
-        return torch.exp(dw.log_prob(x))
-    return D * torchquad.Boole().integrate(unnormalized_dens, 1, N=2001, integration_domain=[[-15.,15.]]).log()
-
 def get_diff_log_z(config, dist, true, device):
     with torch.autograd.detect_anomaly(check_nan=True):
         sde = get_sde(config)
