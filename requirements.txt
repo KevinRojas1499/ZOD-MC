@@ -8,5 +8,5 @@ tqdm==4.66.1
 wandb==0.16.3
 Cython==3.0.8
 POT==0.9.3
-scipy==1.14
 pytorch-minimize
+scipy==1.13
